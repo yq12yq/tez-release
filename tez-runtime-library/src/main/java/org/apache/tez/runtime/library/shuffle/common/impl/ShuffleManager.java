@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.tez.runtime.library.broadcast.input;
+package org.apache.tez.runtime.library.shuffle.common.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,16 +43,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.DefaultCodec;
-import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.tez.common.TezJobConfig;
+import org.apache.tez.common.counters.TaskCounter;
+import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.MemoryUpdateCallback;
 import org.apache.tez.runtime.api.TezInputContext;
 import org.apache.tez.runtime.api.events.InputReadErrorEvent;
-import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.InputIdentifier;
 import org.apache.tez.runtime.library.common.TezRuntimeUtils;
@@ -60,10 +58,12 @@ import org.apache.tez.runtime.library.shuffle.common.FetchResult;
 import org.apache.tez.runtime.library.shuffle.common.FetchedInput;
 import org.apache.tez.runtime.library.shuffle.common.FetchedInputAllocator;
 import org.apache.tez.runtime.library.shuffle.common.Fetcher;
-import org.apache.tez.runtime.library.shuffle.common.Fetcher.FetcherBuilder;
 import org.apache.tez.runtime.library.shuffle.common.FetcherCallback;
 import org.apache.tez.runtime.library.shuffle.common.InputHost;
+import org.apache.tez.runtime.library.shuffle.common.ShuffleEventHandler;
 import org.apache.tez.runtime.library.shuffle.common.ShuffleUtils;
+import org.apache.tez.runtime.library.shuffle.common.FetchedInput.Type;
+import org.apache.tez.runtime.library.shuffle.common.Fetcher.FetcherBuilder;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -74,15 +74,15 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCallback {
+public class ShuffleManager implements FetcherCallback {
 
-  private static final Log LOG = LogFactory.getLog(BroadcastShuffleManager.class);
+  private static final Log LOG = LogFactory.getLog(ShuffleManager.class);
   
   private final TezInputContext inputContext;
   private final Configuration conf;
   private final int numInputs;
-  
-  private BroadcastShuffleInputEventHandler inputEventHandler;
+
+  private ShuffleEventHandler inputEventHandler;
   private FetchedInputAllocator inputManager;
   
   private ExecutorService fetcherRawExecutor;
@@ -90,7 +90,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
 
   private ExecutorService schedulerRawExecutor;
   private ListeningExecutorService schedulerExecutor;
-  private RunBroadcastShuffleCallable schedulerCallable = new RunBroadcastShuffleCallable();
+  private RunShuffleCallable schedulerCallable = new RunShuffleCallable();
   
   private BlockingQueue<FetchedInput> completedInputs;
   private AtomicBoolean inputReadyNotificationSent = new AtomicBoolean(false);
@@ -117,60 +117,58 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
   private int readTimeout;
   private CompressionCodec codec;
   
+  private int ifileBufferSize;
   private boolean ifileReadAhead;
   private int ifileReadAheadLength;
-  private int ifileBufferSize;
   
   private final FetchFutureCallback fetchFutureCallback = new FetchFutureCallback();
   
   private volatile Throwable shuffleError;
   
   private final AtomicBoolean isShutdown = new AtomicBoolean(false);
-  
-  private volatile long initialMemoryAvailable = -1l;
 
-  // TODO NEWTEZ Add counters.
+  private final TezCounter shuffledInputsCounter;
+  private final TezCounter failedShufflesCounter;
+  private final TezCounter bytesShuffledCounter;
+  private final TezCounter decompressedDataSizeCounter;
+  private final TezCounter bytesShuffledToDiskCounter;
+  private final TezCounter bytesShuffledToMemCounter;
   
-  public BroadcastShuffleManager(TezInputContext inputContext, Configuration conf, int numInputs) throws IOException {
+  // TODO More counters - FetchErrors, speed?
+  
+  public ShuffleManager(TezInputContext inputContext, Configuration conf, int numInputs) throws IOException {
     this.inputContext = inputContext;
     this.conf = conf;
     this.numInputs = numInputs;
-    long initalMemReq = getInitialMemoryReq();
-    this.inputContext.requestInitialMemory(initalMemReq, this);
+    
+    this.shuffledInputsCounter = inputContext.getCounters().findCounter(TaskCounter.NUM_SHUFFLED_INPUTS);
+    this.failedShufflesCounter = inputContext.getCounters().findCounter(TaskCounter.NUM_FAILED_SHUFFLE_INPUTS);
+    this.bytesShuffledCounter = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES);
+    this.decompressedDataSizeCounter = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_DECOMPRESSED);
+    this.bytesShuffledToDiskCounter = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_TO_DISK);
+    this.bytesShuffledToMemCounter = inputContext.getCounters().findCounter(TaskCounter.SHUFFLE_BYTES_TO_MEM);
+  }
+  
+  public void setIfileParameters(int bufferSize, boolean readAhead, int readAheadLength) {
+    this.ifileBufferSize = bufferSize;
+    this.ifileReadAhead = readAhead;
+    this.ifileReadAheadLength = readAheadLength;
+  }
+  
+  public void setCompressionCodec(CompressionCodec codec) {
+    this.codec = codec;
+  }
+  
+  public void setInputEventHandler(ShuffleEventHandler eventHandler) {
+    this.inputEventHandler = eventHandler;
+  }
+  
+  public void setFetchedInputAllocator(FetchedInputAllocator allocator) {
+    this.inputManager = allocator;
   }
 
+
   private void configureAndStart() throws IOException {
-    Preconditions.checkState(initialMemoryAvailable != -1,
-        "Initial memory available must be configured before starting");
-    if (ConfigUtils.isIntermediateInputCompressed(conf)) {
-      Class<? extends CompressionCodec> codecClass = ConfigUtils
-          .getIntermediateInputCompressorClass(conf, DefaultCodec.class);
-      codec = ReflectionUtils.newInstance(codecClass, conf);
-    } else {
-      codec = null;
-    }
-
-    this.ifileReadAhead = conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD,
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
-    if (this.ifileReadAhead) {
-      this.ifileReadAheadLength = conf.getInt(
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
-    } else {
-      this.ifileReadAheadLength = 0;
-    }
-    this.ifileBufferSize = conf.getInt("io.file.buffer.size",
-        TezJobConfig.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
-    
-    this.inputManager = new BroadcastInputManager(inputContext.getUniqueIdentifier(), conf,
-        inputContext.getTotalMemoryAvailableToTask());
-    ((BroadcastInputManager)this.inputManager).setInitialMemoryAvailable(initialMemoryAvailable);
-    ((BroadcastInputManager)this.inputManager).configureAndStart();
-    this.inputEventHandler = new BroadcastShuffleInputEventHandler(
-        inputContext, this, this.inputManager, codec, ifileReadAhead,
-        ifileReadAheadLength);
-
     completedInputSet = Collections.newSetFromMap(new ConcurrentHashMap<InputIdentifier, Boolean>(numInputs));
     completedInputs = new LinkedBlockingQueue<FetchedInput>(numInputs);
     knownSrcHosts = new ConcurrentHashMap<String, InputHost>();
@@ -216,22 +214,16 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
         TezJobConfig.TEZ_RUNTIME_SHUFFLE_READ_TIMEOUT,
         TezJobConfig.DEFAULT_TEZ_RUNTIME_SHUFFLE_READ_TIMEOUT);
     
-    
-    LOG.info("BroadcastShuffleManager -> numInputs: " + numInputs
-        + " compressionCodec: " + (codec == null ? "NoCompressionCodec" : codec.getClass()
-        .getName()) + ", numFetchers: " + numFetchers);
-  }
-  
-  private long getInitialMemoryReq() {
-    return BroadcastInputManager.getInitialMemoryReq(conf,
-        inputContext.getTotalMemoryAvailableToTask());
-  }
-  
-  public void setInitialMemoryAvailable(long available) {
-    this.initialMemoryAvailable = available;
+    LOG.info(this.getClass().getSimpleName() + " : numInputs=" + numInputs + ", compressionCodec="
+        + (codec == null ? "NoCompressionCodec" : codec.getClass().getName()) + ", numFetchers="
+        + numFetchers + ", ifileBufferSize=" + ifileBufferSize + ", ifileReadAheadEnabled="
+        + ifileReadAhead + ", ifileReadAheadLength=" + ifileReadAheadLength);
   }
 
   public void run() throws IOException {
+    Preconditions.checkState(inputManager != null, "InputManager must be configured");
+    Preconditions.checkState(inputEventHandler != null, "InputEventHandler must be configured");
+    
     configureAndStart();
     ListenableFuture<Void> runShuffleFuture = schedulerExecutor.submit(schedulerCallable);
     Futures.addCallback(runShuffleFuture, new SchedulerFutureCallback());
@@ -239,7 +231,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
     schedulerExecutor.shutdown();
   }
   
-  private class RunBroadcastShuffleCallable implements Callable<Void> {
+  private class RunShuffleCallable implements Callable<Void> {
 
     @Override
     public Void call() throws Exception {
@@ -275,7 +267,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
                 inputHost = pendingHosts.take();
               } catch (InterruptedException e) {
                 if (isShutdown.get()) {
-                  LOG.info("Interrupted and hasBeenShutdown, Breaking out of BroadcastScheduler Loop");
+                  LOG.info("Interrupted and hasBeenShutdown, Breaking out of ShuffleScheduler Loop");
                   break;
                 } else {
                   throw e;
@@ -289,7 +281,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
                 Fetcher fetcher = constructFetcherForHost(inputHost);
                 numRunningFetchers.incrementAndGet();
                 if (isShutdown.get()) {
-                  LOG.info("hasBeenShutdown, Breaking out of BroadcastScheduler Loop");
+                  LOG.info("hasBeenShutdown, Breaking out of ShuffleScheduler Loop");
                 }
                 ListenableFuture<FetchResult> future = fetcherExecutor
                     .submit(fetcher);
@@ -320,7 +312,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
   
   private Fetcher constructFetcherForHost(InputHost inputHost) {
     FetcherBuilder fetcherBuilder = new FetcherBuilder(
-        BroadcastShuffleManager.this, inputManager,
+        ShuffleManager.this, inputManager,
         inputContext.getApplicationId(), shuffleSecret, conf);
     fetcherBuilder.setConnectionParameters(connectionTimeout, readTimeout);
     if (codec != null) {
@@ -459,9 +451,9 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
   /////////////////// Methods from FetcherCallbackHandler
   
   @Override
-  public void fetchSucceeded(String host,
-      InputAttemptIdentifier srcAttemptIdentifier, FetchedInput fetchedInput, long fetchedBytes,
-      long copyDuration) throws IOException {
+  public void fetchSucceeded(String host, InputAttemptIdentifier srcAttemptIdentifier,
+      FetchedInput fetchedInput, long fetchedBytes, long decompressedLength, long copyDuration)
+      throws IOException {
     InputIdentifier inputIdentifier = srcAttemptIdentifier.getInputIdentifier();    
 
     LOG.info("Completed fetch for attempt: " + srcAttemptIdentifier + " to " + fetchedInput.getType());
@@ -480,6 +472,19 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
         if (!completedInputSet.contains(inputIdentifier)) {
           fetchedInput.commit();
           committed = true;
+          
+          // Processing counters for completed and commit fetches only. Need
+          // additional counters for excessive fetches - which primarily comes
+          // in after speculation or retries.
+          shuffledInputsCounter.increment(1);
+          bytesShuffledCounter.increment(fetchedBytes);
+          if (fetchedInput.getType() == Type.MEMORY) {
+            bytesShuffledToMemCounter.increment(fetchedBytes);
+          } else {
+            bytesShuffledToDiskCounter.increment(fetchedBytes);
+          }
+          decompressedDataSizeCounter.increment(decompressedLength);
+
           registerCompletedInput(fetchedInput);
         }
       }
@@ -506,6 +511,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
     LOG.info("Fetch failed for src: " + srcAttemptIdentifier
         + "InputIdentifier: " + srcAttemptIdentifier + ", connectFailed: "
         + connectFailed);
+    failedShufflesCounter.increment(1);
     if (srcAttemptIdentifier == null) {
       String message = "Received fetchFailure for an unknown src (null)";
       LOG.fatal(message);
@@ -543,6 +549,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
       completedInputSet.add(fetchedInput.getInputAttemptIdentifier().getInputIdentifier());
       completedInputs.add(fetchedInput);
       if (!inputReadyNotificationSent.getAndSet(true)) {
+        // TODO Should eventually be controlled by Inputs which are processing the data.
         inputContext.inputIsReady();
       }
       numCompletedInputs.incrementAndGet();
@@ -601,11 +608,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
   }
   /////////////////// End of methods for walking the available inputs
 
-  @SuppressWarnings("rawtypes")
-  public BroadcastKVReader createReader() throws IOException {
-    return new BroadcastKVReader(this, conf, codec, ifileReadAhead, ifileReadAheadLength, ifileBufferSize);
-  }
-  
+
   /**
    * Fake input that is added to the completed input list in case an input does not have any data.
    *
@@ -656,7 +659,7 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
         LOG.info("Already shutdown. Ignoring error: " + t);
       } else {
         LOG.error("Scheduler failed with error: ", t);
-        inputContext.fatalError(t, "Broadcast Scheduler Failed");
+        inputContext.fatalError(t, "Shuffle Scheduler Failed");
       }
     }
     
@@ -699,10 +702,5 @@ public class BroadcastShuffleManager implements FetcherCallback, MemoryUpdateCal
         doBookKeepingForFetcherComplete();
       }
     }
-  }
-
-  @Override
-  public void memoryAssigned(long assignedSize) {
-    this.initialMemoryAvailable = assignedSize;
   }
 }

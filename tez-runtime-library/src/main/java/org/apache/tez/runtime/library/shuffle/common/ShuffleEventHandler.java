@@ -19,15 +19,10 @@
 package org.apache.tez.runtime.library.shuffle.common;
 
 import java.io.IOException;
+import java.util.List;
 
-import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
+import org.apache.tez.runtime.api.Event;
 
-public interface FetcherCallback {
-
-  public void fetchSucceeded(String host, InputAttemptIdentifier srcAttemptIdentifier,
-      FetchedInput fetchedInput, long fetchedBytes, long decompressedLength, long copyDuration)
-      throws IOException;
-  
-  public void fetchFailed(String host, InputAttemptIdentifier srcAttemptIdentifier, boolean connectFailed);
-
+public interface ShuffleEventHandler {
+  public void handleEvents(List<Event> events) throws IOException;
 }
