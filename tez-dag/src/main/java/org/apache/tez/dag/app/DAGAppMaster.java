@@ -384,7 +384,7 @@ public class DAGAppMaster extends AbstractService {
     super.serviceInit(conf);
 
     AMLaunchedEvent launchedEvent = new AMLaunchedEvent(appAttemptID,
-        startTime, appSubmitTime);
+        startTime, appSubmitTime, appMasterUgi.getShortUserName());
     historyEventHandler.handle(
         new DAGHistoryEvent(launchedEvent));
 
@@ -1384,7 +1384,7 @@ public class DAGAppMaster extends AbstractService {
 
     this.appsStartTime = clock.getTime();
     AMStartedEvent startEvent = new AMStartedEvent(appAttemptID,
-        appsStartTime);
+        appsStartTime, appMasterUgi.getShortUserName());
     historyEventHandler.handle(
         new DAGHistoryEvent(startEvent));
 
@@ -1657,7 +1657,8 @@ public class DAGAppMaster extends AbstractService {
     // Job name is the same as the app name until we support multiple dags
     // for an app later
     DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(newDAG.getID(),
-        submitTime, dagPlan, this.appAttemptID);
+        submitTime, dagPlan, this.appAttemptID,
+        newDAG.getUserName());
     historyEventHandler.handle(new DAGHistoryEvent(newDAG.getID(), submittedEvent));
     startDAG(newDAG);
   }

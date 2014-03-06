@@ -21,6 +21,7 @@ package org.apache.tez.dag.history.events;
 import com.google.common.collect.Lists;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
 import org.apache.tez.common.ProtoConverters;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
@@ -36,8 +37,6 @@ import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData;
 import org.apache.tez.runtime.api.impl.EventType;
 import org.apache.tez.runtime.api.impl.TezEvent;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,11 +75,6 @@ public class VertexDataMovementEventsGeneratedEvent implements HistoryEvent {
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.VERTEX_DATA_MOVEMENT_EVENTS_GENERATED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    return null;
   }
 
   @Override
@@ -197,6 +191,12 @@ public class VertexDataMovementEventsGeneratedEvent implements HistoryEvent {
     VertexDataMovementEventsGeneratedProto proto =
         VertexDataMovementEventsGeneratedProto.parseDelimitedFrom(inputStream);
     fromProto(proto);
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    throw new UnsupportedOperationException("Invalid to generate TimelineEntity"
+        + " for a non-history event");
   }
 
   @Override

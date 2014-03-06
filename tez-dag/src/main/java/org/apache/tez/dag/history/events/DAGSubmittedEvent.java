@@ -18,7 +18,11 @@
 
 package org.apache.tez.dag.history.events;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.dag.api.records.DAGProtos;
 import org.apache.tez.dag.history.HistoryEvent;
@@ -30,91 +34,37 @@ import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.DAGSubmittedProto;
 import org.apache.tez.dag.utils.ProtoUtils;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-      public class DAGSubmittedEvent implements HistoryEvent, SummaryEvent {
+public class DAGSubmittedEvent implements HistoryEvent, SummaryEvent {
+
+  private static final Log LOG = LogFactory.getLog(DAGSubmittedEvent.class);
 
   private TezDAGID dagID;
   private long submitTime;
   private DAGProtos.DAGPlan dagPlan;
   private ApplicationAttemptId applicationAttemptId;
+  private String user;
 
   public DAGSubmittedEvent() {
   }
 
   public DAGSubmittedEvent(TezDAGID dagID, long submitTime,
-      DAGProtos.DAGPlan dagPlan, ApplicationAttemptId applicationAttemptId) {
+      DAGProtos.DAGPlan dagPlan, ApplicationAttemptId applicationAttemptId,
+      String user) {
     this.dagID = dagID;
     this.submitTime = submitTime;
     this.dagPlan = dagPlan;
     this.applicationAttemptId = applicationAttemptId;
+    this.user = user;
   }
 
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.DAG_SUBMITTED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put(ATSConstants.ENTITY,
-        dagID.toString());
-    jsonObject.put(ATSConstants.ENTITY_TYPE,
-        EntityTypes.TEZ_DAG_ID.name());
-
-    // Related Entities
-    JSONArray relatedEntities = new JSONArray();
-    JSONObject tezAppEntity = new JSONObject();
-    tezAppEntity.put(ATSConstants.ENTITY,
-        "tez_" + applicationAttemptId.toString());
-    tezAppEntity.put(ATSConstants.ENTITY_TYPE,
-        EntityTypes.TEZ_APPLICATION_ATTEMPT.name());
-    JSONObject appEntity = new JSONObject();
-    appEntity.put(ATSConstants.ENTITY,
-        applicationAttemptId.getApplicationId().toString());
-    appEntity.put(ATSConstants.ENTITY_TYPE,
-        ATSConstants.APPLICATION_ID);
-    JSONObject appAttemptEntity = new JSONObject();
-    appAttemptEntity.put(ATSConstants.ENTITY,
-        applicationAttemptId.toString());
-    appAttemptEntity.put(ATSConstants.ENTITY_TYPE,
-        ATSConstants.APPLICATION_ATTEMPT_ID);
-
-    relatedEntities.put(tezAppEntity);
-    relatedEntities.put(appEntity);
-    relatedEntities.put(appAttemptEntity);
-    jsonObject.put(ATSConstants.RELATED_ENTITIES, relatedEntities);
-
-    // filters
-    JSONObject primaryFilters = new JSONObject();
-    primaryFilters.put(ATSConstants.DAG_NAME,
-        dagPlan.getName());
-    jsonObject.put(ATSConstants.PRIMARY_FILTERS, primaryFilters);
-
-    // TODO decide whether this goes into different events,
-    // event info or other info.
-    JSONArray events = new JSONArray();
-    JSONObject submitEvent = new JSONObject();
-    submitEvent.put(ATSConstants.TIMESTAMP, submitTime);
-    submitEvent.put(ATSConstants.EVENT_TYPE,
-        HistoryEventType.DAG_SUBMITTED.name());
-    events.put(submitEvent);
-    jsonObject.put(ATSConstants.EVENTS, events);
-
-    // Other info such as dag plan
-    JSONObject otherInfo = new JSONObject();
-    otherInfo.put(ATSConstants.DAG_PLAN,
-        DAGUtils.generateSimpleJSONPlan(dagPlan));
-    jsonObject.put(ATSConstants.OTHER_INFO, otherInfo);
-
-    return jsonObject;
   }
 
   @Override
@@ -154,6 +104,36 @@ import java.io.OutputStream;
   public void fromProtoStream(InputStream inputStream) throws IOException {
     DAGSubmittedProto proto = DAGSubmittedProto.parseDelimitedFrom(inputStream);
     fromProto(proto);
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId(dagID.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_DAG_ID.name());
+
+    atsEntity.addRelatedEntity(EntityTypes.TEZ_APPLICATION_ATTEMPT.name(),
+        "tez_" + applicationAttemptId.toString());
+    atsEntity.addRelatedEntity(ATSConstants.APPLICATION_ID,
+        applicationAttemptId.getApplicationId().toString());
+    atsEntity.addRelatedEntity(ATSConstants.APPLICATION_ATTEMPT_ID,
+        applicationAttemptId.toString());
+    atsEntity.addRelatedEntity(ATSConstants.USER, user);
+
+    TimelineEvent submitEvt = new TimelineEvent();
+    submitEvt.setEventType(HistoryEventType.DAG_SUBMITTED.name());
+    submitEvt.setTimestamp(submitTime);
+    atsEntity.addEvent(submitEvt);
+
+    atsEntity.setStartTime(submitTime);
+
+    atsEntity.addPrimaryFilter(ATSConstants.USER, user);
+    atsEntity.addPrimaryFilter(ATSConstants.DAG_NAME, dagPlan.getName());
+
+    atsEntity.addOtherInfo(ATSConstants.DAG_PLAN,
+        DAGUtils.convertDAGPlanToATSMap(dagPlan));
+
+    return atsEntity;
   }
 
   @Override

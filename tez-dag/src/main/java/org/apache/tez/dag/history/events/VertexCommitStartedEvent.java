@@ -18,12 +18,11 @@
 
 package org.apache.tez.dag.history.events;
 
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.VertexCommitStartedProto;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,12 +42,6 @@ public class VertexCommitStartedEvent implements HistoryEvent {
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.VERTEX_COMMIT_STARTED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    // TODO
-    return null;
   }
 
   @Override
@@ -80,6 +73,12 @@ public class VertexCommitStartedEvent implements HistoryEvent {
   public void fromProtoStream(InputStream inputStream) throws IOException {
     VertexCommitStartedProto proto = VertexCommitStartedProto.parseDelimitedFrom(inputStream);
     fromProto(proto);
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    throw new UnsupportedOperationException("VertexCommitStartedEvent is not"
+        + " history event");
   }
 
   @Override

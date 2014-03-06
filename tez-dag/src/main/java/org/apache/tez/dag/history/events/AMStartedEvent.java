@@ -19,15 +19,14 @@
 package org.apache.tez.dag.history.events;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.ats.EntityTypes;
 import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.AMStartedProto;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,56 +36,21 @@ public class AMStartedEvent implements HistoryEvent {
 
   private ApplicationAttemptId applicationAttemptId;
   private long startTime;
+  private String user;
 
   public AMStartedEvent() {
   }
 
   public AMStartedEvent(ApplicationAttemptId appAttemptId,
-      long startTime) {
+      long startTime, String user) {
     this.applicationAttemptId = appAttemptId;
     this.startTime = startTime;
+    this.user = user;
   }
 
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.AM_STARTED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put(ATSConstants.ENTITY,
-        "tez_" + applicationAttemptId.toString());
-    jsonObject.put(ATSConstants.ENTITY_TYPE,
-        EntityTypes.TEZ_APPLICATION_ATTEMPT.name());
-
-    // Related Entities
-    JSONArray relatedEntities = new JSONArray();
-    JSONObject appEntity = new JSONObject();
-    appEntity.put(ATSConstants.ENTITY,
-        applicationAttemptId.getApplicationId().toString());
-    appEntity.put(ATSConstants.ENTITY_TYPE,
-        ATSConstants.APPLICATION_ID);
-    JSONObject appAttemptEntity = new JSONObject();
-    appAttemptEntity.put(ATSConstants.ENTITY,
-        applicationAttemptId.toString());
-    appAttemptEntity.put(ATSConstants.ENTITY_TYPE,
-        ATSConstants.APPLICATION_ATTEMPT_ID);
-    relatedEntities.put(appEntity);
-    relatedEntities.put(appAttemptEntity);
-    jsonObject.put(ATSConstants.RELATED_ENTITIES, relatedEntities);
-
-    // TODO decide whether this goes into different events,
-    // event info or other info.
-    JSONArray events = new JSONArray();
-    JSONObject startEvent = new JSONObject();
-    startEvent.put(ATSConstants.TIMESTAMP, startTime);
-    startEvent.put(ATSConstants.EVENT_TYPE,
-        HistoryEventType.AM_STARTED.name());
-    events.put(startEvent);
-    jsonObject.put(ATSConstants.EVENTS, events);
-
-    return jsonObject;
   }
 
   @Override
@@ -137,5 +101,21 @@ public class AMStartedEvent implements HistoryEvent {
     return startTime;
   }
 
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId("tez_"
+        + applicationAttemptId.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_APPLICATION_ATTEMPT.name());
+
+    atsEntity.addPrimaryFilter(ATSConstants.USER, user);
+
+    TimelineEvent startEvt = new TimelineEvent();
+    startEvt.setEventType(HistoryEventType.AM_STARTED.name());
+    startEvt.setTimestamp(startTime);
+    atsEntity.addEvent(startEvt);
+
+    return atsEntity;
+  }
 
 }

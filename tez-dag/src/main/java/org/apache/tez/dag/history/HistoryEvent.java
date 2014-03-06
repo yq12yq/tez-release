@@ -18,8 +18,7 @@
 
 package org.apache.tez.dag.history;
 
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,8 +28,6 @@ public interface HistoryEvent {
 
   HistoryEventType getEventType();
 
-  public JSONObject convertToATSJSON() throws JSONException;
-
   public boolean isRecoveryEvent();
 
   public boolean isHistoryEvent();
@@ -38,4 +35,6 @@ public interface HistoryEvent {
   public void toProtoStream(OutputStream outputStream) throws IOException;
 
   public void fromProtoStream(InputStream inputStream) throws IOException;
+
+  TimelineEntity convertToTimelineEntity();
 }

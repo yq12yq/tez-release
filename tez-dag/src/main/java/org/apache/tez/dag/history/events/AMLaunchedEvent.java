@@ -19,15 +19,14 @@
 package org.apache.tez.dag.history.events;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.ats.EntityTypes;
 import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.AMLaunchedProto;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,62 +37,22 @@ public class AMLaunchedEvent implements HistoryEvent {
   private ApplicationAttemptId applicationAttemptId;
   private long launchTime;
   private long appSubmitTime;
+  private String user;
 
   public AMLaunchedEvent() {
   }
 
   public AMLaunchedEvent(ApplicationAttemptId appAttemptId,
-      long launchTime, long appSubmitTime) {
+      long launchTime, long appSubmitTime, String user) {
     this.applicationAttemptId = appAttemptId;
     this.launchTime = launchTime;
     this.appSubmitTime = appSubmitTime;
+    this.user = user;
   }
 
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.AM_LAUNCHED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put(ATSConstants.ENTITY,
-        "tez_" + applicationAttemptId.toString());
-    jsonObject.put(ATSConstants.ENTITY_TYPE,
-        EntityTypes.TEZ_APPLICATION_ATTEMPT.name());
-
-    // Related Entities
-    JSONArray relatedEntities = new JSONArray();
-    JSONObject appEntity = new JSONObject();
-    appEntity.put(ATSConstants.ENTITY,
-        applicationAttemptId.getApplicationId().toString());
-    appEntity.put(ATSConstants.ENTITY_TYPE,
-        ATSConstants.APPLICATION_ID);
-    JSONObject appAttemptEntity = new JSONObject();
-    appAttemptEntity.put(ATSConstants.ENTITY,
-        applicationAttemptId.toString());
-    appAttemptEntity.put(ATSConstants.ENTITY_TYPE,
-        ATSConstants.APPLICATION_ATTEMPT_ID);
-    relatedEntities.put(appEntity);
-    relatedEntities.put(appAttemptEntity);
-    jsonObject.put(ATSConstants.RELATED_ENTITIES, relatedEntities);
-
-    // TODO decide whether this goes into different events,
-    // event info or other info.
-    JSONArray events = new JSONArray();
-    JSONObject initEvent = new JSONObject();
-    initEvent.put(ATSConstants.TIMESTAMP, launchTime);
-    initEvent.put(ATSConstants.EVENT_TYPE,
-        HistoryEventType.AM_LAUNCHED.name());
-    events.put(initEvent);
-    jsonObject.put(ATSConstants.EVENTS, events);
-
-    // Other info to tag with Tez AM
-    JSONObject otherInfo = new JSONObject();
-    otherInfo.put(ATSConstants.APP_SUBMIT_TIME, appSubmitTime);
-    jsonObject.put(ATSConstants.OTHER_INFO, otherInfo);
-
-    return jsonObject;
   }
 
   @Override
@@ -149,6 +108,33 @@ public class AMLaunchedEvent implements HistoryEvent {
 
   public long getAppSubmitTime() {
     return appSubmitTime;
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId("tez_"
+        + applicationAttemptId.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_APPLICATION_ATTEMPT.name());
+
+    atsEntity.addRelatedEntity(ATSConstants.APPLICATION_ID,
+        applicationAttemptId.getApplicationId().toString());
+    atsEntity.addRelatedEntity(ATSConstants.APPLICATION_ATTEMPT_ID,
+        applicationAttemptId.toString());
+    atsEntity.addRelatedEntity(ATSConstants.USER, user);
+
+    atsEntity.addPrimaryFilter(ATSConstants.USER, user);
+
+    atsEntity.setStartTime(launchTime);
+
+    TimelineEvent launchEvt = new TimelineEvent();
+    launchEvt.setEventType(HistoryEventType.AM_LAUNCHED.name());
+    launchEvt.setTimestamp(launchTime);
+    atsEntity.addEvent(launchEvt);
+
+    atsEntity.addOtherInfo(ATSConstants.APP_SUBMIT_TIME, appSubmitTime);
+
+    return atsEntity;
   }
 
 }

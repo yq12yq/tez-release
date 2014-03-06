@@ -22,8 +22,13 @@ import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.records.DAGProtos;
+import org.apache.tez.dag.api.records.DAGProtos.PlanGroupInputEdgeInfo;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class DAGUtils {
 
@@ -147,6 +152,190 @@ public class DAGUtils {
       jsonObject.accumulate(ATSConstants.COUNTER_GROUPS, jsonCGrp);
     }
     return jsonObject;
+  }
+
+  public static Map<String,Object> convertCountersToATSMap(TezCounters counters) {
+    Map<String,Object> object = new LinkedHashMap<String, Object>();
+    if (counters == null) {
+        return object;
+      }
+    ArrayList<Object> counterGroupsList = new ArrayList<Object>();
+    for (CounterGroup group : counters) {
+        Map<String,Object> counterGroupMap = new LinkedHashMap<String, Object>();
+        counterGroupMap.put(ATSConstants.COUNTER_GROUP_NAME, group.getName());
+        counterGroupMap.put(ATSConstants.COUNTER_GROUP_DISPLAY_NAME,
+                group.getDisplayName());
+        ArrayList<Object> counterList = new ArrayList<Object>();
+        for (TezCounter counter : group) {
+            Map<String,Object> counterMap = new LinkedHashMap<String, Object>();
+            counterMap.put(ATSConstants.COUNTER_NAME, counter.getName());
+            counterMap.put(ATSConstants.COUNTER_DISPLAY_NAME,
+                    counter.getDisplayName());
+            counterMap.put(ATSConstants.COUNTER_VALUE, counter.getValue());
+            counterList.add(counterMap);
+          }
+        putInto(counterGroupMap, ATSConstants.COUNTERS, counterList);
+        counterGroupsList.add(counterGroupMap);
+      }
+    putInto(object, ATSConstants.COUNTER_GROUPS, counterGroupsList);
+    return object;
+  }
+
+  public static Map<String,Object> convertDAGPlanToATSMap(
+      DAGProtos.DAGPlan dagPlan) {
+
+    final String VERSION_KEY = "version";
+    final int version = 1;
+    final String DAG_NAME_KEY = "dagName";
+    final String VERTICES_KEY = "vertices";
+    final String EDGES_KEY = "edges";
+    final String VERTEX_GROUPS_KEY = "vertexGroups";
+
+    final String VERTEX_NAME_KEY = "vertexName";
+    final String PROCESSOR_CLASS_KEY = "processorClass";
+    final String IN_EDGE_IDS_KEY = "inEdgeIds";
+    final String OUT_EDGE_IDS_KEY = "outEdgeIds";
+    final String ADDITIONAL_INPUTS_KEY = "additionalInputs";
+    final String ADDITIONAL_OUTPUTS_KEY = "additionalOutputs";
+    final String VERTEX_MANAGER_PLUGIN_CLASS_KEY =
+        "vertexManagerPluginClass";
+
+    final String EDGE_ID_KEY = "edgeId";
+    final String INPUT_VERTEX_NAME_KEY = "inputVertexName";
+    final String OUTPUT_VERTEX_NAME_KEY = "outputVertexName";
+    final String DATA_MOVEMENT_TYPE_KEY = "dataMovementType";
+    final String DATA_SOURCE_TYPE_KEY = "dataSourceType";
+    final String SCHEDULING_TYPE_KEY = "schedulingType";
+    final String EDGE_SOURCE_CLASS_KEY = "edgeSourceClass";
+    final String EDGE_DESTINATION_CLASS_KEY =
+        "edgeDestinationClass";
+
+    final String NAME_KEY = "name";
+    final String CLASS_KEY = "class";
+    final String INITIALIZER_KEY = "initializer";
+
+    final String VERTEX_GROUP_NAME_KEY = "groupName";
+    final String VERTEX_GROUP_MEMBERS_KEY = "groupMembers";
+    final String VERTEX_GROUP_OUTPUTS_KEY = "outputs";
+    final String VERTEX_GROUP_EDGE_MERGED_INPUTS_KEY = "edgeMergedInputs";
+    final String VERTEX_GROUP_DESTINATION_VERTEX_NAME_KEY = "destinationVertexName";
+
+    Map<String,Object> dagMap = new LinkedHashMap<String, Object>();
+    dagMap.put(DAG_NAME_KEY, dagPlan.getName());
+    dagMap.put(VERSION_KEY, version);
+    ArrayList<Object> verticesList = new ArrayList<Object>();
+    for (DAGProtos.VertexPlan vertexPlan : dagPlan.getVertexList()) {
+      Map<String,Object> vertexMap = new LinkedHashMap<String, Object>();
+      vertexMap.put(VERTEX_NAME_KEY, vertexPlan.getName());
+
+      if (vertexPlan.hasProcessorDescriptor()) {
+        vertexMap.put(PROCESSOR_CLASS_KEY,
+            vertexPlan.getProcessorDescriptor().getClassName());
+      }
+
+      ArrayList<Object> inEdgeIdList = new ArrayList<Object>();
+      inEdgeIdList.addAll(vertexPlan.getInEdgeIdList());
+      putInto(vertexMap, IN_EDGE_IDS_KEY, inEdgeIdList);
+
+      ArrayList<Object> outEdgeIdList = new ArrayList<Object>();
+      outEdgeIdList.addAll(vertexPlan.getOutEdgeIdList());
+      putInto(vertexMap, OUT_EDGE_IDS_KEY, outEdgeIdList);
+
+      ArrayList<Object> inputsList = new ArrayList<Object>();
+      for (DAGProtos.RootInputLeafOutputProto input :
+          vertexPlan.getInputsList()) {
+        Map<String,Object> inputMap = new LinkedHashMap<String, Object>();
+        inputMap.put(NAME_KEY, input.getName());
+        inputMap.put(CLASS_KEY, input.getEntityDescriptor().getClassName());
+        if (input.hasInitializerClassName()) {
+          inputMap.put(INITIALIZER_KEY, input.getInitializerClassName());
+        }
+        inputsList.add(inputMap);
+      }
+      putInto(vertexMap, ADDITIONAL_INPUTS_KEY, inputsList);
+
+      ArrayList<Object> outputsList = new ArrayList<Object>();
+      for (DAGProtos.RootInputLeafOutputProto output :
+          vertexPlan.getOutputsList()) {
+        Map<String,Object> outputMap = new LinkedHashMap<String, Object>();
+        outputMap.put(NAME_KEY, output.getName());
+        outputMap.put(CLASS_KEY, output.getEntityDescriptor().getClassName());
+        if (output.hasInitializerClassName()) {
+          outputMap.put(INITIALIZER_KEY, output.getInitializerClassName());
+        }
+        outputsList.add(outputMap);
+      }
+      putInto(vertexMap, ADDITIONAL_OUTPUTS_KEY, outputsList);
+
+      if (vertexPlan.hasVertexManagerPlugin()) {
+        vertexMap.put(VERTEX_MANAGER_PLUGIN_CLASS_KEY,
+            vertexPlan.getVertexManagerPlugin().getClassName());
+      }
+
+      verticesList.add(vertexMap);
+    }
+    putInto(dagMap, VERTICES_KEY, verticesList);
+
+    ArrayList<Object> edgesList = new ArrayList<Object>();
+    for (DAGProtos.EdgePlan edgePlan : dagPlan.getEdgeList()) {
+      Map<String,Object> edgeMap = new LinkedHashMap<String, Object>();
+      edgeMap.put(EDGE_ID_KEY, edgePlan.getId());
+      edgeMap.put(INPUT_VERTEX_NAME_KEY, edgePlan.getInputVertexName());
+      edgeMap.put(OUTPUT_VERTEX_NAME_KEY, edgePlan.getOutputVertexName());
+      edgeMap.put(DATA_MOVEMENT_TYPE_KEY,
+          edgePlan.getDataMovementType().name());
+      edgeMap.put(DATA_SOURCE_TYPE_KEY, edgePlan.getDataSourceType().name());
+      edgeMap.put(SCHEDULING_TYPE_KEY, edgePlan.getSchedulingType().name());
+      edgeMap.put(EDGE_SOURCE_CLASS_KEY,
+          edgePlan.getEdgeSource().getClassName());
+      edgeMap.put(EDGE_DESTINATION_CLASS_KEY,
+          edgePlan.getEdgeDestination().getClassName());
+
+      edgesList.add(edgeMap);
+    }
+    putInto(dagMap, EDGES_KEY, edgesList);
+
+    ArrayList<Object> vertexGroupsList = new ArrayList<Object>();
+    for (DAGProtos.PlanVertexGroupInfo vertexGroupInfo :
+        dagPlan.getVertexGroupsList()) {
+      Map<String,Object> groupMap = new LinkedHashMap<String, Object>();
+      groupMap.put(VERTEX_GROUP_NAME_KEY, vertexGroupInfo.getGroupName());
+      if (vertexGroupInfo.getGroupMembersCount() > 0 ) {
+        groupMap.put(VERTEX_GROUP_MEMBERS_KEY, vertexGroupInfo.getGroupMembersList());
+      }
+      if (vertexGroupInfo.getOutputsCount() > 0) {
+        groupMap.put(VERTEX_GROUP_OUTPUTS_KEY, vertexGroupInfo.getOutputsList());
+      }
+
+      if (vertexGroupInfo.getEdgeMergedInputsCount() > 0) {
+        ArrayList<Object> edgeMergedInputs = new ArrayList<Object>();
+        for (PlanGroupInputEdgeInfo edgeMergedInputInfo :
+            vertexGroupInfo.getEdgeMergedInputsList()) {
+          Map<String,Object> edgeMergedInput = new LinkedHashMap<String, Object>();
+          edgeMergedInput.put(VERTEX_GROUP_DESTINATION_VERTEX_NAME_KEY,
+              edgeMergedInputInfo.getDestVertexName());
+          if (edgeMergedInputInfo.hasMergedInput()
+            && edgeMergedInputInfo.getMergedInput().hasClassName()) {
+            edgeMergedInput.put(PROCESSOR_CLASS_KEY,
+                edgeMergedInputInfo.getMergedInput().getClassName());
+          }
+          edgeMergedInputs.add(edgeMergedInput);
+        }
+        groupMap.put(VERTEX_GROUP_EDGE_MERGED_INPUTS_KEY, edgeMergedInputs);
+      }
+      vertexGroupsList.add(groupMap);
+    }
+    putInto(dagMap, VERTEX_GROUPS_KEY, vertexGroupsList);
+
+    return dagMap;
+  }
+
+  private static void putInto(Map<String, Object> map, String key,
+      ArrayList<Object> list) {
+    if (list.isEmpty()) {
+      return;
+    }
+    map.put(key, list);
   }
 
 }

@@ -18,40 +18,40 @@
 
 package org.apache.tez.dag.history.events;
 
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
+import org.apache.tez.dag.history.ats.EntityTypes;
+import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-// TODO fix class
 public class DAGInitializedEvent implements HistoryEvent {
 
   private TezDAGID dagID;
   private long initTime;
+  private String user;
+  private String dagName;
 
   public DAGInitializedEvent() {
   }
 
-  public DAGInitializedEvent(TezDAGID dagID, long initTime) {
+  public DAGInitializedEvent(TezDAGID dagID, long initTime,
+      String user, String dagName) {
     this.dagID = dagID;
     this.initTime = initTime;
+    this.user = user;
+    this.dagName = dagName;
   }
 
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.DAG_INITIALIZED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    // TODO
-    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -101,4 +101,24 @@ public class DAGInitializedEvent implements HistoryEvent {
   public TezDAGID getDagID() {
     return dagID;
   }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId(dagID.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_DAG_ID.name());
+
+    TimelineEvent finishEvt = new TimelineEvent();
+    finishEvt.setEventType(HistoryEventType.DAG_INITIALIZED.name());
+    finishEvt.setTimestamp(initTime);
+    atsEntity.addEvent(finishEvt);
+
+    atsEntity.addPrimaryFilter(ATSConstants.USER, user);
+    atsEntity.addPrimaryFilter(ATSConstants.DAG_NAME, dagName);
+
+    atsEntity.addOtherInfo(ATSConstants.INIT_TIME, initTime);
+
+    return atsEntity;
+  }
+
 }

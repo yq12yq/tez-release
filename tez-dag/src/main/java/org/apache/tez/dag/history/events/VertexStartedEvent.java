@@ -18,15 +18,14 @@
 
 package org.apache.tez.dag.history.events;
 
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.ats.EntityTypes;
 import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.VertexStartedProto;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -51,39 +50,6 @@ public class VertexStartedEvent implements HistoryEvent {
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.VERTEX_STARTED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put(ATSConstants.ENTITY, vertexID.toString());
-    jsonObject.put(ATSConstants.ENTITY_TYPE, EntityTypes.TEZ_VERTEX_ID.name());
-
-    // Related entities
-    JSONArray relatedEntities = new JSONArray();
-    JSONObject vertexEntity = new JSONObject();
-    vertexEntity.put(ATSConstants.ENTITY, vertexID.getDAGId().toString());
-    vertexEntity.put(ATSConstants.ENTITY_TYPE, EntityTypes.TEZ_DAG_ID.name());
-    relatedEntities.put(vertexEntity);
-    jsonObject.put(ATSConstants.RELATED_ENTITIES, relatedEntities);
-
-    // Events
-    JSONArray events = new JSONArray();
-    JSONObject startEvent = new JSONObject();
-    startEvent.put(ATSConstants.TIMESTAMP, startTime);
-    startEvent.put(ATSConstants.EVENT_TYPE,
-        HistoryEventType.VERTEX_STARTED.name());
-    events.put(startEvent);
-    jsonObject.put(ATSConstants.EVENTS, events);
-
-    // Other info
-    // TODO fix requested times to be events
-    JSONObject otherInfo = new JSONObject();
-    otherInfo.put(ATSConstants.START_REQUESTED_TIME, startRequestedTime);
-    otherInfo.put(ATSConstants.START_TIME, startTime);
-    jsonObject.put(ATSConstants.OTHER_INFO, otherInfo);
-
-    return jsonObject;
   }
 
   @Override
@@ -119,6 +85,26 @@ public class VertexStartedEvent implements HistoryEvent {
   public void fromProtoStream(InputStream inputStream) throws IOException {
     VertexStartedProto proto = VertexStartedProto.parseDelimitedFrom(inputStream);
     fromProto(proto);
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId(vertexID.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_VERTEX_ID.name());
+
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_DAG_ID.name(),
+        vertexID.getDAGId().toString());
+
+    TimelineEvent startEvt = new TimelineEvent();
+    startEvt.setEventType(HistoryEventType.VERTEX_STARTED.name());
+    startEvt.setTimestamp(startTime);
+    atsEntity.addEvent(startEvt);
+
+    atsEntity.addOtherInfo(ATSConstants.START_REQUESTED_TIME, startRequestedTime);
+    atsEntity.addOtherInfo(ATSConstants.START_TIME, startTime);
+
+    return atsEntity;
   }
 
   @Override

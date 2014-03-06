@@ -22,12 +22,16 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.client.api.TimelineClient;
+import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
+import org.apache.tez.dag.history.events.DAGSubmittedEvent;
+import org.apache.tez.dag.records.TezDAGID;
 
+import java.util.HashSet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class ATSService extends AbstractService {
 
@@ -36,14 +40,13 @@ public class ATSService extends AbstractService {
   private LinkedBlockingQueue<DAGHistoryEvent> eventQueue =
       new LinkedBlockingQueue<DAGHistoryEvent>();
 
-  private final AtomicInteger historyCounter =
-      new AtomicInteger(0);
-  private String outputFilePrefix;
   private Thread eventHandlingThread;
   private AtomicBoolean stopped = new AtomicBoolean(false);
   private int eventCounter = 0;
   private int eventsProcessed = 0;
   private final Object lock = new Object();
+  private TimelineClient timelineClient;
+  private HashSet<TezDAGID> skippedDAGs = new HashSet<TezDAGID>();
 
   public ATSService() {
     super(ATSService.class.getName());
@@ -52,12 +55,14 @@ public class ATSService extends AbstractService {
   @Override
   public void serviceInit(Configuration conf) throws Exception {
     LOG.info("Initializing ATSService");
-
+    timelineClient = TimelineClient.createTimelineClient();
+    timelineClient.init(conf);
   }
 
   @Override
   public void serviceStart() {
     LOG.info("Starting ATSService");
+    timelineClient.start();
     eventHandlingThread = new Thread(new Runnable() {
       @Override
       public void run() {
@@ -104,6 +109,11 @@ public class ATSService extends AbstractService {
     if (eventHandlingThread != null) {
       eventHandlingThread.interrupt();
     }
+    if (!eventQueue.isEmpty()) {
+      LOG.warn("Did not finish flushing eventQueue before stopping ATSService"
+          + ", eventQueueBacklog=" + eventQueue.size());
+    }
+    timelineClient.stop();
   }
 
   public void handle(DAGHistoryEvent event) {
@@ -112,12 +122,41 @@ public class ATSService extends AbstractService {
 
   private void handleEvent(DAGHistoryEvent event) {
     HistoryEventType eventType = event.getHistoryEvent().getEventType();
+
+    TezDAGID dagId = event.getDagID();
+
+    if (eventType.equals(HistoryEventType.DAG_SUBMITTED)) {
+      DAGSubmittedEvent dagSubmittedEvent =
+          (DAGSubmittedEvent) event.getHistoryEvent();
+      String dagName = dagSubmittedEvent.getDAGName();
+      if (dagName != null
+          && dagName.startsWith(
+          TezConfiguration.TEZ_PREWARM_DAG_NAME_PREFIX)) {
+        // Skip recording pre-warm DAG events
+        skippedDAGs.add(dagId);
+        return;
+      }
+    }
+    if (eventType.equals(HistoryEventType.DAG_FINISHED)) {
+      // Remove from set to keep size small
+      // No more events should be seen after this point.
+      if (skippedDAGs.remove(dagId)) {
+        return;
+      }
+    }
+
+    if (dagId != null && skippedDAGs.contains(dagId)) {
+      // Skip pre-warm DAGs
+      return;
+    }
+
     try {
-      // TODO integrate with ATS
+      timelineClient.putEntities(event.getHistoryEvent().convertToTimelineEntity());
+      // Do nothing additional, ATS client library should handle throttling
+      // or auto-disable as needed
     } catch (Exception e) {
       LOG.warn("Could not handle history event, eventType="
           + eventType, e);
-      // TODO handle error as a fatal event or ignore/skip?
     }
   }
 

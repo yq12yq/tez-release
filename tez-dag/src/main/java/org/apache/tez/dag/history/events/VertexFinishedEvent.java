@@ -18,6 +18,10 @@
 
 package org.apache.tez.dag.history.events;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.app.dag.VertexState;
@@ -28,15 +32,14 @@ import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.VertexFinishedProto;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 public class VertexFinishedEvent implements HistoryEvent {
+
+  private static final Log LOG = LogFactory.getLog(VertexFinishedEvent.class);
 
   private TezVertexID vertexID;
   private String vertexName;
@@ -71,33 +74,6 @@ public class VertexFinishedEvent implements HistoryEvent {
   @Override
   public HistoryEventType getEventType() {
     return HistoryEventType.VERTEX_FINISHED;
-  }
-
-  @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put(ATSConstants.ENTITY, vertexID.toString());
-    jsonObject.put(ATSConstants.ENTITY_TYPE, EntityTypes.TEZ_VERTEX_ID.name());
-
-    // Events
-    JSONArray events = new JSONArray();
-    JSONObject finishEvent = new JSONObject();
-    finishEvent.put(ATSConstants.TIMESTAMP, finishTime);
-    finishEvent.put(ATSConstants.EVENT_TYPE,
-        HistoryEventType.VERTEX_FINISHED.name());
-    events.put(finishEvent);
-    jsonObject.put(ATSConstants.EVENTS, events);
-
-    JSONObject otherInfo = new JSONObject();
-    otherInfo.put(ATSConstants.FINISH_TIME, finishTime);
-    otherInfo.put(ATSConstants.TIME_TAKEN, (finishTime - startTime));
-    otherInfo.put(ATSConstants.STATUS, state.name());
-    otherInfo.put(ATSConstants.DIAGNOSTICS, diagnostics);
-    otherInfo.put(ATSConstants.COUNTERS,
-        DAGUtils.convertCountersToJSON(this.tezCounters));
-    jsonObject.put(ATSConstants.OTHER_INFO, otherInfo);
-
-    return jsonObject;
   }
 
   @Override
@@ -148,6 +124,30 @@ public class VertexFinishedEvent implements HistoryEvent {
   public void fromProtoStream(InputStream inputStream) throws IOException {
     VertexFinishedProto proto = VertexFinishedProto.parseDelimitedFrom(inputStream);
     fromProto(proto);
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId(vertexID.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_VERTEX_ID.name());
+
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_DAG_ID.name(),
+        vertexID.getDAGId().toString());
+
+    TimelineEvent finishEvt = new TimelineEvent();
+    finishEvt.setEventType(HistoryEventType.VERTEX_FINISHED.name());
+    finishEvt.setTimestamp(finishTime);
+    atsEntity.addEvent(finishEvt);
+
+    atsEntity.addOtherInfo(ATSConstants.FINISH_TIME, finishTime);
+    atsEntity.addOtherInfo(ATSConstants.TIME_TAKEN, (finishTime - startTime));
+    atsEntity.addOtherInfo(ATSConstants.STATUS, state.name());
+
+    atsEntity.addOtherInfo(ATSConstants.COUNTERS,
+        DAGUtils.convertCountersToATSMap(tezCounters));
+
+    return atsEntity;
   }
 
   @Override

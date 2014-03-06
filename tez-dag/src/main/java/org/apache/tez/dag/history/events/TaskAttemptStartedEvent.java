@@ -20,6 +20,8 @@ package org.apache.tez.dag.history.events;
 
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
@@ -27,9 +29,6 @@ import org.apache.tez.dag.history.ats.EntityTypes;
 import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.TaskAttemptStartedProto;
-import org.codehaus.jettison.json.JSONArray;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,50 +66,6 @@ public class TaskAttemptStartedEvent implements HistoryEvent {
   }
 
   @Override
-  public JSONObject convertToATSJSON() throws JSONException {
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put(ATSConstants.ENTITY, taskAttemptId.toString());
-    jsonObject.put(ATSConstants.ENTITY_TYPE,
-        EntityTypes.TEZ_TASK_ATTEMPT_ID.name());
-
-    // Related entities
-    JSONArray relatedEntities = new JSONArray();
-    JSONObject nodeEntity = new JSONObject();
-    nodeEntity.put(ATSConstants.ENTITY, nodeId.toString());
-    nodeEntity.put(ATSConstants.ENTITY_TYPE, ATSConstants.NODE_ID);
-
-    JSONObject containerEntity = new JSONObject();
-    containerEntity.put(ATSConstants.ENTITY, containerId.toString());
-    containerEntity.put(ATSConstants.ENTITY_TYPE, ATSConstants.CONTAINER_ID);
-
-    JSONObject taskEntity = new JSONObject();
-    taskEntity.put(ATSConstants.ENTITY, taskAttemptId.getTaskID().toString());
-    taskEntity.put(ATSConstants.ENTITY_TYPE, EntityTypes.TEZ_TASK_ID.name());
-
-    relatedEntities.put(nodeEntity);
-    relatedEntities.put(containerEntity);
-    relatedEntities.put(taskEntity);
-    jsonObject.put(ATSConstants.RELATED_ENTITIES, relatedEntities);
-
-    // Events
-    JSONArray events = new JSONArray();
-    JSONObject startEvent = new JSONObject();
-    startEvent.put(ATSConstants.TIMESTAMP, startTime);
-    startEvent.put(ATSConstants.EVENT_TYPE,
-        HistoryEventType.TASK_ATTEMPT_STARTED.name());
-    events.put(startEvent);
-    jsonObject.put(ATSConstants.EVENTS, events);
-
-    // Other info
-    JSONObject otherInfo = new JSONObject();
-    otherInfo.put(ATSConstants.IN_PROGRESS_LOGS_URL, inProgressLogsUrl);
-    otherInfo.put(ATSConstants.COMPLETED_LOGS_URL, completedLogsUrl);
-    jsonObject.put(ATSConstants.OTHER_INFO, otherInfo);
-
-    return jsonObject;
-  }
-
-  @Override
   public boolean isRecoveryEvent() {
     return true;
   }
@@ -145,6 +100,31 @@ public class TaskAttemptStartedEvent implements HistoryEvent {
   public void fromProtoStream(InputStream inputStream) throws IOException {
     TaskAttemptStartedProto proto = TaskAttemptStartedProto.parseDelimitedFrom(inputStream);
     fromProto(proto);
+  }
+
+  @Override
+  public TimelineEntity convertToTimelineEntity() {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId(taskAttemptId.toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_TASK_ATTEMPT_ID.name());
+
+    atsEntity.setStartTime(startTime);
+
+    atsEntity.addRelatedEntity(ATSConstants.NODE_ID, nodeId.toString());
+    atsEntity.addRelatedEntity(ATSConstants.CONTAINER_ID, containerId.toString());
+    atsEntity.addRelatedEntity(EntityTypes.TEZ_TASK_ID.name(),
+        taskAttemptId.getTaskID().toString());
+
+    TimelineEvent startEvt = new TimelineEvent();
+    startEvt.setEventType(HistoryEventType.TASK_ATTEMPT_STARTED.name());
+    startEvt.setTimestamp(startTime);
+    atsEntity.addEvent(startEvt);
+
+    atsEntity.addOtherInfo(ATSConstants.START_TIME, startTime);
+    atsEntity.addOtherInfo(ATSConstants.IN_PROGRESS_LOGS_URL, inProgressLogsUrl);
+    atsEntity.addOtherInfo(ATSConstants.COMPLETED_LOGS_URL, completedLogsUrl);
+
+    return atsEntity;
   }
 
   @Override
