@@ -18,10 +18,13 @@
 
 package org.apache.tez.dag.history.ats;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.service.AbstractService;
+import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
+import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse.TimelinePutError;
 import org.apache.hadoop.yarn.client.api.TimelineClient;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.app.AppContext;
@@ -30,9 +33,7 @@ import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.events.DAGSubmittedEvent;
 import org.apache.tez.dag.records.TezDAGID;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -48,7 +49,10 @@ public class ATSService extends AbstractService {
   private int eventCounter = 0;
   private int eventsProcessed = 0;
   private final Object lock = new Object();
-  private TimelineClient timelineClient;
+
+  @VisibleForTesting
+  TimelineClient timelineClient;
+
   private HashSet<TezDAGID> skippedDAGs = new HashSet<TezDAGID>();
   private final AppContext appContext;
   private long maxTimeToWaitOnShutdown;
@@ -138,7 +142,6 @@ public class ATSService extends AbstractService {
               LOG.warn("Error handling event", e);
               break;
             }
-            endTime = appContext.getClock().getTime();
           }
         }
       }
@@ -185,7 +188,17 @@ public class ATSService extends AbstractService {
     }
 
     try {
-      timelineClient.putEntities(event.getHistoryEvent().convertToTimelineEntity());
+      TimelinePutResponse response =
+          timelineClient.putEntities(event.getHistoryEvent().convertToTimelineEntity());
+      if (response != null
+        && !response.getErrors().isEmpty()) {
+        TimelinePutError err = response.getErrors().get(0);
+        if (err.getErrorCode() != 0) {
+          LOG.warn("Could not post history event to ATS, eventType="
+              + eventType
+              + ", atsPutError=" + err.getErrorCode());
+        }
+      }
       // Do nothing additional, ATS client library should handle throttling
       // or auto-disable as needed
     } catch (Exception e) {
