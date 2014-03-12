@@ -125,6 +125,11 @@ public class TaskFinishedEvent implements HistoryEvent {
     atsEntity.setEntityId(taskID.toString());
     atsEntity.setEntityType(EntityTypes.TEZ_TASK_ID.name());
 
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_DAG_ID.name(),
+        taskID.getVertexID().getDAGId().toString());
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_VERTEX_ID.name(),
+        taskID.getVertexID().toString());
+
     TimelineEvent finishEvt = new TimelineEvent();
     finishEvt.setEventType(HistoryEventType.TASK_FINISHED.name());
     finishEvt.setTimestamp(finishTime);

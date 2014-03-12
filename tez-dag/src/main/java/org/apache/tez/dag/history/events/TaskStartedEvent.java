@@ -97,6 +97,10 @@ public class TaskStartedEvent implements HistoryEvent {
 
     atsEntity.addRelatedEntity(EntityTypes.TEZ_VERTEX_ID.name(),
         taskID.getVertexID().toString());
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_DAG_ID.name(),
+        taskID.getVertexID().getDAGId().toString());
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_VERTEX_ID.name(),
+        taskID.getVertexID().toString());
 
     TimelineEvent startEvt = new TimelineEvent();
     startEvt.setEventType(HistoryEventType.TASK_STARTED.name());

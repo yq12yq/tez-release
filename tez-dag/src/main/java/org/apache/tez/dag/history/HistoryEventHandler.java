@@ -54,7 +54,7 @@ public class HistoryEventHandler extends CompositeService {
     this.recoveryEnabled = context.getAMConf().getBoolean(TezConfiguration.DAG_RECOVERY_ENABLED,
         TezConfiguration.DAG_RECOVERY_ENABLED_DEFAULT);
     if (yarnATSEnabled) {
-      atsService = new ATSService();
+      atsService = new ATSService(context);
       addService(atsService);
     }
     if (recoveryEnabled) {

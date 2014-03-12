@@ -24,12 +24,15 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.client.api.TimelineClient;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.app.AppContext;
 import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.events.DAGSubmittedEvent;
 import org.apache.tez.dag.records.TezDAGID;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -47,9 +50,12 @@ public class ATSService extends AbstractService {
   private final Object lock = new Object();
   private TimelineClient timelineClient;
   private HashSet<TezDAGID> skippedDAGs = new HashSet<TezDAGID>();
+  private final AppContext appContext;
+  private long maxTimeToWaitOnShutdown;
 
-  public ATSService() {
+  public ATSService(AppContext appContext) {
     super(ATSService.class.getName());
+    this.appContext = appContext;
   }
 
   @Override
@@ -57,6 +63,9 @@ public class ATSService extends AbstractService {
     LOG.info("Initializing ATSService");
     timelineClient = TimelineClient.createTimelineClient();
     timelineClient.init(conf);
+    maxTimeToWaitOnShutdown = conf.getLong(
+        TezConfiguration.YARN_ATS_EVENT_FLUSH_TIMEOUT_MILLIS,
+        TezConfiguration.YARN_ATS_EVENT_FLUSH_TIMEOUT_MILLIS_DEFAULT);
   }
 
   @Override
@@ -104,10 +113,35 @@ public class ATSService extends AbstractService {
 
   @Override
   public void serviceStop() {
-    LOG.info("Stopping ATSService");
+    LOG.info("Stopping ATSService"
+        + ", eventQueueBacklog=" + eventQueue.size());
     stopped.set(true);
     if (eventHandlingThread != null) {
       eventHandlingThread.interrupt();
+    }
+    synchronized (lock) {
+      if (!eventQueue.isEmpty()) {
+        LOG.warn("ATSService being stopped"
+            + ", eventQueueBacklog=" + eventQueue.size()
+            + ", maxTimeLeftToFlush=" + maxTimeToWaitOnShutdown);
+        long startTime = appContext.getClock().getTime();
+        if (maxTimeToWaitOnShutdown > 0) {
+          long endTime = startTime + maxTimeToWaitOnShutdown;
+
+          while (endTime >= appContext.getClock().getTime()) {
+            DAGHistoryEvent event = eventQueue.poll();
+            if (event == null) {
+              break;
+            }
+            try {
+              handleEvent(event);
+            } catch (Exception e) {
+              LOG.warn("Error handling event", e);
+              break;
+            }
+          }
+        }
+      }
     }
     if (!eventQueue.isEmpty()) {
       LOG.warn("Did not finish flushing eventQueue before stopping ATSService"

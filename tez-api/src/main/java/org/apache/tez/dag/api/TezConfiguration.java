@@ -367,6 +367,11 @@ public class TezConfiguration extends Configuration {
       TEZ_PREFIX + "yarn.ats.enabled";
   public static final boolean YARN_ATS_ENABLED_DEFAULT = false;
 
+  public static final String YARN_ATS_EVENT_FLUSH_TIMEOUT_MILLIS =
+      TEZ_PREFIX + "yarn.ats.event.flush.timeout.millis";
+  public static final long YARN_ATS_EVENT_FLUSH_TIMEOUT_MILLIS_DEFAULT =
+      3000l;
+
   public static final String DAG_RECOVERY_ENABLED =
       TEZ_PREFIX + "dag.recovery.enabled";
   public static final boolean DAG_RECOVERY_ENABLED_DEFAULT = true;

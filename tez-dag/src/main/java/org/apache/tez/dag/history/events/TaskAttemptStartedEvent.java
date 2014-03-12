@@ -115,6 +115,13 @@ public class TaskAttemptStartedEvent implements HistoryEvent {
     atsEntity.addRelatedEntity(EntityTypes.TEZ_TASK_ID.name(),
         taskAttemptId.getTaskID().toString());
 
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_DAG_ID.name(),
+        taskAttemptId.getTaskID().getVertexID().getDAGId().toString());
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_VERTEX_ID.name(),
+        taskAttemptId.getTaskID().getVertexID().toString());
+    atsEntity.addPrimaryFilter(EntityTypes.TEZ_TASK_ID.name(),
+        taskAttemptId.getTaskID().toString());
+
     TimelineEvent startEvt = new TimelineEvent();
     startEvt.setEventType(HistoryEventType.TASK_ATTEMPT_STARTED.name());
     startEvt.setTimestamp(startTime);
