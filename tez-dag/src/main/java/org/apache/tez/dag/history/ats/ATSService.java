@@ -127,7 +127,6 @@ public class ATSService extends AbstractService {
         long startTime = appContext.getClock().getTime();
         if (maxTimeToWaitOnShutdown > 0) {
           long endTime = startTime + maxTimeToWaitOnShutdown;
-
           while (endTime >= appContext.getClock().getTime()) {
             DAGHistoryEvent event = eventQueue.poll();
             if (event == null) {
@@ -139,6 +138,7 @@ public class ATSService extends AbstractService {
               LOG.warn("Error handling event", e);
               break;
             }
+            endTime = appContext.getClock().getTime();
           }
         }
       }
