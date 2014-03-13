@@ -176,6 +176,7 @@
     <value>org.apache.hadoop.io.compress.SnappyCodec</value>
     <description>The coded to be used when reading intermediate compressed input.
       Only applicable if tez.runtime.intermediate-input.is-compressed is enabled.
+    </description>	  
   </property>
 
 </configuration>
