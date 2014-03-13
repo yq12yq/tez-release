@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,7 +52,6 @@ import org.apache.hadoop.yarn.util.Clock;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeManagerDescriptor;
-import org.apache.tez.dag.api.EdgeProperty;
 import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
@@ -536,6 +534,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
   // Recovery related flags
   boolean recoveryInitEventSeen = false;
   boolean recoveryStartEventSeen = false;
+  private VertexStats vertexStats = null;
 
   public VertexImpl(TezVertexID vertexId, VertexPlan vertexPlan,
       String vertexName, Configuration conf, EventHandler eventHandler,
@@ -719,6 +718,26 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
   }
 
+  public VertexStats getVertexStats() {
+
+    readLock.lock();
+    try {
+      VertexState state = getInternalState();
+      if (state == VertexState.ERROR || state == VertexState.FAILED
+          || state == VertexState.KILLED || state == VertexState.SUCCEEDED) {
+        this.mayBeConstructFinalFullCounters();
+        return this.vertexStats;
+      }
+
+      VertexStats stats = new VertexStats();
+      return updateVertexStats(stats, tasks.values());
+
+    } finally {
+      readLock.unlock();
+    }
+  }
+
+
   public static TezCounters incrTaskCounters(
       TezCounters counters, Collection<Task> tasks) {
     for (Task task : tasks) {
@@ -726,6 +745,15 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
     return counters;
   }
+
+  public static VertexStats updateVertexStats(
+      VertexStats stats, Collection<Task> tasks) {
+    for (Task task : tasks) {
+      stats.updateStats(task.getReport());
+    }
+    return stats;
+  }
+
 
   @Override
   public List<String> getDiagnostics() {
@@ -1238,7 +1266,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     VertexFinishedEvent finishEvt = new VertexFinishedEvent(vertexId,
         vertexName, initTimeRequested, initedTime, startTimeRequested,
         startedTime, finishTime, VertexState.SUCCEEDED, "",
-        getAllCounters());
+        getAllCounters(), getVertexStats());
     this.appContext.getHistoryHandler().handle(
         new DAGHistoryEvent(getDAGId(), finishEvt));
   }
@@ -1247,7 +1275,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     VertexFinishedEvent finishEvt = new VertexFinishedEvent(vertexId,
         vertexName, initTimeRequested, initedTime, startTimeRequested,
         startedTime, clock.getTime(), state, StringUtils.join(LINE_SEPARATOR,
-            getDiagnostics()), getAllCounters());
+            getDiagnostics()), getAllCounters(), getVertexStats());
     this.appContext.getHistoryHandler().handle(
         new DAGHistoryEvent(getDAGId(), finishEvt));
   }
@@ -2460,7 +2488,10 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
   @Private
   public void constructFinalFullcounters() {
     this.fullCounters = new TezCounters();
+    this.vertexStats = new VertexStats();
+
     for (Task t : this.tasks.values()) {
+      vertexStats.updateStats(t.getReport());
       TezCounters counters = t.getCounters();
       this.fullCounters.incrAllCounters(counters);
     }
