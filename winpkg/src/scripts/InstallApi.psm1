@@ -102,8 +102,11 @@ function Install(
         Write-Log "Setting the TEZ_HOME environment variable at machine scope to `"$tezInstallPath`""
         [Environment]::SetEnvironmentVariable("TEZ_HOME", $tezInstallPath, [EnvironmentVariableTarget]::Machine)
         $ENV:TEZ_HOME = "$tezInstallPath"
-		
-		Write-log "$env:HADOOP_NODE_INSTALL_ROOT"
+
+        Write-Log "Setting the TEZ_CLASSPATH environment variable at machine scope to `"$tezClassPath`""
+        $tezClassPath = $tezInstallPath + "\conf\;" + $tezInstallPath + "\*;" + $tezInstallPath + "\lib\*"
+        [Environment]::SetEnvironmentVariable("TEZ_CLASSPATH", $tezClassPath, [EnvironmentVariableTarget]::Machine)
+        $ENV:TEZ_CLASSPATH = "$tezClassPath"
 		
         Write-Log "Finished installing Apache tez"
     }
@@ -153,6 +156,9 @@ function Uninstall(
         ### Removing TEZ_HOME environment variable
         Write-Log "Removing the TEZ_HOME environment variable"
         [Environment]::SetEnvironmentVariable( "TEZ_HOME", $null, [EnvironmentVariableTarget]::Machine )
+
+        Write-Log "Removing the TEZ_CLASSPATH environment variable"
+        [Environment]::SetEnvironmentVariable( "TEZ_CLASSPATH", $null, [EnvironmentVariableTarget]::Machine )
 
         Write-Log "Successfully uninstalled tez"
         
