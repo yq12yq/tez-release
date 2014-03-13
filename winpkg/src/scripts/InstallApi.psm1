@@ -195,7 +195,10 @@ function Configure(
     
     if ( $component -eq "tez" )
     {
-        Write-Log "Configure: tez does not have any configurations"
+        Write-Log "Starting Tez configuration"
+        $xmlFile = "$ENV:TEZ_HOME\conf\tez-site.xml"
+		$config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/,hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/lib/"}
+        UpdateXmlConfig $xmlFile $config
     }
     else
     {
@@ -263,6 +266,56 @@ function StopService(
     }
 }
 
+### Helper routine that updates the given fileName XML file with the given
+### key/value configuration values. The XML file is expected to be in the
+### Hadoop format. For example:
+### <configuration>
+###   <property>
+###     <name.../><value.../>
+###   </property>
+### </configuration>
+function UpdateXmlConfig(
+    [string]
+    [parameter( Position=0, Mandatory=$true )]
+    $fileName, 
+    [hashtable]
+    [parameter( Position=1 )]
+    $config = @{} )
+{
+    $xml = New-Object System.Xml.XmlDocument
+    $xml.PreserveWhitespace = $true
+    $xml.Load($fileName)
+
+    foreach( $key in empty-null $config.Keys )
+    {
+        $value = $config[$key]
+        $found = $False
+        $xml.SelectNodes('/configuration/property') | ? { $_.name -eq $key } | % { $_.value = $value; $found = $True }
+        if ( -not $found )
+        {
+            $newItem = $xml.CreateElement("property")
+            $newItem.AppendChild($xml.CreateSignificantWhitespace("`r`n    ")) | Out-Null
+            $newItem.AppendChild($xml.CreateElement("name")) | Out-Null
+            $newItem.AppendChild($xml.CreateSignificantWhitespace("`r`n    ")) | Out-Null
+            $newItem.AppendChild($xml.CreateElement("value")) | Out-Null
+            $newItem.AppendChild($xml.CreateSignificantWhitespace("`r`n  ")) | Out-Null
+            $newItem.name = $key
+            $newItem.value = $value
+            $xml["configuration"].AppendChild($xml.CreateSignificantWhitespace("`r`n  ")) | Out-Null
+            $xml["configuration"].AppendChild($newItem) | Out-Null
+            $xml["configuration"].AppendChild($xml.CreateSignificantWhitespace("`r`n")) | Out-Null
+        }
+    }
+    $xml.Save($fileName)
+    $xml.ReleasePath
+}
+
+### Helper routine that converts a $null object to nothing. Otherwise, iterating over
+### a $null object with foreach results in a loop with one $null element.
+function empty-null($obj)
+{
+   if ($obj -ne $null) { $obj }
+}
 
 ###
 ### Public API

@@ -17,6 +17,7 @@ function Main( $scriptDir )
 {
     Write-Log "Installing Apache Tez @final.name@ to $tezInstallPath"
     Install "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
+    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
     Write-Log "Finished installing Apache Tez"
 }
 
