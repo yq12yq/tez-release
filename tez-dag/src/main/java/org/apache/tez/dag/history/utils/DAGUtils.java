@@ -23,10 +23,13 @@ import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.records.DAGProtos;
 import org.apache.tez.dag.api.records.DAGProtos.PlanGroupInputEdgeInfo;
+import org.apache.tez.dag.app.dag.impl.VertexStats;
+import org.apache.tez.dag.records.TezTaskID;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -336,6 +339,65 @@ public class DAGUtils {
       return;
     }
     map.put(key, list);
+  }
+
+  private static ArrayList<String> convertToStringArrayList(
+      Collection<TezTaskID> collection) {
+    ArrayList<String> list = new ArrayList<String>(collection.size());
+    for (TezTaskID t : collection) {
+      list.add(t.toString());
+    }
+    return list;
+  }
+
+  public static Map<String,Object> convertVertexStatsToATSMap(
+      VertexStats vertexStats) {
+    Map<String,Object> vertexStatsMap = new LinkedHashMap<String, Object>();
+    if (vertexStats == null) {
+      return vertexStatsMap;
+    }
+
+    final String FIRST_TASK_START_TIME_KEY = "firstTaskStartTime";
+    final String FIRST_TASKS_TO_START_KEY = "firstTasksToStart";
+    final String LAST_TASK_FINISH_TIME_KEY = "lastTaskFinishTime";
+    final String LAST_TASKS_TO_FINISH_KEY = "lastTasksToFinish";
+
+    final String MIN_TASK_DURATION = "minTaskDuration";
+    final String MAX_TASK_DURATION = "maxTaskDuration";
+    final String AVG_TASK_DURATION = "avgTaskDuration";
+
+    final String SHORTEST_DURATION_TASKS = "shortestDurationTasks";
+    final String LONGEST_DURATION_TASKS = "longestDurationTasks";
+
+    vertexStatsMap.put(FIRST_TASK_START_TIME_KEY, vertexStats.getFirstTaskStartTime());
+    if (vertexStats.getFirstTasksToStart() != null
+        && !vertexStats.getFirstTasksToStart().isEmpty()) {
+      vertexStatsMap.put(FIRST_TASKS_TO_START_KEY,
+          convertToStringArrayList(vertexStats.getFirstTasksToStart()));
+    }
+    vertexStatsMap.put(LAST_TASK_FINISH_TIME_KEY, vertexStats.getLastTaskFinishTime());
+    if (vertexStats.getLastTasksToFinish() != null
+        && !vertexStats.getLastTasksToFinish().isEmpty()) {
+      vertexStatsMap.put(LAST_TASKS_TO_FINISH_KEY,
+          convertToStringArrayList(vertexStats.getLastTasksToFinish()));
+    }
+
+    vertexStatsMap.put(MIN_TASK_DURATION, vertexStats.getMinTaskDuration());
+    vertexStatsMap.put(MAX_TASK_DURATION, vertexStats.getMaxTaskDuration());
+    vertexStatsMap.put(AVG_TASK_DURATION, vertexStats.getAvgTaskDuration());
+
+    if (vertexStats.getShortestDurationTasks() != null
+        && !vertexStats.getShortestDurationTasks().isEmpty()) {
+      vertexStatsMap.put(SHORTEST_DURATION_TASKS,
+          convertToStringArrayList(vertexStats.getShortestDurationTasks()));
+    }
+    if (vertexStats.getLongestDurationTasks() != null
+        && !vertexStats.getLongestDurationTasks().isEmpty()) {
+      vertexStatsMap.put(LONGEST_DURATION_TASKS,
+          convertToStringArrayList(vertexStats.getLongestDurationTasks()));
+    }
+
+    return vertexStatsMap;
   }
 
 }

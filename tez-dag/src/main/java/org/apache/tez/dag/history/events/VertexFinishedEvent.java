@@ -155,6 +155,8 @@ public class VertexFinishedEvent implements HistoryEvent, SummaryEvent {
 
     atsEntity.addOtherInfo(ATSConstants.COUNTERS,
         DAGUtils.convertCountersToATSMap(tezCounters));
+    atsEntity.addOtherInfo(ATSConstants.STATS,
+        DAGUtils.convertVertexStatsToATSMap(vertexStats));
 
     return atsEntity;
   }
