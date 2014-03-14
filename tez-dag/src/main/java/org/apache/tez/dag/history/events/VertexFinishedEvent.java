@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.app.dag.VertexState;
+import org.apache.tez.dag.app.dag.impl.VertexStats;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.SummaryEvent;
@@ -56,11 +57,13 @@ public class VertexFinishedEvent implements HistoryEvent, SummaryEvent {
   private String diagnostics;
   private TezCounters tezCounters;
   private boolean fromSummary = false;
+  private VertexStats vertexStats;
 
   public VertexFinishedEvent(TezVertexID vertexId,
-      String vertexName, long initRequestedTime, long initedTime, long startRequestedTime, long startedTime, long finishTime,
-      VertexState state, String diagnostics,
-      TezCounters counters) {
+      String vertexName, long initRequestedTime, long initedTime,
+      long startRequestedTime, long startedTime, long finishTime,
+      VertexState state, String diagnostics, TezCounters counters,
+      VertexStats vertexStats) {
     this.vertexName = vertexName;
     this.vertexID = vertexId;
     this.initRequestedTime = initRequestedTime;
@@ -70,7 +73,8 @@ public class VertexFinishedEvent implements HistoryEvent, SummaryEvent {
     this.finishTime = finishTime;
     this.state = state;
     this.diagnostics = diagnostics;
-    tezCounters = counters;
+    this.tezCounters = counters;
+    this.vertexStats = vertexStats;
   }
 
   public VertexFinishedEvent() {
@@ -169,7 +173,9 @@ public class VertexFinishedEvent implements HistoryEvent, SummaryEvent {
         + ", diagnostics=" + diagnostics
         + ", counters=" + ( tezCounters == null ? "null" :
           tezCounters.toString()
-            .replaceAll("\\n", ", ").replaceAll("\\s+", " "));
+            .replaceAll("\\n", ", ").replaceAll("\\s+", " "))
+        + ", vertexStats=" + (vertexStats == null ? "null"
+              : vertexStats.toString());
   }
 
   public TezVertexID getVertexID() {
