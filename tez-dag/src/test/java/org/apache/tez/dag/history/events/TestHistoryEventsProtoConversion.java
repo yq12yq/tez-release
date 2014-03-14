@@ -33,7 +33,6 @@ import org.apache.tez.dag.api.oldrecords.TaskState;
 import org.apache.tez.dag.api.records.DAGProtos.DAGPlan;
 import org.apache.tez.dag.app.dag.DAGState;
 import org.apache.tez.dag.app.dag.VertexState;
-import org.apache.tez.dag.app.dag.impl.VertexStats;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.records.TezDAGID;
@@ -294,7 +293,7 @@ public class TestHistoryEventsProtoConversion {
           new VertexFinishedEvent(TezVertexID.getInstance(
               TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 111),
               "vertex1", 1000l, 15000l, 16000l, 20000l, 1344400l, VertexState.ERROR,
-              null, null, null);
+              null, null);
       VertexFinishedEvent deserializedEvent = (VertexFinishedEvent)
           testProtoConversion(event);
       Assert.assertEquals(event.getVertexID(), deserializedEvent.getVertexID());
@@ -310,7 +309,7 @@ public class TestHistoryEventsProtoConversion {
           new VertexFinishedEvent(TezVertexID.getInstance(
               TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 111),
               "vertex1", 1000l, 15000l, 16000l, 20000l, 1344400l, VertexState.ERROR,
-              "diagnose", new TezCounters(), new VertexStats());
+              "diagnose", new TezCounters());
       VertexFinishedEvent deserializedEvent = (VertexFinishedEvent)
           testProtoConversion(event);
       Assert.assertEquals(event.getVertexID(), deserializedEvent.getVertexID());
