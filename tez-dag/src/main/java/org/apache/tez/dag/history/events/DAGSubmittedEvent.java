@@ -18,6 +18,10 @@
 
 package org.apache.tez.dag.history.events;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -33,11 +37,9 @@ import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.DAGSubmittedProto;
+import org.apache.tez.dag.recovery.records.RecoveryProtos.SummaryEventProto;
 import org.apache.tez.dag.utils.ProtoUtils;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
 public class DAGSubmittedEvent implements HistoryEvent, SummaryEvent {
 
@@ -148,6 +150,17 @@ public class DAGSubmittedEvent implements HistoryEvent, SummaryEvent {
         HistoryEventType.DAG_SUBMITTED).writeDelimitedTo(outputStream);
   }
 
+  @Override
+  public void fromSummaryProtoStream(SummaryEventProto proto) throws IOException {
+    throw new UnsupportedOperationException("Cannot re-initialize event from"
+        + " summary stream");
+  }
+
+  @Override
+  public boolean writeToRecoveryImmediately() {
+    return true;
+  }
+
   public String getDAGName() {
     if (dagPlan != null && dagPlan.hasName()) {
       return dagPlan.getName();
@@ -170,4 +183,5 @@ public class DAGSubmittedEvent implements HistoryEvent, SummaryEvent {
   public long getSubmitTime() {
     return submitTime;
   }
+
 }

@@ -18,15 +18,15 @@
 
 package org.apache.tez.dag.history;
 
-import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+
 public interface HistoryEvent {
 
-  HistoryEventType getEventType();
+  public HistoryEventType getEventType();
 
   public boolean isRecoveryEvent();
 

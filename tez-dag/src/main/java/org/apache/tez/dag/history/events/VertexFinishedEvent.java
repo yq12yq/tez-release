@@ -18,6 +18,10 @@
 
 package org.apache.tez.dag.history.events;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
@@ -27,17 +31,17 @@ import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.app.dag.VertexState;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
+import org.apache.tez.dag.history.SummaryEvent;
 import org.apache.tez.dag.history.ats.EntityTypes;
 import org.apache.tez.dag.history.utils.ATSConstants;
 import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.records.TezVertexID;
+import org.apache.tez.dag.recovery.records.RecoveryProtos;
+import org.apache.tez.dag.recovery.records.RecoveryProtos.SummaryEventProto;
+import org.apache.tez.dag.recovery.records.RecoveryProtos.VertexFinishStateProto;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.VertexFinishedProto;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-
-public class VertexFinishedEvent implements HistoryEvent {
+public class VertexFinishedEvent implements HistoryEvent, SummaryEvent {
 
   private static final Log LOG = LogFactory.getLog(VertexFinishedEvent.class);
 
@@ -51,6 +55,7 @@ public class VertexFinishedEvent implements HistoryEvent {
   private VertexState state;
   private String diagnostics;
   private TezCounters tezCounters;
+  private boolean fromSummary = false;
 
   public VertexFinishedEvent(TezVertexID vertexId,
       String vertexName, long initRequestedTime, long initedTime, long startRequestedTime, long startedTime, long finishTime,
@@ -185,5 +190,41 @@ public class VertexFinishedEvent implements HistoryEvent {
 
   public TezCounters getTezCounters() {
     return tezCounters;
+  }
+
+  @Override
+  public void toSummaryProtoStream(OutputStream outputStream) throws IOException {
+    VertexFinishStateProto finishStateProto =
+        VertexFinishStateProto.newBuilder()
+            .setState(state.ordinal())
+            .setVertexId(vertexID.toString())
+            .build();
+
+    SummaryEventProto.Builder builder = RecoveryProtos.SummaryEventProto.newBuilder()
+        .setDagId(vertexID.getDAGId().toString())
+        .setTimestamp(finishTime)
+        .setEventType(getEventType().ordinal())
+        .setEventPayload(finishStateProto.toByteString());
+    builder.build().writeDelimitedTo(outputStream);
+
+  }
+
+  @Override
+  public void fromSummaryProtoStream(SummaryEventProto proto) throws IOException {
+    VertexFinishStateProto finishStateProto =
+        VertexFinishStateProto.parseFrom(proto.getEventPayload());
+    this.vertexID = TezVertexID.fromString(finishStateProto.getVertexId());
+    this.state = VertexState.values()[finishStateProto.getState()];
+    this.finishTime = proto.getTimestamp();
+    this.fromSummary = true;
+  }
+
+  @Override
+  public boolean writeToRecoveryImmediately() {
+    return false;
+  }
+
+  public boolean isFromSummary() {
+    return fromSummary;
   }
 }
