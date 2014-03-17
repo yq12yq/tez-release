@@ -103,8 +103,8 @@ function Install(
         [Environment]::SetEnvironmentVariable("TEZ_HOME", $tezInstallPath, [EnvironmentVariableTarget]::Machine)
         $ENV:TEZ_HOME = "$tezInstallPath"
 
-        Write-Log "Setting the TEZ_CLASSPATH environment variable at machine scope to `"$tezClassPath`""
         $tezClassPath = $tezInstallPath + "\conf\;" + $tezInstallPath + "\*;" + $tezInstallPath + "\lib\*"
+        Write-Log "Setting the TEZ_CLASSPATH environment variable at machine scope to `"$tezClassPath`""
         [Environment]::SetEnvironmentVariable("TEZ_CLASSPATH", $tezClassPath, [EnvironmentVariableTarget]::Machine)
         $ENV:TEZ_CLASSPATH = "$tezClassPath"
 		
