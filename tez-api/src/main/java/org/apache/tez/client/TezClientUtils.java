@@ -401,7 +401,7 @@ public class TezClientUtils {
 
     if (amConfig.getEnv() != null) {
       for (Map.Entry<String, String> entry : amConfig.getEnv().entrySet()) {
-        Apps.addToEnvironment(environment, entry.getKey(), entry.getValue());
+        Apps.addToEnvironment(environment, entry.getKey(), entry.getValue(), File.pathSeparator);
       }
     }
 
@@ -569,18 +569,20 @@ public class TezClientUtils {
 
     Apps.addToEnvironment(environment,
         Environment.CLASSPATH.name(),
-        Environment.PWD.$());
+        Environment.PWD.$(),
+        File.pathSeparator);
 
     Apps.addToEnvironment(environment,
         Environment.CLASSPATH.name(),
-        Environment.PWD.$() + File.separator + "*");
+        Environment.PWD.$() + File.separator + "*",
+        File.pathSeparator);
 
     // Add YARN/COMMON/HDFS jars and conf locations to path
     for (String c : conf.getStrings(
         YarnConfiguration.YARN_APPLICATION_CLASSPATH,
         YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
       Apps.addToEnvironment(environment, Environment.CLASSPATH.name(),
-          c.trim());
+          c.trim(), File.pathSeparator);
     }
     return environment.get(Environment.CLASSPATH.name());
   }
