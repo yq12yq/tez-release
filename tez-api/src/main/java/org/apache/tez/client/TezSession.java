@@ -18,7 +18,6 @@
 
 package org.apache.tez.client;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
@@ -153,7 +152,7 @@ public class TezSession {
       Map<String, String> taskEnv = v.getTaskEnvironment();
       Apps.addToEnvironment(taskEnv,
           ApplicationConstants.Environment.CLASSPATH.name(),
-          classpath, File.pathSeparator);
+          classpath);
     }
     
     DAGPlan dagPlan = dag.createDag(sessionConfig.getTezConfiguration());
@@ -298,7 +297,7 @@ public class TezSession {
       Map<String, String> contextEnv = context.getEnvironment();
       Apps.addToEnvironment(contextEnv,
         ApplicationConstants.Environment.CLASSPATH.name(),
-        classpath, File.pathSeparator);
+        classpath);
 
       DAGClientAMProtocolRPC.PreWarmRequestProto.Builder
         preWarmReqProtoBuilder =

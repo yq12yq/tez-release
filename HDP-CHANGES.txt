@@ -1,1 +1,0 @@
-BUG-15032. Fix Tez compilation failure caused by YARN-1824. External fix pending. (sseth)

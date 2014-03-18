@@ -20,7 +20,6 @@ package org.apache.tez.mapreduce.hadoop;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.File;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -821,19 +820,18 @@ public class MRHelpers {
 
     // Add pwd to LD_LIBRARY_PATH, add this before adding anything else
     Apps.addToEnvironment(environment, Environment.LD_LIBRARY_PATH.name(),
-        Environment.PWD.$(), File.pathSeparator);
+        Environment.PWD.$());
 
     // Add the env variables passed by the admin
     Apps.setEnvFromInputString(environment, conf.get(
         MRJobConfig.MAPRED_ADMIN_USER_ENV,
-        MRJobConfig.DEFAULT_MAPRED_ADMIN_USER_ENV),
-        File.pathSeparator);
+        MRJobConfig.DEFAULT_MAPRED_ADMIN_USER_ENV));
 
     // Add the env variables passed by the user
     String mapredChildEnv = (isMap ?
         conf.get(MRJobConfig.MAP_ENV, "")
         : conf.get(MRJobConfig.REDUCE_ENV, ""));
-    Apps.setEnvFromInputString(environment, mapredChildEnv, File.pathSeparator);
+    Apps.setEnvFromInputString(environment, mapredChildEnv);
 
     // Set logging level in the environment.
     environment.put(
@@ -874,9 +872,9 @@ public class MRHelpers {
   public static void updateEnvironmentForMRAM(Configuration conf,
       Map<String, String> environment) {
     MRApps.setEnvFromInputString(environment,
-        conf.get(MRJobConfig.MR_AM_ADMIN_USER_ENV), File.pathSeparator);
+        conf.get(MRJobConfig.MR_AM_ADMIN_USER_ENV));
     MRApps.setEnvFromInputString(environment,
-        conf.get(MRJobConfig.MR_AM_ENV), File.pathSeparator);
+        conf.get(MRJobConfig.MR_AM_ENV));
   }
 
   /**
