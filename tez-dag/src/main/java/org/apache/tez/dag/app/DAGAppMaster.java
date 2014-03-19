@@ -1714,7 +1714,12 @@ public class DAGAppMaster extends AbstractService {
     DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(newDAG.getID(),
         submitTime, dagPlan, this.appAttemptID,
         newDAG.getUserName());
-    historyEventHandler.handle(new DAGHistoryEvent(newDAG.getID(), submittedEvent));
+    try {
+      historyEventHandler.handleCriticalEvent(
+          new DAGHistoryEvent(newDAG.getID(), submittedEvent));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     startDAG(newDAG);
   }
 
