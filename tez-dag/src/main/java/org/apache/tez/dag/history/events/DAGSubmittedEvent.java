@@ -134,6 +134,8 @@ public class DAGSubmittedEvent implements HistoryEvent, SummaryEvent {
 
     atsEntity.addOtherInfo(ATSConstants.DAG_PLAN,
         DAGUtils.convertDAGPlanToATSMap(dagPlan));
+    atsEntity.addOtherInfo(ATSConstants.APPLICATION_ID,
+        applicationAttemptId.getApplicationId().toString());
 
     return atsEntity;
   }
