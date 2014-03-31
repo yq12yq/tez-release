@@ -103,10 +103,13 @@ function Install(
         [Environment]::SetEnvironmentVariable("TEZ_HOME", $tezInstallPath, [EnvironmentVariableTarget]::Machine)
         $ENV:TEZ_HOME = "$tezInstallPath"
 
-        $tezClassPath = $tezInstallPath + "\conf\;" + $tezInstallPath + "\*;" + $tezInstallPath + "\lib\*"
-        Write-Log "Setting the TEZ_CLASSPATH environment variable at machine scope to `"$tezClassPath`""
-        [Environment]::SetEnvironmentVariable("TEZ_CLASSPATH", $tezClassPath, [EnvironmentVariableTarget]::Machine)
-        $ENV:TEZ_CLASSPATH = "$tezClassPath"
+	if ((Test-Path ENV:IS_TEZ) -and ($ENV:IS_TEZ -ieq "yes"))
+        {
+            $tezClassPath = $tezInstallPath + "\conf\;" + $tezInstallPath + "\*;" + $tezInstallPath + "\lib\*"
+            Write-Log "Setting the TEZ_CLASSPATH environment variable at machine scope to `"$tezClassPath`""
+            [Environment]::SetEnvironmentVariable("TEZ_CLASSPATH", $tezClassPath, [EnvironmentVariableTarget]::Machine)
+            $ENV:TEZ_CLASSPATH = "$tezClassPath"
+        }
 		
         Write-Log "Finished installing Apache tez"
     }
