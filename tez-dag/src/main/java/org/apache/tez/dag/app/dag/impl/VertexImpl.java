@@ -217,6 +217,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
 
   private VertexState recoveredState = VertexState.NEW;
   private List<TezEvent> recoveredEvents = new ArrayList<TezEvent>();
+  private boolean vertexAlreadyInitialized = false;
 
   protected static final
     StateMachineFactory<VertexImpl, VertexState, VertexEventType, VertexEvent>
@@ -258,6 +259,11 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                       VertexState.RECOVERING),
                   VertexEventType.V_SOURCE_VERTEX_RECOVERED,
                   new RecoverTransition())
+          .addTransition
+              (VertexState.INITED,
+                  EnumSet.of(VertexState.INITED, VertexState.ERROR),
+                  VertexEventType.V_INIT,
+                  new IgnoreInitInInitedTransition())
           .addTransition(VertexState.NEW, VertexState.NEW,
               VertexEventType.V_SOURCE_VERTEX_STARTED,
               new SourceVertexStartedTransition())
@@ -1810,7 +1816,8 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           try {
             vertex.initializeCommitters();
           } catch (Exception e) {
-            LOG.info("Failed to initialize committers", e);
+            LOG.info("Failed to initialize committers"
+                + ", vertex=" + vertex.logIdentifier, e);
             vertex.finished(VertexState.FAILED,
                 VertexTerminationCause.INIT_FAILURE);
             endState = VertexState.FAILED;
@@ -1876,7 +1883,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
               && vertex.hasCommitter
               && vertex.summaryCompleteSeen && !vertex.vertexCompleteSeen) {
             LOG.warn("Cannot recover vertex as all recovery events not"
-                + " found, vertex=" + vertex.logIdentifier
+                + " found, vertexId=" + vertex.logIdentifier
                 + ", hasCommitters=" + vertex.hasCommitter
                 + ", summaryCompletionSeen=" + vertex.summaryCompleteSeen
                 + ", finalCompletionSeen=" + vertex.vertexCompleteSeen);
@@ -1914,7 +1921,9 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           break;
         default:
           LOG.warn("Invalid recoveredState found when trying to recover"
-              + " vertex, recoveredState=" + vertex.recoveredState);
+              + " vertex"
+              + ", vertex=" + vertex.logIdentifier
+              + ", recoveredState=" + vertex.recoveredState);
           vertex.finished(VertexState.ERROR);
           endState = VertexState.ERROR;
           break;
@@ -1946,6 +1955,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
         if (!vertex.recoveredEvents.isEmpty()) {
           throw new RuntimeException("Invalid Vertex state"
               + ", found non-zero recovered events in invalid state"
+              + ", vertex=" + vertex.logIdentifier
               + ", recoveredState=" + endState
               + ", recoveredEvents=" + vertex.recoveredEvents.size());
         }
@@ -1985,6 +1995,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
       }
       if (LOG.isDebugEnabled()) {
         LOG.debug("Routing recovered event"
+            + ", vertex=" + logIdentifier
             + ", eventType=" + tezEvent.getEventType()
             + ", sourceInfo=" + sourceMeta
             + ", destinationVertex" + destVertex.getName());
@@ -2027,6 +2038,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           break;
         default:
           LOG.warn("Received invalid SourceVertexRecovered event"
+              + ", vertex=" + vertex.logIdentifier
               + ", sourceVertex=" + sourceRecoveredEvent.getSourceVertexID()
               + ", sourceVertexState=" + sourceRecoveredEvent.getSourceVertexState());
           return vertex.finished(VertexState.ERROR);
@@ -2036,6 +2048,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           vertex.getInputVerticesCount()) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Waiting for source vertices to recover"
+              + ", vertex=" + vertex.logIdentifier
               + ", numRecoveredSourceVertices=" + vertex.numRecoveredSourceVertices
               + ", totalSourceVertices=" + vertex.getInputVerticesCount());
         }
@@ -2068,10 +2081,12 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           endState = VertexState.NEW;
           break;
         case INITED:
+          vertex.vertexAlreadyInitialized = true;
           try {
             vertex.initializeCommitters();
           } catch (Exception e) {
-            LOG.info("Failed to initialize committers", e);
+            LOG.info("Failed to initialize committers, vertex="
+                + vertex.logIdentifier, e);
             vertex.finished(VertexState.FAILED,
                 VertexTerminationCause.INIT_FAILURE);
             endState = VertexState.FAILED;
@@ -2079,7 +2094,8 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           }
           if (!vertex.setParallelism(0,
               null, vertex.recoveredSourceEdgeManagers, true)) {
-            LOG.info("Failed to recover edge managers");
+            LOG.info("Failed to recover edge managers, vertex="
+                + vertex.logIdentifier);
             vertex.finished(VertexState.FAILED,
                 VertexTerminationCause.INIT_FAILURE);
             endState = VertexState.FAILED;
@@ -2092,9 +2108,16 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                   new TaskEventRecoverTask(task.getTaskId()));
             }
           }
-          if (vertex.numStartedSourceVertices == vertex.getInputVerticesCount()) {
-            vertex.eventHandler.handle(new VertexEvent(vertex.vertexId,
-              VertexEventType.V_START));
+          if (vertex.numInitedSourceVertices != vertex.getInputVerticesCount()) {
+            LOG.info("Vertex already initialized but source vertices have not"
+                + " initialized"
+                + ", vertexId=" + vertex.logIdentifier
+                + ", numInitedSourceVertices=" + vertex.numInitedSourceVertices);
+          } else {
+            if (vertex.numStartedSourceVertices == vertex.getInputVerticesCount()) {
+              vertex.eventHandler.handle(new VertexEvent(vertex.vertexId,
+                VertexEventType.V_START));
+            }
           }
           endState = VertexState.INITED;
           break;
@@ -2212,6 +2235,26 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
 
   }
 
+  public static class IgnoreInitInInitedTransition implements
+      MultipleArcTransition<VertexImpl, VertexEvent, VertexState> {
+
+    @Override
+    public VertexState transition(VertexImpl vertex, VertexEvent event) {
+      LOG.info("Received event during INITED state"
+          + ", vertex=" + vertex.logIdentifier
+          + ", eventType=" + event.getType());
+      if (!vertex.vertexAlreadyInitialized) {
+        LOG.error("Vertex not initialized but in INITED state"
+            + ", vertexId=" + vertex.logIdentifier);
+        return vertex.finished(VertexState.ERROR);
+      } else {
+        return VertexState.INITED;
+      }
+    }
+  }
+
+
+
   public static class InitTransition implements
       MultipleArcTransition<VertexImpl, VertexEvent, VertexState> {
 
@@ -2313,7 +2356,8 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
       EventHandler eventHandler, int numTasks, int numNodes, 
       Resource vertexTaskResource, Resource totalResource) {
     return new RootInputInitializerRunner(dagName, vertexName, vertexID,
-        eventHandler, dagUgi, vertexTaskResource, totalResource, numTasks, numNodes);
+        eventHandler, dagUgi, vertexTaskResource, totalResource, numTasks, numNodes,
+        appContext.getApplicationAttemptId().getAttemptId());
   }
   
   private VertexState initializeVertexInInitializingState() {
