@@ -69,7 +69,7 @@ public interface VertexManagerPluginContext {
    * DAG may divide its available resource among member vertices.
    * @return Resource
    */
-  Resource getTotalAvailableResource();
+  Resource getTotalAVailableResource();
   
   /**
    * Get the number of nodes in the cluster
