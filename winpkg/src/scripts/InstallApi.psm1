@@ -206,7 +206,11 @@ function Configure(
     {
         Write-Log "Starting Tez configuration"
         $xmlFile = "$ENV:TEZ_HOME\conf\tez-site.xml"
-		$config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/,hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/lib/"}
+	$config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/,hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/lib/"}
+        if ((Test-Path ENV:HA) -and ($ENV:HA -ieq "yes")) {
+            $config["tez.am.max.task.attempts"] = "20"
+        }
+
         UpdateXmlConfig $xmlFile $config
     }
     else
