@@ -30,8 +30,8 @@
   </licenses>
 
   <organization>
-    <name>Apache Software Foundation</name>
-    <url>http://www.apache.org</url>
+	<name>Hortonworks Data Platfrom</name>
+	<url>http://www.hortonworks.com</url>
   </organization>
 
   <properties>
@@ -49,7 +49,7 @@
     <protobuf.version>2.5.0</protobuf.version>
     <protoc.path>${env.PROTOC_PATH}</protoc.path>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <scm.url>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-tez.git</scm.url>
+    <scm.url>scm:git:https://github.com/hortonworks/mrx.git</scm.url>
   </properties>
   <scm>
     <connection>${scm.url}</connection>
