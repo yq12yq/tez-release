@@ -179,5 +179,14 @@
     </description>	  
   </property>
 
+  <property>
+    <name>tez.runtime.job.counters.max</name>
+    <value>10000</value>
+  </property>
+  <property>
+    <name>tez.runtime.job.counters.groups.max</name>
+    <value>10000</value>
+  </property>
+
 </configuration>
 
