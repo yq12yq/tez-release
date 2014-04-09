@@ -26,7 +26,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.token.SecretManager.InvalidToken;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
@@ -231,10 +233,19 @@ public class TezSession {
           + ", timed out after " + clientTimeout + " seconds");
     }
 
-    try {
-      dagId = proxy.submitDAG(null, requestBuilder.build()).getDagId();
-    } catch (ServiceException e) {
-      throw new TezException(e);
+    while (true) {
+      try {
+        dagId = proxy.submitDAG(null, requestBuilder.build()).getDagId();
+        break;
+      } catch (ServiceException e) {
+        if (isInvalidTokenError(e)) {
+          // TODO Remove after YARN-1915
+          LOG.info("Hit InvalidToken issue when submitting DAG to AM, retrying");
+          Thread.sleep(250l);
+        } else {
+          throw new TezException(e);
+        }
+      }
     }
     LOG.info("Submitted dag to TezSession"
         + ", sessionName=" + sessionName
@@ -313,13 +324,27 @@ public class TezSession {
           if (proxy == null) {
             return TezSessionStatus.INITIALIZING;
           }
-          GetAMStatusResponseProto response = proxy.getAMStatus(null,
-              GetAMStatusRequestProto.newBuilder().build());
-          return DagTypeConverters.convertTezSessionStatusFromProto(
-              response.getStatus());
+          while (true) {
+            try {
+              GetAMStatusResponseProto response = proxy.getAMStatus(null,
+                  GetAMStatusRequestProto.newBuilder().build());
+              return DagTypeConverters.convertTezSessionStatusFromProto(
+                  response.getStatus());
+            } catch (ServiceException e) {
+              if (isInvalidTokenError(e)) {
+                // TODO Remove after YARN-1915
+                LOG.info("Hit InvalidToken issue when submitting DAG to AM, retrying");
+                try {
+                  Thread.sleep(250l);
+                } catch (InterruptedException ie) {
+                  break;
+                }
+              } else {
+                throw new TezException(e);
+              }
+            }
+          }
         } catch (TezException e) {
-          LOG.info("Failed to retrieve AM Status via proxy", e);
-        } catch (ServiceException e) {
           LOG.info("Failed to retrieve AM Status via proxy", e);
         }
       }
@@ -367,7 +392,7 @@ public class TezSession {
       proxy.preWarm(null, preWarmReqProtoBuilder.build());
       while (true) {
         try {
-          Thread.sleep(1000);
+          Thread.sleep(1000l);
           TezSessionStatus status = getSessionStatus();
           if (status.equals(TezSessionStatus.READY)) {
             break;
@@ -394,7 +419,7 @@ public class TezSession {
       if (proxy != null) {
         break;
       }
-      Thread.sleep(100l);
+      Thread.sleep(250l);
       if (clientTimeout != -1 && System.currentTimeMillis() > endTime) {
         break;
       }
@@ -408,6 +433,20 @@ public class TezSession {
     } else if (sessionStopped) {
       throw new SessionNotRunning("Session stopped");
     }
+  }
+
+  private boolean isInvalidTokenError(ServiceException se) {
+    Throwable cause = se.getCause();
+    if (cause == null) {
+      return false;
+    }
+    if (cause instanceof RemoteException) {
+      RemoteException re = (RemoteException) cause;
+      if (re.getClassName().equals(InvalidToken.class.getName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
 }
