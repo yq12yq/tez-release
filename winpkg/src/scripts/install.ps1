@@ -17,7 +17,19 @@ function Main( $scriptDir )
 {
     Write-Log "Installing Apache Tez @final.name@ to $tezInstallPath"
     Install "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
-    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
+
+    ###
+    ### Configure Tez
+    ###
+    Write-Log "Configuring Tez"
+    $tezConfig = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/,hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/lib/"}
+    if ((Test-Path ENV:HA) -and ($ENV:HA -ieq "yes")) {
+        $tezConfig = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/,hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/lib/"}
+        $tezConfig["tez.am.max.app.attempts"] = "20"
+    }
+    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT $tezConfig
+    Write-Log "Done configuring Tez"
+
     Write-Log "Finished installing Apache Tez"
 }
 
