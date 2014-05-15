@@ -190,8 +190,11 @@ function Configure(
     [String]
     [Parameter( Position=1, Mandatory=$true )]
     $nodeInstallRoot,
+    [System.Management.Automation.PSCredential]
+    [Parameter( Position=2, Mandatory=$false )]
+    $serviceCredential,
     [hashtable]
-    [parameter( Position=2 )]
+    [parameter( Position=3 )]
     $configs = @{},
     [bool]
     [parameter( Position=3 )]
