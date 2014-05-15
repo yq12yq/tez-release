@@ -12,9 +12,31 @@
 ### WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ### See the License for the specific language governing permissions and
 ### limitations under the License.
-
+Param(
+    [String]
+    [Parameter( ParameterSetName='UsernamePassword', Position=0, Mandatory=$true )]
+    [Parameter( ParameterSetName='UsernamePasswordBase64', Position=0, Mandatory=$true )]
+    $username,
+    [String]
+    [Parameter( ParameterSetName='UsernamePassword', Position=1, Mandatory=$true )]
+    $password,
+    [String]
+    [Parameter( ParameterSetName='UsernamePasswordBase64', Position=1, Mandatory=$true )]
+    $passwordBase64,
+    [Parameter( ParameterSetName='CredentialFilePath', Mandatory=$true )]
+    $credentialFilePath
+    )
 function Main( $scriptDir )
 {
+    ###
+    ### Create the Credential object from the given username and password or the provided credentials file
+    ###
+    $serviceCredential = Get-HadoopUserCredentials -credentialsHash @{"username" = $username; "password" = $password; `
+        "passwordBase64" = $passwordBase64; "credentialFilePath" = $credentialFilePath}
+    $username = $serviceCredential.UserName
+    Write-Log "Username: $username"
+    Write-Log "CredentialFilePath: $credentialFilePath"
+
     Write-Log "Installing Apache Tez @final.name@ to $tezInstallPath"
     Install "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
 
@@ -27,7 +49,7 @@ function Main( $scriptDir )
         $tezConfig = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/,hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/lib/"}
         $tezConfig["tez.am.max.app.attempts"] = "20"
     }
-    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT $tezConfig
+    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT $serviceCredential $tezConfig
     Write-Log "Done configuring Tez"
 
     Write-Log "Finished installing Apache Tez"
