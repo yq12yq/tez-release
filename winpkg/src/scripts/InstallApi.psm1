@@ -197,7 +197,7 @@ function Configure(
     [parameter( Position=3 )]
     $configs = @{},
     [bool]
-    [parameter( Position=3 )]
+    [parameter( Position=4 )]
     $aclAllFolders = $True
     )
 {
