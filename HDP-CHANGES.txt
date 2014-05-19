@@ -1,0 +1,28 @@
+Changes in M10 release outside of tez-0.4.0-incubating
+
+TEZ-1135. Fix ShuffledUnorderedKVInput handling of empty partitions.
+TEZ-1125. Pre-warm broken.
+TEZ-1097. Tez assumes that the scratch directory has to be same as the default filesystem.
+
+Changes in Baikal outside of tez-0.4.0-incubating release:
+
+TEZ-1066. Generate events to integrate with YARN timeline server.
+TEZ-1048. Fix an NPE which can occur when the source task generates no data for a partition, and runs multiple attempts.
+TEZ-1045. TezMiniCluster tests can fail intermittently
+TEZ-1040. Fix a bug which could cause the Merger to hang.
+TEZ-1034. Shuffling can sometimes hang with duplicate inputs for the same index.
+TEZ-1033. AM hangs during recovery with Tasks awaiting init event.
+TEZ-1030. Address intermittent errors created due to race condition in YARN-1915.
+TEZ-1028. Handle killed tasks and attempts when handling recovery data.
+TEZ-1029. Fetcher can fail to report input failed event upon connection error
+TEZ-1021. TezClient cannot connect to AM in a secure cluster when launched via Oozie.
+TEZ-1020. VertexImpl handling of task failed in SUCCEEDED state is incorrect.
+TEZ-1015. Dag failed with Invalid event: V_ROUTE_EVENT at RECOVERING.
+TEZ-1014. Add a log message to indicate last AM attempt.
+TEZ-1004. AM relocalization doesn't handle conflicting resources correctly.
+TEZ-1005. AM relocalization adds resources to the wrong classloader.
+TEZ-1011. TestDAGRecovery timing out on jenkins builds.
+TEZ-1010. TestAMNodeMap.testSelfBlacklist fails intermittently
+TEZ-997. Internal Errror in am logs during dag shutdown.
+TEZ-1009. Fixes in log file roll-over
+TEZ-998. InvalidStateTransitonException: Invalid event: V_INIT at INITED.
