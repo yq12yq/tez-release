@@ -1,5 +1,6 @@
 Changes in M10 release outside of tez-0.4.0-incubating
 
+TEZ-1158. Disable multiple AM attempts if recovery is disabled.
 TEZ-1135. Fix ShuffledUnorderedKVInput handling of empty partitions.
 TEZ-1125. Pre-warm broken.
 TEZ-1097. Tez assumes that the scratch directory has to be same as the default filesystem.
