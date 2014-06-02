@@ -26,6 +26,7 @@ import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse.TimelinePutError;
 import org.apache.hadoop.yarn.client.api.TimelineClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.app.AppContext;
 import org.apache.tez.dag.history.DAGHistoryEvent;
@@ -56,6 +57,7 @@ public class ATSService extends AbstractService {
   private HashSet<TezDAGID> skippedDAGs = new HashSet<TezDAGID>();
   private final AppContext appContext;
   private long maxTimeToWaitOnShutdown;
+  private Configuration atsConf;
 
   public ATSService(AppContext appContext) {
     super(ATSService.class.getName());
@@ -66,7 +68,9 @@ public class ATSService extends AbstractService {
   public void serviceInit(Configuration conf) throws Exception {
     LOG.info("Initializing ATSService");
     timelineClient = TimelineClient.createTimelineClient();
-    timelineClient.init(conf);
+    this.atsConf = new Configuration(conf);
+    this.atsConf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true);
+    timelineClient.init(atsConf);
     maxTimeToWaitOnShutdown = conf.getLong(
         TezConfiguration.YARN_ATS_EVENT_FLUSH_TIMEOUT_MILLIS,
         TezConfiguration.YARN_ATS_EVENT_FLUSH_TIMEOUT_MILLIS_DEFAULT);
