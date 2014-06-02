@@ -46,10 +46,10 @@ public class TestUmbilical implements TezUmbilical {
   }
 
   @Override
-  public void signalFatalError(TezTaskAttemptID taskAttemptID, Throwable t, 
-      String message, EventMetaData sourceInfo) {
+  public void signalFatalError(TezTaskAttemptID taskAttemptID,
+      String diagnostics, EventMetaData sourceInfo) {
     LOG.info("Received fatal error from task: " + taskAttemptID
-        + ", Message: " + message);
+        + ", Diagnostics: " + diagnostics);
 
   }
 
