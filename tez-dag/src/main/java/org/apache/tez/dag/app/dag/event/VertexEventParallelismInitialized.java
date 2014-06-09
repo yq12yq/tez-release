@@ -20,24 +20,10 @@ package org.apache.tez.dag.app.dag.event;
 
 import org.apache.tez.dag.records.TezVertexID;
 
-public class VertexEventSourceVertexStarted extends VertexEvent {
+public class VertexEventParallelismInitialized extends VertexEvent {
 
-  final int sourceDistanceFromRoot;
-  final TezVertexID sourceVertexId;
-  
-  public VertexEventSourceVertexStarted(TezVertexID vertexId,
-                                         TezVertexID sourceVertexId,
-                                         int distanceFromRoot) {
-    super(vertexId, VertexEventType.V_SOURCE_VERTEX_STARTED);
-    this.sourceDistanceFromRoot = distanceFromRoot;
-    this.sourceVertexId = sourceVertexId;
+  public VertexEventParallelismInitialized(TezVertexID vertexId) {
+    super(vertexId, VertexEventType.V_PARALLELISM_INITIALIZED);
   }
-  
-  public int getSourceDistanceFromRoot() {
-    return sourceDistanceFromRoot;
-  }
-  
-  public TezVertexID getSourceVertexId() {
-    return sourceVertexId;
-  }
+
 }

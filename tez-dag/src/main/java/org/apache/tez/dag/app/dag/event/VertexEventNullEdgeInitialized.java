@@ -18,26 +18,25 @@
 
 package org.apache.tez.dag.app.dag.event;
 
+import org.apache.tez.dag.app.dag.Vertex;
+import org.apache.tez.dag.app.dag.impl.Edge;
 import org.apache.tez.dag.records.TezVertexID;
 
-public class VertexEventSourceVertexStarted extends VertexEvent {
-
-  final int sourceDistanceFromRoot;
-  final TezVertexID sourceVertexId;
+public class VertexEventNullEdgeInitialized extends VertexEvent {
+  final Edge edge;
+  final Vertex vertex;
   
-  public VertexEventSourceVertexStarted(TezVertexID vertexId,
-                                         TezVertexID sourceVertexId,
-                                         int distanceFromRoot) {
-    super(vertexId, VertexEventType.V_SOURCE_VERTEX_STARTED);
-    this.sourceDistanceFromRoot = distanceFromRoot;
-    this.sourceVertexId = sourceVertexId;
+  public VertexEventNullEdgeInitialized(TezVertexID vertexId, Edge edge, Vertex vertex) {
+    super(vertexId, VertexEventType.V_NULL_EDGE_INITIALIZED);
+    this.edge = edge;
+    this.vertex = vertex;
   }
   
-  public int getSourceDistanceFromRoot() {
-    return sourceDistanceFromRoot;
+  public Edge getEdge() {
+    return edge;
   }
   
-  public TezVertexID getSourceVertexId() {
-    return sourceVertexId;
+  public Vertex getVertex() {
+    return vertex;
   }
 }

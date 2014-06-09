@@ -18,25 +18,27 @@
 
 package org.apache.tez.runtime.api.events;
 
+import org.apache.tez.common.TezUserPayload;
+import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.TezRootInputInitializer;
 
 /**
  * Events used by {@link TezRootInputInitializer} implementations to update the
  * shared user payload for the Input that is being initialized. </p>
- * 
+ *
  * This event is specific to an Input, and should only be sent once - ideally
  * before {@link RootInputDataInformationEvent}s
  */
 public class RootInputUpdatePayloadEvent extends Event {
 
-  private final byte[] userPayload;
+  private final TezUserPayload userPayload;
 
   public RootInputUpdatePayloadEvent(byte[] userPayload) {
-    this.userPayload = userPayload;
+    this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
   }
 
   public byte[] getUserPayload() {
-    return this.userPayload;
+    return userPayload.getPayload();
   }
 }

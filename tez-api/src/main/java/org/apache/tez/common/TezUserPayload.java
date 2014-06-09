@@ -18,38 +18,19 @@
 
 package org.apache.tez.common;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
+import com.google.common.base.Preconditions;
 
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
+/**
+ * Helper class to hold user payload.
+ */
+public class TezUserPayload {
+  private final byte[] payload;
 
-// TODO EVENTUALLY move this over to PB. Fix package/module.
-// TODO EVENTUALLY unit tests for functionality.
-public class ContainerContext implements Writable {
-
-  String containerIdentifier;
-
-  public ContainerContext() {
-    containerIdentifier = "";
+  public TezUserPayload(byte[] payload) {
+    this.payload = payload;
   }
 
-  public ContainerContext(String containerIdStr) {
-    this.containerIdentifier = containerIdStr;
-  }
-
-  public String getContainerIdentifier() {
-    return containerIdentifier;
-  }
-
-  @Override
-  public void readFields(DataInput in) throws IOException {
-    this.containerIdentifier = Text.readString(in);
-  }
-
-  @Override
-  public void write(DataOutput out) throws IOException {
-    Text.writeString(out, containerIdentifier);
+  public byte[] getPayload() {
+    return payload;
   }
 }

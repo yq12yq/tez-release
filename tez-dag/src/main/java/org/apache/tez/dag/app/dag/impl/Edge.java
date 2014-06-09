@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.tez.common.RuntimeUtils;
+import org.apache.tez.common.TezUserPayload;
+import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeManager;
 import org.apache.tez.dag.api.EdgeManagerContext;
 import org.apache.tez.dag.api.EdgeManagerDescriptor;
@@ -36,6 +38,7 @@ import org.apache.tez.dag.app.dag.Task;
 import org.apache.tez.dag.app.dag.Vertex;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventOutputFailed;
 import org.apache.tez.dag.app.dag.event.TaskEventAddTezEvent;
+import org.apache.tez.dag.app.dag.event.VertexEventNullEdgeInitialized;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.runtime.api.Event;
@@ -49,6 +52,7 @@ import org.apache.tez.runtime.api.impl.OutputSpec;
 import org.apache.tez.runtime.api.impl.TezEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData.EventProducerConsumerType;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -58,7 +62,7 @@ public class Edge {
 
     private final String srcVertexName;
     private final String destVertexName;
-    private final byte[] userPayload;
+    private final TezUserPayload userPayload;
 
     EdgeManagerContextImpl(String srcVertexName, String destVertexName,
         @Nullable byte[] userPayload) {
@@ -66,12 +70,12 @@ public class Edge {
       checkNotNull(destVertexName, "destVertexName is null");
       this.srcVertexName = srcVertexName;
       this.destVertexName = destVertexName;
-      this.userPayload = userPayload;
+      this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
     }
 
     @Override
     public byte[] getUserPayload() {
-      return userPayload;
+      return userPayload.getPayload();
     }
 
     @Override
@@ -116,8 +120,10 @@ public class Edge {
         edgeManager = new ScatterGatherEdgeManager();
         break;
       case CUSTOM:
-        String edgeManagerClassName = edgeProperty.getEdgeManagerDescriptor().getClassName();
-        edgeManager = RuntimeUtils.createClazzInstance(edgeManagerClassName);
+        if (edgeProperty.getEdgeManagerDescriptor() != null) {
+          String edgeManagerClassName = edgeProperty.getEdgeManagerDescriptor().getClassName();
+          edgeManager = RuntimeUtils.createClazzInstance(edgeManagerClassName);
+        }
         break;
       default:
         String message = "Unknown edge data movement type: "
@@ -129,11 +135,16 @@ public class Edge {
   public void initialize() {
     byte[] bb = null;
     if (edgeProperty.getDataMovementType() == DataMovementType.CUSTOM) {
-      bb = edgeProperty.getEdgeManagerDescriptor().getUserPayload();
+      if (edgeProperty.getEdgeManagerDescriptor() != null && 
+          edgeProperty.getEdgeManagerDescriptor().getUserPayload() != null) {
+        bb = edgeProperty.getEdgeManagerDescriptor().getUserPayload();
+      }
     }
     edgeManagerContext = new EdgeManagerContextImpl(sourceVertex.getName(),
         destinationVertex.getName(), bb);
-    edgeManager.initialize(edgeManagerContext);
+    if (edgeManager != null) {
+      edgeManager.initialize(edgeManagerContext);
+    }
     destinationMetaInfo = new EventMetaData(EventProducerConsumerType.INPUT, 
         destinationVertex.getName(), 
         sourceVertex.getName(), 
@@ -148,8 +159,13 @@ public class Edge {
             edgeProperty.getEdgeSource(),
             edgeProperty.getEdgeDestination());
     this.edgeProperty = modifiedEdgeProperty;
+    boolean wasUnInitialized = (edgeManager == null);
     createEdgeManager();
     initialize();
+    if (wasUnInitialized) {
+      sendEvent(new VertexEventNullEdgeInitialized(sourceVertex.getVertexId(), this, destinationVertex));
+      sendEvent(new VertexEventNullEdgeInitialized(destinationVertex.getVertexId(), this, sourceVertex));
+    }
   }
 
   public EdgeProperty getEdgeProperty() {
@@ -178,6 +194,8 @@ public class Edge {
   }
 
   public InputSpec getDestinationSpec(int destinationTaskIndex) {
+    Preconditions.checkState(edgeManager != null, 
+        "Edge Manager must be initialized by this time");
     return new InputSpec(sourceVertex.getName(),
         edgeProperty.getEdgeDestination(),
         edgeManager.getNumDestinationTaskPhysicalInputs(sourceVertex.getTotalTasks(),
@@ -185,6 +203,8 @@ public class Edge {
   }
 
   public OutputSpec getSourceSpec(int sourceTaskIndex) {
+    Preconditions.checkState(edgeManager != null, 
+        "Edge Manager must be initialized by this time");
     return new OutputSpec(destinationVertex.getName(),
         edgeProperty.getEdgeSource(), edgeManager.getNumSourceTaskPhysicalOutputs(
         destinationVertex.getTotalTasks(), sourceTaskIndex));
@@ -207,8 +227,9 @@ public class Edge {
     sourceEventBuffer.clear();
   }
   
-  @SuppressWarnings("unchecked")
   public void sendTezEventToSourceTasks(TezEvent tezEvent) {
+    Preconditions.checkState(edgeManager != null, 
+        "Edge Manager must be initialized by this time");
     if (!bufferEvents.get()) {
       switch (tezEvent.getEventType()) {
       case INPUT_READ_ERROR_EVENT:
@@ -233,7 +254,7 @@ public class Edge {
         int taskAttemptIndex = event.getVersion();
         TezTaskAttemptID srcTaskAttemptId = TezTaskAttemptID.getInstance(srcTaskId,
             taskAttemptIndex);
-        eventHandler.handle(new TaskAttemptEventOutputFailed(srcTaskAttemptId,
+        sendEvent(new TaskAttemptEventOutputFailed(srcTaskAttemptId,
             tezEvent, numConsumers));
         break;
       default:
@@ -259,6 +280,8 @@ public class Edge {
   void sendDmEventOrIfEventToTasks(TezEvent tezEvent, int srcTaskIndex,
       boolean isDataMovementEvent,
       Map<Integer, List<Integer>> ifInputIndicesToTaskIndices) {
+    Preconditions.checkState(edgeManager != null, 
+        "Edge Manager must be initialized by this time");
     int num = 0;
     Event event = tezEvent.getEvent();
     for (Map.Entry<Integer, List<Integer>> entry : ifInputIndicesToTaskIndices.entrySet()) {
@@ -301,6 +324,8 @@ public class Edge {
   }
   
   public void sendTezEventToDestinationTasks(TezEvent tezEvent) {
+    Preconditions.checkState(edgeManager != null, 
+        "Edge Manager must be initialized by this time");
     if (!bufferEvents.get()) {
       boolean isDataMovementEvent = true;
       switch (tezEvent.getEventType()) {
@@ -345,9 +370,13 @@ public class Edge {
     }
   }
   
-  @SuppressWarnings("unchecked")
   private void sendEventToTask(TezTaskID taskId, TezEvent tezEvent) {
-    eventHandler.handle(new TaskEventAddTezEvent(taskId, tezEvent));
+    sendEvent(new TaskEventAddTezEvent(taskId, tezEvent));
+  }
+  
+  @SuppressWarnings({ "unchecked", "rawtypes" })
+  private void sendEvent(org.apache.hadoop.yarn.event.Event event) {
+    eventHandler.handle(event);
   }
 
   public String getSourceVertexName() {
