@@ -37,7 +37,7 @@
   <properties>
     <maven.test.redirectTestOutputToFile>true</maven.test.redirectTestOutputToFile>
     <clover.license>${user.home}/clover.license</clover.license>
-    <hadoop.version>2.4.0</hadoop.version>
+    <hadoop.version>[2.5.0.2.2.0.0,2.5.0.2.3.0.0)</hadoop.version>
     <jetty.version>7.6.10.v20130312</jetty.version>
     <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
     <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
@@ -69,6 +69,27 @@
   </distributionManagement>
 
   <repositories>
+    <repository>
+       <releases>
+           <enabled>true</enabled>
+       </releases>
+       <snapshots>
+           <enabled>false</enabled>
+       </snapshots>
+       <id>central</id>
+       <url>http://repo1.maven.org/maven2/</url>
+    </repository>
+    <repository>
+        <releases>
+                <enabled>true</enabled>
+        </releases>
+        <snapshots>
+                <enabled>false</enabled>
+        </snapshots>	
+        <id>hortonworks.repo</id>
+        <name>Hortonworks Repo</name>
+        <url>http://repo.hortonworks.com/content/repositories/releases</url>
+    </repository> 
     <repository>
       <id>${distMgmtSnapshotsId}</id>
       <name>${distMgmtSnapshotsName}</name>
