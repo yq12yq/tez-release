@@ -49,26 +49,63 @@ public class TezConfiguration extends Configuration {
 
   public static final String TEZ_APPLICATION_MASTER_CLASS =
       "org.apache.tez.dag.app.DAGAppMaster";
+  
+  /** Execution mode for submitting DAG's to the AM */
+  public static final String TEZ_AM_SESSION_MODE = TEZ_AM_PREFIX + "mode.session";
+  public static boolean TEZ_AM_SESSION_MODE_DEFAULT = false;
 
   /** Root Logging level passed to the Tez app master.*/
-  public static final String TEZ_AM_LOG_LEVEL = TEZ_AM_PREFIX+"log.level";
+  public static final String TEZ_AM_LOG_LEVEL = TEZ_AM_PREFIX + "log.level";
   public static final String TEZ_AM_LOG_LEVEL_DEFAULT = "INFO";
+
+  /** Root Logging level passed to the Tez app master.*/
+  public static final String TEZ_TASK_LOG_LEVEL = TEZ_TASK_PREFIX + "log.level";
+  public static final String TEZ_TASK_LOG_LEVEL_DEFAULT = "INFO";
 
   public static final String TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS =
       TEZ_AM_PREFIX + "commit-all-outputs-on-dag-success";
   public static final boolean TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS_DEFAULT = true;
 
-  /** Java options for the Tez AppMaster process. */
-  public static final String TEZ_AM_JAVA_OPTS = TEZ_AM_PREFIX
-      + "java.opts";
-  public static final String TEZ_AM_JAVA_OPTS_DEFAULT = " -Xmx1024m ";
+  /** Command line options for the Tez AppMaster process. */
+  public static final String TEZ_AM_LAUNCH_CMD_OPTS = TEZ_AM_PREFIX +  "java.opts";
+  public static final String TEZ_AM_LAUNCH_CMD_OPTS_DEFAULT = 
+      "-Djava.net.preferIPv4Stack=true " +
+      "-Dhadoop.metrics.log.level=WARN ";
 
-  /** User-provided env for the Tez AM. Any env provided in AMConfiguration
-   * overrides env defined by this config property
+  /** Command line options for the Tez Task processes. */
+  public static final String TEZ_TASK_LAUNCH_CMD_OPTS = TEZ_TASK_PREFIX
+      + "launch.cmd-opts";
+  public static final String TEZ_TASK_LAUNCH_CMD_OPTS_DEFAULT = 
+      "-Djava.net.preferIPv4Stack=true " +
+      "-Dhadoop.metrics.log.level=WARN ";
+
+  /**
+   * Factor to size Xmx based on container memory size. Value should be greater than 0 and
+   * less than 1.
+   */
+  public static final String TEZ_CONTAINER_MAX_JAVA_HEAP_FRACTION =
+      TEZ_PREFIX + "container.max.java.heap.fraction";
+  public static final double TEZ_CONTAINER_MAX_JAVA_HEAP_FRACTION_DEFAULT = 0.8;
+
+  /** Env settings for the Tez AppMaster process.
    * Should be specified as a comma-separated of key-value pairs where each pair
    * is defined as KEY=VAL
+   * e.g. "LD_LIBRARY_PATH=.,USERNAME=foo"
+   * These take least precedence compared to other methods of setting env
+  */
+  public static final String TEZ_AM_LAUNCH_ENV = TEZ_AM_PREFIX
+      + "launch.env";
+  public static final String TEZ_AM_LAUNCH_ENV_DEFAULT = "";
+  
+  /** Env settings for the Tez Task processes.
+   * Should be specified as a comma-separated of key-value pairs where each pair
+   * is defined as KEY=VAL
+   * e.g. "LD_LIBRARY_PATH=.,USERNAME=foo"
+   * These take least precedence compared to other methods of setting env
    */
-  public static final String TEZ_AM_ENV = TEZ_AM_PREFIX + "env";
+  public static final String TEZ_TASK_LAUNCH_ENV = TEZ_TASK_PREFIX
+      + "launch.env";
+  public static final String TEZ_TASK_LAUNCH_ENV_DEFAULT = "";
 
   public static final String TEZ_AM_CANCEL_DELEGATION_TOKEN = TEZ_AM_PREFIX +
       "am.complete.cancel.delegation.tokens";
@@ -320,7 +357,7 @@ public class TezConfiguration extends Configuration {
       TEZ_PREFIX + "session.";
 
   public static final String TEZ_SESSION_LOCAL_RESOURCES_PB_FILE_NAME =
-    TEZ_SESSION_PREFIX + "local-resources.pb.file-name";
+    TEZ_SESSION_PREFIX + "local-resources.pb";
 
   /**
    * Time (in seconds) to wait for AM to come up when trying to submit a DAG
@@ -416,7 +453,7 @@ public class TezConfiguration extends Configuration {
   public static final int DAG_RECOVERY_FLUSH_INTERVAL_SECS_DEFAULT = 30;
 
   public static final String DAG_RECOVERY_DATA_DIR_NAME = "recovery";
-  public static final String DAG_RECOVERY_SUMMARY_FILE_SUFFIX = ".summary";
+  public static final String DAG_RECOVERY_SUMMARY_FILE_SUFFIX = "summary";
   public static final String DAG_RECOVERY_RECOVER_FILE_SUFFIX = ".recovery";
   
   /**
@@ -451,4 +488,5 @@ public class TezConfiguration extends Configuration {
    * The maximium number of tasks running in parallel in inline mode. Not valid till Tez-684 get checked-in
    */
   public static final int TEZ_AM_INLINE_TASK_EXECUTION_MAX_TASKS_DEFAULT = 1;
+
 }

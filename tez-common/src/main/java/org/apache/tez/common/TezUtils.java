@@ -18,12 +18,10 @@
 package org.apache.tez.common;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.BitSet;
 import java.util.Iterator;
 import java.util.List;
@@ -266,16 +264,14 @@ public class TezUtils {
   }
 
   public static void updateLoggers(String addend) throws FileNotFoundException {
-    String containerLogDir = null;
 
-    LOG.info("Redirecting log files based on addend: " + addend);
+    LOG.info("Redirecting log file based on addend: " + addend);
 
     Appender appender = Logger.getRootLogger().getAppender(
         TezConfiguration.TEZ_CONTAINER_LOGGER_NAME);
     if (appender != null) {
       if (appender instanceof TezContainerLogAppender) {
         TezContainerLogAppender claAppender = (TezContainerLogAppender) appender;
-        containerLogDir = claAppender.getContainerLogDir();
         claAppender.setLogFileName(constructLogFileName(
             TezConfiguration.TEZ_CONTAINER_LOG_FILE_NAME, addend));
         claAppender.activateOptions();
@@ -286,17 +282,6 @@ public class TezUtils {
     } else {
       LOG.warn("Not configured with appender named: " + TezConfiguration.TEZ_CONTAINER_LOGGER_NAME
           + ". Cannot reconfigure logger output");
-    }
-
-    if (containerLogDir != null) {
-      PrintStream temp = System.out;
-      System.setOut(new PrintStream(new File(containerLogDir, constructLogFileName(
-          TezConfiguration.TEZ_CONTAINER_OUT_FILE_NAME, addend))));
-      temp.close();
-      temp = System.err;
-      System.setErr(new PrintStream(new File(containerLogDir, constructLogFileName(
-          TezConfiguration.TEZ_CONTAINER_ERR_FILE_NAME, addend))));
-      temp.close();
     }
   }
 

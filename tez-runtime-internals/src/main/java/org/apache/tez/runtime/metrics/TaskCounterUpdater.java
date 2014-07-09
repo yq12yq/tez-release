@@ -122,7 +122,7 @@ public class TaskCounterUpdater {
     long vMem = pTree.getCumulativeVmem();
     // Remove the CPU time consumed previously by JVM reuse
     cpuTime -= initCpuCumulativeTime;
-    tezCounters.findCounter(TaskCounter.CPU_MILLISECONDS).setValue(cpuTime - initCpuCumulativeTime);
+    tezCounters.findCounter(TaskCounter.CPU_MILLISECONDS).setValue(cpuTime);
     tezCounters.findCounter(TaskCounter.PHYSICAL_MEMORY_BYTES).setValue(pMem);
     tezCounters.findCounter(TaskCounter.VIRTUAL_MEMORY_BYTES).setValue(vMem);
   }
@@ -139,7 +139,7 @@ public class TaskCounterUpdater {
   
   private void initResourceCalculatorPlugin() {
     Class<? extends ResourceCalculatorProcessTree> clazz = this.conf.getClass(
-        TezJobConfig.TEZ_RESOURCE_CALCULATOR_PROCESS_TREE_CLASS, null,
+        TezJobConfig.TEZ_RUNTIME_RESOURCE_CALCULATOR_PROCESS_TREE_CLASS, null,
         ResourceCalculatorProcessTree.class); 
 
     pTree = ResourceCalculatorProcessTree.getResourceCalculatorProcessTree(

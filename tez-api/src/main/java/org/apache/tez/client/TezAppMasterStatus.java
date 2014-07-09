@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.tez.dag.app.dag;
+package org.apache.tez.client;
 
-public enum JobStateInternal {
-  NEW,
-  INITED,
+public enum TezAppMasterStatus {
+  /** App Master initializing itself */
+  INITIALIZING,
+  /** App Master ready to run DAG */
+  READY,
+  /** App Master is running a DAG */
   RUNNING,
-  SUCCEEDED,
-  FAILED,
-  KILL_WAIT,
-  KILLED,
-  ERROR
+  /** App Master has shut down or is in the process of shutting down. */
+  SHUTDOWN
 }

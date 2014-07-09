@@ -16,15 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.tez.client;
+package org.apache.tez.mapreduce.lib;
 
-public enum TezSessionStatus {
-  /** Session is initializing itself */
-  INITIALIZING,
-  /** Session ready to receive DAG submissions */
-  READY,
-  /** Session is running a DAG */
-  RUNNING,
-  /** Session has shut down or is in the process of shutting down. */
-  SHUTDOWN
+import java.io.IOException;
+
+import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.tez.runtime.library.api.KeyValueReader;
+
+@Private
+public interface MRReader extends KeyValueReader {
+  void setSplit(Object split) throws IOException;
+  boolean isSetup();
+  float getProgress() throws IOException, InterruptedException;
+  void close() throws IOException;
+  Object getSplit();
+  Object getRecordReader();
 }
