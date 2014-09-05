@@ -36,7 +36,7 @@ import org.apache.tez.mapreduce.input.MRInput;
 
 import com.google.common.base.Preconditions;
 
-public class MRReaderMapred implements MRReader {
+public class MRReaderMapred extends MRReader {
 
   private static final Log LOG = LogFactory.getLog(MRReaderMapred.class);
 
@@ -67,6 +67,7 @@ public class MRReaderMapred implements MRReader {
     this.tezCounters = tezCounters;
     this.inputRecordCounter = inputRecordCounter;
     inputFormat = this.jobConf.getInputFormat();
+
     if (inputSplit != null) {
       this.inputSplit = inputSplit;
       setupOldRecordReader();

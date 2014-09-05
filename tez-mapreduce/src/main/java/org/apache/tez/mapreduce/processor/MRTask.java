@@ -29,6 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -59,15 +61,15 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.util.Progress;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.tez.common.MRFrameworkConfigs;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezTaskStatus.State;
-import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.common.security.JobTokenIdentifier;
 import org.apache.tez.common.security.TokenCache;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.mapreduce.hadoop.DeprecatedKeys;
 import org.apache.tez.mapreduce.hadoop.IDConverter;
@@ -76,14 +78,16 @@ import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.mapreduce.hadoop.mapred.TaskAttemptContextImpl;
 import org.apache.tez.mapreduce.hadoop.mapreduce.JobContextImpl;
 import org.apache.tez.mapreduce.output.MROutputLegacy;
+import org.apache.tez.runtime.api.AbstractLogicalIOProcessor;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.TezProcessorContext;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.library.common.Constants;
 import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
 
 @SuppressWarnings("deprecation")
-public abstract class MRTask {
+@Private
+public abstract class MRTask extends AbstractLogicalIOProcessor {
 
   static final Log LOG = LogFactory.getLog(MRTask.class);
 
@@ -94,7 +98,7 @@ public abstract class MRTask {
 
   // Current counters
   transient TezCounters counters;
-  protected TezProcessorContext processorContext;
+  protected ProcessorContext processorContext;
   protected TaskAttemptID taskAttemptId;
   protected Progress progress = new Progress();
   protected SecretKey jobTokenSecret;
@@ -118,27 +122,29 @@ public abstract class MRTask {
   protected MRTaskReporter mrReporter;
   protected boolean useNewApi;
 
-  public MRTask(boolean isMap) {
+  public MRTask(ProcessorContext processorContext, boolean isMap) {
+    super(processorContext);
     this.isMap = isMap;
   }
 
   // TODO how to update progress
-  public void initialize(TezProcessorContext context) throws IOException,
+  @Override
+  public void initialize() throws IOException,
   InterruptedException {
 
     DeprecatedKeys.init();
 
-    processorContext = context;
-    counters = context.getCounters();
+    processorContext = getContext();
+    counters = processorContext.getCounters();
     this.taskAttemptId = new TaskAttemptID(
         new TaskID(
-            Long.toString(context.getApplicationId().getClusterTimestamp()),
-            context.getApplicationId().getId(),
+            Long.toString(processorContext.getApplicationId().getClusterTimestamp()),
+            processorContext.getApplicationId().getId(),
             (isMap ? TaskType.MAP : TaskType.REDUCE),
-            context.getTaskIndex()),
-          context.getTaskAttemptNumber());
+            processorContext.getTaskIndex()),
+        processorContext.getTaskAttemptNumber());
 
-    byte[] userPayload = context.getUserPayload();
+    UserPayload userPayload = processorContext.getUserPayload();
     Configuration conf = TezUtils.createConfFromUserPayload(userPayload);
     if (conf instanceof JobConf) {
       this.jobConf = (JobConf)conf;
@@ -150,7 +156,7 @@ public abstract class MRTask {
     jobConf.set(MRJobConfig.TASK_ATTEMPT_ID,
       taskAttemptId.toString());
     jobConf.setInt(MRJobConfig.APPLICATION_ATTEMPT_ID,
-        context.getDAGAttemptNumber());
+        processorContext.getDAGAttemptNumber());
 
     LOG.info("MRTask.inited: taskAttemptId = " + taskAttemptId.toString());
 
@@ -280,8 +286,7 @@ public abstract class MRTask {
       }
       if (!localArchives.isEmpty()) {
         job.set(MRJobConfig.CACHE_LOCALARCHIVES, StringUtils
-            .arrayToString(localArchives.toArray(new String[localArchives
-                .size()])));
+            .join(localArchives, ','));
       }
     }
 
@@ -299,12 +304,12 @@ public abstract class MRTask {
       }
       if (!localFiles.isEmpty()) {
         job.set(MRJobConfig.CACHE_LOCALFILES, StringUtils
-            .arrayToString(localFiles.toArray(new String[localFiles.size()])));
+            .join(localFiles, ','));
       }
     }
   }
 
-  public TezProcessorContext getUmbilical() {
+  public ProcessorContext getUmbilical() {
     return this.processorContext;
   }
 
@@ -436,7 +441,7 @@ public abstract class MRTask {
         //ignore
       } catch (IOException ie) {
         LOG.warn("Failure sending canCommit: "
-            + StringUtils.stringifyException(ie));
+            + ExceptionUtils.getStackTrace(ie));
         if (--retries == 0) {
           throw ie;
         }
@@ -446,11 +451,14 @@ public abstract class MRTask {
     // task can Commit now
     try {
       LOG.info("Task " + taskAttemptId + " is allowed to commit now");
-      output.commit();
+      output.flush();
+      if (output.isCommitRequired()) {
+        output.commit();
+      }
       return;
     } catch (IOException iee) {
       LOG.warn("Failure committing: " +
-          StringUtils.stringifyException(iee));
+          ExceptionUtils.getStackTrace(iee));
       //if it couldn't commit a successfully then delete the output
       discardOutput(output);
       throw iee;
@@ -463,7 +471,7 @@ public abstract class MRTask {
       output.abort();
     } catch (IOException ioe)  {
       LOG.warn("Failure cleaning up: " +
-               StringUtils.stringifyException(ioe));
+               ExceptionUtils.getStackTrace(ioe));
     }
   }
 

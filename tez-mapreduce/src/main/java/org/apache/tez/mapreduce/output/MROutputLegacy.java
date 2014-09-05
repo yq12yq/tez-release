@@ -18,9 +18,43 @@
 
 package org.apache.tez.mapreduce.output;
 
+import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.tez.runtime.api.OutputContext;
 
+@Private
 public class MROutputLegacy extends MROutput {
+
+  /**
+   * Create an {@link org.apache.tez.mapreduce.output.MROutput.MROutputConfigBuilder}
+   *
+   * @param conf         Configuration for the {@link MROutput}
+   * @param outputFormat OutputFormat derived class
+   * @return {@link org.apache.tez.mapreduce.output.MROutput.MROutputConfigBuilder}
+   */
+  public static MROutputConfigBuilder createConfigBuilder(Configuration conf, Class<?> outputFormat) {
+    return MROutput.createConfigBuilder(conf, outputFormat)
+        .setOutputClassName(MROutputLegacy.class.getName());
+  }
+
+  /**
+   * Create an {@link org.apache.tez.mapreduce.output.MROutput.MROutputConfigBuilder} for a FileOutputFormat
+   *
+   * @param conf         Configuration for the {@link MROutput}
+   * @param outputFormat FileInputFormat derived class
+   * @param outputPath   Output path
+   * @return {@link org.apache.tez.mapreduce.output.MROutput.MROutputConfigBuilder}
+   */
+  public static MROutputConfigBuilder createConfigBuilder(Configuration conf, Class<?> outputFormat,
+                                                          String outputPath) {
+    return MROutput.createConfigBuilder(conf, outputFormat, outputPath)
+        .setOutputClassName(MROutputLegacy.class.getName());
+  }
+
+  public MROutputLegacy(OutputContext outputContext, int numPhysicalOutputs) {
+    super(outputContext, numPhysicalOutputs);
+  }
 
   public OutputCommitter getOutputCommitter() {
     return committer;

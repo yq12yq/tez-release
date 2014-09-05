@@ -19,13 +19,11 @@
 package org.apache.tez.dag.api;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.tez.runtime.api.OutputCommitter;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -40,6 +38,7 @@ import com.google.common.collect.Sets;
  * member vertices of the VertexGroup.
  * A VertexGroup is not part of the final DAG.
  */
+@Public
 public class VertexGroup {
 
   static class GroupInfo {
@@ -67,8 +66,6 @@ public class VertexGroup {
     }
   }
   
-  List<RootInputLeafOutput<OutputDescriptor>> outputs = Lists.newLinkedList();
-  
   GroupInfo groupInfo;
   
   /**
@@ -91,14 +88,21 @@ public class VertexGroup {
   }
   
   /**
-   * Add an common output to the group of vertices.
-   * Refer to {@link Vertex#addOutput(String, OutputDescriptor, Class)}
+   * Add an common data sink to the group of vertices.
+   * Refer to {@link Vertex#addDataSink(String, DataSinkDescriptor)}
+   * @return this object for further chained method calls
    */
-  public VertexGroup addOutput(String outputName, OutputDescriptor outputDescriptor,
-      Class<? extends OutputCommitter> outputCommitterClazz) {
-    outputs.add(new RootInputLeafOutput<OutputDescriptor>(outputName,
-        outputDescriptor, outputCommitterClazz));
+  public VertexGroup addDataSink(String outputName, DataSinkDescriptor dataSinkDescriptor) {
+    RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor> leafOutput = 
+        new RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor>(outputName,
+        dataSinkDescriptor.getOutputDescriptor(), dataSinkDescriptor.getOutputCommitterDescriptor());
     this.groupInfo.outputs.add(outputName);
+    
+    // also add output to its members
+    for (Vertex member : getMembers()) {
+      member.addAdditionalDataSink(leafOutput);
+    }
+    
     return this;
   }
   
@@ -107,10 +111,6 @@ public class VertexGroup {
     return "[ VertexGroup: " + groupInfo.getGroupName() + "]";
   }
 
-  List<RootInputLeafOutput<OutputDescriptor>> getOutputs() {
-    return outputs;
-  }
-  
   GroupInfo getGroupInfo() {
     return groupInfo;
   }

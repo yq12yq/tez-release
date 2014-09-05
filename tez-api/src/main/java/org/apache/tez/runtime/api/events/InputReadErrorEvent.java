@@ -18,6 +18,7 @@
 
 package org.apache.tez.runtime.api.events;
 
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.tez.runtime.api.Event;
 
 /**
@@ -25,6 +26,7 @@ import org.apache.tez.runtime.api.Event;
  * This is not necessarily a fatal event - it's an indication to the AM to retry
  * source data generation.
  */
+@Public
 public final class InputReadErrorEvent extends Event {
 
   /**
@@ -42,12 +44,17 @@ public final class InputReadErrorEvent extends Event {
    */
   private final int version;
 
-  public InputReadErrorEvent(String diagnostics, int index,
-      int version) {
+  private InputReadErrorEvent(String diagnostics, int index,
+                              int version) {
     super();
     this.diagnostics = diagnostics;
     this.index = index;
     this.version = version;
+  }
+
+  public static InputReadErrorEvent create(String diagnostics, int index,
+                                           int version) {
+    return new InputReadErrorEvent(diagnostics, index, version);
   }
 
   public String getDiagnostics() {

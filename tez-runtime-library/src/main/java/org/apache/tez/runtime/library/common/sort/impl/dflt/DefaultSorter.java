@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -38,10 +39,9 @@ import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.util.IndexedSortable;
 import org.apache.hadoop.util.Progress;
-import org.apache.hadoop.util.StringUtils;
-import org.apache.tez.common.TezJobConfig;
-import org.apache.tez.common.TezUtils;
-import org.apache.tez.runtime.api.TezOutputContext;
+import org.apache.tez.common.TezUtilsInternal;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.sort.impl.ExternalSorter;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
@@ -111,25 +111,25 @@ public class DefaultSorter extends ExternalSorter implements IndexedSortable {
   private final int indexCacheMemoryLimit;
   private int totalIndexCacheMemory;
 
-  public DefaultSorter(TezOutputContext outputContext, Configuration conf, int numOutputs,
+  public DefaultSorter(OutputContext outputContext, Configuration conf, int numOutputs,
       long initialMemoryAvailable) throws IOException {
     super(outputContext, conf, numOutputs, initialMemoryAvailable);
     // sanity checks
     final float spillper = this.conf.getFloat(
-        TezJobConfig.TEZ_RUNTIME_SORT_SPILL_PERCENT,
-        TezJobConfig.TEZ_RUNTIME_SORT_SPILL_PERCENT_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT,
+        TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT_DEFAULT);
     final int sortmb = this.availableMemoryMb;
     if (spillper > (float) 1.0 || spillper <= (float) 0.0) {
       throw new IOException("Invalid \""
-          + TezJobConfig.TEZ_RUNTIME_SORT_SPILL_PERCENT + "\": " + spillper);
+          + TezRuntimeConfiguration.TEZ_RUNTIME_SORT_SPILL_PERCENT + "\": " + spillper);
     }
     if ((sortmb & 0x7FF) != sortmb) {
-      throw new IOException("Invalid \"" + TezJobConfig.TEZ_RUNTIME_IO_SORT_MB
+      throw new IOException("Invalid \"" + TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB
           + "\": " + sortmb);
     }
 
-    indexCacheMemoryLimit = this.conf.getInt(TezJobConfig.TEZ_RUNTIME_INDEX_CACHE_MEMORY_LIMIT_BYTES,
-                                       TezJobConfig.TEZ_RUNTIME_INDEX_CACHE_MEMORY_LIMIT_BYTES_DEFAULT);
+    indexCacheMemoryLimit = this.conf.getInt(TezRuntimeConfiguration.TEZ_RUNTIME_INDEX_CACHE_MEMORY_LIMIT_BYTES,
+                                       TezRuntimeConfiguration.TEZ_RUNTIME_INDEX_CACHE_MEMORY_LIMIT_BYTES_DEFAULT);
 
     // buffers and accounting
     int maxMemUsage = sortmb << 20;
@@ -147,7 +147,7 @@ public class DefaultSorter extends ExternalSorter implements IndexedSortable {
     softLimit = (int)(kvbuffer.length * spillper);
     bufferRemaining = softLimit;
     if (LOG.isInfoEnabled()) {
-      LOG.info(TezJobConfig.TEZ_RUNTIME_IO_SORT_MB + ": " + sortmb);
+      LOG.info(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB + ": " + sortmb);
       LOG.info("soft limit at " + softLimit);
       LOG.info("bufstart = " + bufstart + "; bufvoid = " + bufvoid);
       LOG.info("kvstart = " + kvstart + "; length = " + maxRec);
@@ -158,10 +158,10 @@ public class DefaultSorter extends ExternalSorter implements IndexedSortable {
     keySerializer.open(bb);
 
     spillInProgress = false;
-    minSpillsForCombine = this.conf.getInt(TezJobConfig.TEZ_RUNTIME_COMBINE_MIN_SPILLS, 3);
+    minSpillsForCombine = this.conf.getInt(TezRuntimeConfiguration.TEZ_RUNTIME_COMBINE_MIN_SPILLS, 3);
     spillThread.setDaemon(true);
     spillThread.setName("SpillThread ["
-        + TezUtils.cleanVertexName(outputContext.getDestinationVertexName() + "]"));
+        + TezUtilsInternal.cleanVertexName(outputContext.getDestinationVertexName() + "]"));
     spillLock.lock();
     try {
       spillThread.start();
@@ -680,7 +680,7 @@ public class DefaultSorter extends ExternalSorter implements IndexedSortable {
     if (lspillException != null) {
       if (lspillException instanceof Error) {
         final String logMsg = "Task " + outputContext.getUniqueIdentifier()
-            + " failed : " + StringUtils.stringifyException(lspillException);
+            + " failed : " + ExceptionUtils.getStackTrace(lspillException);
         outputContext.fatalError(lspillException, logMsg);
       }
       throw new IOException("Spill failed", lspillException);
@@ -1070,8 +1070,8 @@ public class DefaultSorter extends ExternalSorter implements IndexedSortable {
         }
 
         int mergeFactor =
-            this.conf.getInt(TezJobConfig.TEZ_RUNTIME_IO_SORT_FACTOR,
-                TezJobConfig.TEZ_RUNTIME_IO_SORT_FACTOR_DEFAULT);
+            this.conf.getInt(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_FACTOR,
+                TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_FACTOR_DEFAULT);
         // sort the segments only if there are intermediate merges
         boolean sortSegments = segmentList.size() > mergeFactor;
         //merge
@@ -1091,7 +1091,7 @@ public class DefaultSorter extends ExternalSorter implements IndexedSortable {
                 spilledRecordsCounter, null);
         if (combiner == null || numSpills < minSpillsForCombine) {
           TezMerger.writeFile(kvIter, writer,
-              nullProgressable, TezJobConfig.TEZ_RUNTIME_RECORDS_BEFORE_PROGRESS_DEFAULT);
+              nullProgressable, TezRuntimeConfiguration.TEZ_RUNTIME_RECORDS_BEFORE_PROGRESS_DEFAULT);
         } else {
           runCombineProcessor(kvIter, writer);
         }

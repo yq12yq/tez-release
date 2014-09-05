@@ -19,21 +19,25 @@
 package org.apache.tez.dag.api;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.tez.runtime.api.Input;
 
-public class InputDescriptor extends TezEntityDescriptor {
+/**
+ * Describes the {@link Input}
+ */
+@Public
+public class InputDescriptor extends EntityDescriptor<InputDescriptor> {
 
   @Private // for Writable
   public InputDescriptor() {
     super();
   }
 
-  public InputDescriptor(String inputClassName) {
+  private InputDescriptor(String inputClassName) {
     super(inputClassName);
   }
 
-  @Override
-  public InputDescriptor setUserPayload(byte[] userPayload) {
-    this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
-    return this;
+  public static InputDescriptor create(String inputClassName) {
+    return new InputDescriptor(inputClassName);
   }
 }

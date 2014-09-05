@@ -18,6 +18,7 @@
 
 package org.apache.tez.dag.history.events;
 
+import java.nio.ByteBuffer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -25,11 +26,12 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.NodeId;
-import org.apache.tez.common.RuntimeUtils;
+import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.common.counters.TezCounters;
-import org.apache.tez.dag.api.EdgeManagerDescriptor;
+import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.VertexLocationHint;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.dag.api.oldrecords.TaskAttemptState;
 import org.apache.tez.dag.api.oldrecords.TaskState;
 import org.apache.tez.dag.api.records.DAGProtos.DAGPlan;
@@ -44,7 +46,7 @@ import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.recovery.records.RecoveryProtos.SummaryEventProto;
-import org.apache.tez.runtime.api.RootInputSpecUpdate;
+import org.apache.tez.runtime.api.InputSpecUpdate;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData;
 import org.apache.tez.runtime.api.impl.EventMetaData.EventProducerConsumerType;
@@ -76,7 +78,7 @@ public class TestHistoryEventsProtoConversion {
     event.toProtoStream(os);
     os.flush();
     os.close();
-    deserializedEvent = RuntimeUtils.createClazzInstance(
+    deserializedEvent = ReflectionUtils.createClazzInstance(
         event.getClass().getName());
     LOG.info("Serialized event to byte array"
         + ", eventType=" + event.getEventType()
@@ -100,7 +102,7 @@ public class TestHistoryEventsProtoConversion {
     SummaryEventProto summaryEventProto =
         SummaryEventProto.parseDelimitedFrom(
             new ByteArrayInputStream(os.toByteArray()));
-    deserializedEvent = RuntimeUtils.createClazzInstance(
+    deserializedEvent = ReflectionUtils.createClazzInstance(
         event.getClass().getName());
     ((SummaryEvent)deserializedEvent).fromSummaryProtoStream(summaryEventProto);
     return deserializedEvent;
@@ -265,11 +267,11 @@ public class TestHistoryEventsProtoConversion {
 
   private void testVertexParallelismUpdatedEvent() throws Exception {
     {
-      RootInputSpecUpdate rootInputSpecUpdateBulk = RootInputSpecUpdate
-          .createAllTaskRootInputSpecUpdate(2);
-      RootInputSpecUpdate rootInputSpecUpdatePerTask = RootInputSpecUpdate
-          .createPerTaskRootInputSpecUpdate(Lists.newArrayList(1, 2, 3));
-      Map<String, RootInputSpecUpdate> rootInputSpecUpdates = new HashMap<String, RootInputSpecUpdate>();
+      InputSpecUpdate rootInputSpecUpdateBulk = InputSpecUpdate
+          .createAllTaskInputSpecUpdate(2);
+      InputSpecUpdate rootInputSpecUpdatePerTask = InputSpecUpdate
+          .createPerTaskInputSpecUpdate(Lists.newArrayList(1, 2, 3));
+      Map<String, InputSpecUpdate> rootInputSpecUpdates = new HashMap<String, InputSpecUpdate>();
       rootInputSpecUpdates.put("input1", rootInputSpecUpdateBulk);
       rootInputSpecUpdates.put("input2", rootInputSpecUpdatePerTask);
       VertexParallelismUpdatedEvent event =
@@ -287,8 +289,8 @@ public class TestHistoryEventsProtoConversion {
           deserializedEvent.getVertexLocationHint());
       Assert.assertEquals(event.getRootInputSpecUpdates().size(), deserializedEvent
           .getRootInputSpecUpdates().size());
-      RootInputSpecUpdate deserializedBulk = deserializedEvent.getRootInputSpecUpdates().get("input1");
-      RootInputSpecUpdate deserializedPerTask = deserializedEvent.getRootInputSpecUpdates().get("input2");
+      InputSpecUpdate deserializedBulk = deserializedEvent.getRootInputSpecUpdates().get("input1");
+      InputSpecUpdate deserializedPerTask = deserializedEvent.getRootInputSpecUpdates().get("input2");
       Assert.assertEquals(rootInputSpecUpdateBulk.isForAllWorkUnits(),
           deserializedBulk.isForAllWorkUnits());
       Assert.assertEquals(rootInputSpecUpdateBulk.getAllNumPhysicalInputs(),
@@ -300,17 +302,18 @@ public class TestHistoryEventsProtoConversion {
       logEvents(event, deserializedEvent);
     }
     {
-      Map<String,EdgeManagerDescriptor> sourceEdgeManagers
-          = new LinkedHashMap<String, EdgeManagerDescriptor>();
-      sourceEdgeManagers.put("foo", new EdgeManagerDescriptor("bar"));
-      sourceEdgeManagers.put("foo1", new EdgeManagerDescriptor("bar1").setUserPayload(
-          new String("payload").getBytes()));
+      Map<String,EdgeManagerPluginDescriptor> sourceEdgeManagers
+          = new LinkedHashMap<String, EdgeManagerPluginDescriptor>();
+      sourceEdgeManagers.put("foo", EdgeManagerPluginDescriptor.create("bar"));
+      sourceEdgeManagers.put("foo1", EdgeManagerPluginDescriptor.create("bar1")
+          .setUserPayload(
+              UserPayload.create(ByteBuffer.wrap(new String("payload").getBytes()), 100)));
       VertexParallelismUpdatedEvent event =
           new VertexParallelismUpdatedEvent(
               TezVertexID.getInstance(
                   TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 111),
-              100, new VertexLocationHint(Arrays.asList(new TaskLocationHint(
-                  new HashSet<String>(Arrays.asList("h1")),
+              100, VertexLocationHint.create(Arrays.asList(TaskLocationHint.createTaskLocationHint(
+              new HashSet<String>(Arrays.asList("h1")),
               new HashSet<String>(Arrays.asList("r1"))))),
               sourceEdgeManagers, null);
 
@@ -322,12 +325,15 @@ public class TestHistoryEventsProtoConversion {
           deserializedEvent.getSourceEdgeManagers().size());
       Assert.assertEquals(event.getSourceEdgeManagers().get("foo").getClassName(),
           deserializedEvent.getSourceEdgeManagers().get("foo").getClassName());
-      Assert.assertArrayEquals(event.getSourceEdgeManagers().get("foo").getUserPayload(),
-          deserializedEvent.getSourceEdgeManagers().get("foo").getUserPayload());
+      Assert.assertNotNull(deserializedEvent.getSourceEdgeManagers().get("foo").getUserPayload());
+      Assert.assertNull(deserializedEvent.getSourceEdgeManagers().get("foo").getUserPayload().getPayload());
       Assert.assertEquals(event.getSourceEdgeManagers().get("foo1").getClassName(),
           deserializedEvent.getSourceEdgeManagers().get("foo1").getClassName());
-      Assert.assertArrayEquals(event.getSourceEdgeManagers().get("foo1").getUserPayload(),
-          deserializedEvent.getSourceEdgeManagers().get("foo1").getUserPayload());
+      Assert.assertEquals(event.getSourceEdgeManagers().get("foo1").getUserPayload().getVersion(),
+          deserializedEvent.getSourceEdgeManagers().get("foo1").getUserPayload().getVersion());
+      Assert.assertArrayEquals(
+          event.getSourceEdgeManagers().get("foo1").getUserPayload().deepCopyAsArray(),
+          deserializedEvent.getSourceEdgeManagers().get("foo1").getUserPayload().deepCopyAsArray());
       Assert.assertEquals(event.getVertexLocationHint(),
           deserializedEvent.getVertexLocationHint());
       logEvents(event, deserializedEvent);
@@ -537,8 +543,8 @@ public class TestHistoryEventsProtoConversion {
       // Expected
     }
     List<TezEvent> events =
-        Arrays.asList(new TezEvent(new DataMovementEvent(1, null), new EventMetaData(
-            EventProducerConsumerType.SYSTEM, "foo", "bar", null)));
+        Arrays.asList(new TezEvent(DataMovementEvent.create(1, null),
+            new EventMetaData(EventProducerConsumerType.SYSTEM, "foo", "bar", null)));
     event = new VertexDataMovementEventsGeneratedEvent(
             TezVertexID.getInstance(
                 TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 1), events);

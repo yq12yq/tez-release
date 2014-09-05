@@ -24,11 +24,11 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.tez.runtime.library.api.KeyValueReader;
 
 @Private
-public interface MRReader extends KeyValueReader {
-  void setSplit(Object split) throws IOException;
-  boolean isSetup();
-  float getProgress() throws IOException, InterruptedException;
-  void close() throws IOException;
-  Object getSplit();
-  Object getRecordReader();
+public abstract class MRReader extends KeyValueReader {
+  public abstract void setSplit(Object split) throws IOException;
+  public abstract boolean isSetup();
+  public abstract float getProgress() throws IOException, InterruptedException;
+  public abstract void close() throws IOException;
+  public abstract Object getSplit();
+  public abstract Object getRecordReader();
 }

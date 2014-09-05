@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.mapred.Counters.Counter;
@@ -37,45 +38,34 @@ import org.apache.hadoop.util.Progress;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.tez.common.counters.TaskCounter;
+import org.apache.tez.dag.api.TezException;
 import org.apache.tez.mapreduce.output.MROutputLegacy;
 import org.apache.tez.mapreduce.processor.MRTask;
 import org.apache.tez.mapreduce.processor.MRTaskReporter;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.Input;
-import org.apache.tez.runtime.api.LogicalIOProcessor;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.TezProcessorContext;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.library.api.KeyValueWriter;
 import org.apache.tez.runtime.library.api.KeyValuesReader;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
-import org.apache.tez.runtime.library.input.ShuffledMergedInputLegacy;
-import org.apache.tez.runtime.library.output.OnFileSortedOutput;
+import org.apache.tez.runtime.library.input.OrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
 
-
+@Private
 @SuppressWarnings({ "unchecked", "rawtypes" })
-public class ReduceProcessor extends MRTask implements LogicalIOProcessor {
+public class ReduceProcessor extends MRTask {
 
   private static final Log LOG = LogFactory.getLog(ReduceProcessor.class);
 
   private Counter reduceInputKeyCounter;
   private Counter reduceInputValueCounter;
 
-  public ReduceProcessor() {
-    super(false);
+  public ReduceProcessor(ProcessorContext processorContext) {
+    super(processorContext, false);
   }
-
-  @Override
-  public void initialize(TezProcessorContext processorContext)
-      throws IOException {
-    try {
-      super.initialize(processorContext);
-    } catch (InterruptedException e) {
-      throw new IOException(e);
-    }
-  }
-
 
   @Override
   public void handleEvents(List<Event> processorEvents) {
@@ -133,17 +123,17 @@ public class ReduceProcessor extends MRTask implements LogicalIOProcessor {
         mrReporter.getCounter(TaskCounter.REDUCE_INPUT_RECORDS);
 
     // Sanity check
-    if (!(in instanceof ShuffledMergedInputLegacy)) {
+    if (!(in instanceof OrderedGroupedInputLegacy)) {
       throw new IOException("Illegal input to reduce: " + in.getClass());
     }
-    ShuffledMergedInputLegacy shuffleInput = (ShuffledMergedInputLegacy)in;
+    OrderedGroupedInputLegacy shuffleInput = (OrderedGroupedInputLegacy)in;
     KeyValuesReader kvReader = shuffleInput.getReader();
 
     KeyValueWriter kvWriter = null;
     if((out instanceof MROutputLegacy)) {
       kvWriter = ((MROutputLegacy) out).getWriter();
-    } else if ((out instanceof OnFileSortedOutput)) {
-      kvWriter = ((OnFileSortedOutput) out).getWriter();
+    } else if ((out instanceof OrderedPartitionedKVOutput)) {
+      kvWriter = ((OrderedPartitionedKVOutput) out).getWriter();
     } else {
       throw new IOException("Illegal output to reduce: " + in.getClass());
     }
@@ -274,13 +264,12 @@ public class ReduceProcessor extends MRTask implements LogicalIOProcessor {
 
   void runNewReducer(JobConf job,
       final MRTaskReporter reporter,
-      ShuffledMergedInputLegacy input,
+      OrderedGroupedInputLegacy input,
       RawComparator comparator,
       Class keyClass,
       Class valueClass,
       final KeyValueWriter out
-      ) throws IOException,InterruptedException,
-      ClassNotFoundException {
+      ) throws IOException, InterruptedException, ClassNotFoundException, TezException {
 
     // make a task context so we can get the classes
     org.apache.hadoop.mapreduce.TaskAttemptContext taskContext = getTaskAttemptContext();

@@ -59,12 +59,12 @@ public class TestInputReadyVertexManager {
     HashMap<String, EdgeProperty> mockInputVertices = 
         new HashMap<String, EdgeProperty>();
     String mockSrcVertexId1 = "Vertex1";
-    EdgeProperty eProp1 = new EdgeProperty(
+    EdgeProperty eProp1 = EdgeProperty.create(
         EdgeProperty.DataMovementType.SCATTER_GATHER,
         EdgeProperty.DataSourceType.PERSISTED,
-        SchedulingType.SEQUENTIAL, 
-        new OutputDescriptor("out"),
-        new InputDescriptor("in"));
+        SchedulingType.SEQUENTIAL,
+        OutputDescriptor.create("out"),
+        InputDescriptor.create("in"));
     
     String mockManagedVertexId = "Vertex";
     
@@ -78,8 +78,8 @@ public class TestInputReadyVertexManager {
     Map<String, List<Integer>> initialCompletions = Maps.newHashMap();
     initialCompletions.put(mockSrcVertexId1, Collections.singletonList(0));
     
-    InputReadyVertexManager manager = new InputReadyVertexManager();
-    manager.initialize(mockContext);
+    InputReadyVertexManager manager = new InputReadyVertexManager(mockContext);
+    manager.initialize();
     manager.onVertexStarted(initialCompletions);
     manager.onSourceTaskCompleted(mockSrcVertexId1, 1);
     verify(mockContext, times(0)).scheduleVertexTasks(anyList());
@@ -93,12 +93,12 @@ public class TestInputReadyVertexManager {
     HashMap<String, EdgeProperty> mockInputVertices = 
         new HashMap<String, EdgeProperty>();
     String mockSrcVertexId1 = "Vertex1";
-    EdgeProperty eProp1 = new EdgeProperty(
+    EdgeProperty eProp1 = EdgeProperty.create(
         EdgeProperty.DataMovementType.ONE_TO_ONE,
         EdgeProperty.DataSourceType.PERSISTED,
-        SchedulingType.SEQUENTIAL, 
-        new OutputDescriptor("out"),
-        new InputDescriptor("in"));
+        SchedulingType.SEQUENTIAL,
+        OutputDescriptor.create("out"),
+        InputDescriptor.create("in"));
     
     String mockManagedVertexId = "Vertex";
     Container mockContainer1 = mock(Container.class);
@@ -121,8 +121,8 @@ public class TestInputReadyVertexManager {
     Map<String, List<Integer>> initialCompletions = Maps.newHashMap();
     initialCompletions.put(mockSrcVertexId1, Collections.singletonList(0));
     
-    InputReadyVertexManager manager = new InputReadyVertexManager();
-    manager.initialize(mockContext);
+    InputReadyVertexManager manager = new InputReadyVertexManager(mockContext);
+    manager.initialize();
     manager.onVertexStarted(initialCompletions);
     verify(mockContext, times(1)).scheduleVertexTasks(requestCaptor.capture());
     Assert.assertEquals(1, requestCaptor.getValue().size());
@@ -148,26 +148,26 @@ public class TestInputReadyVertexManager {
     HashMap<String, EdgeProperty> mockInputVertices = 
         new HashMap<String, EdgeProperty>();
     String mockSrcVertexId1 = "Vertex1";
-    EdgeProperty eProp1 = new EdgeProperty(
+    EdgeProperty eProp1 = EdgeProperty.create(
         EdgeProperty.DataMovementType.SCATTER_GATHER,
         EdgeProperty.DataSourceType.PERSISTED,
-        SchedulingType.SEQUENTIAL, 
-        new OutputDescriptor("out"),
-        new InputDescriptor("in"));
+        SchedulingType.SEQUENTIAL,
+        OutputDescriptor.create("out"),
+        InputDescriptor.create("in"));
     String mockSrcVertexId2 = "Vertex2";
-    EdgeProperty eProp2 = new EdgeProperty(
+    EdgeProperty eProp2 = EdgeProperty.create(
         EdgeProperty.DataMovementType.ONE_TO_ONE,
         EdgeProperty.DataSourceType.PERSISTED,
-        SchedulingType.SEQUENTIAL, 
-        new OutputDescriptor("out"),
-        new InputDescriptor("in"));
+        SchedulingType.SEQUENTIAL,
+        OutputDescriptor.create("out"),
+        InputDescriptor.create("in"));
     String mockSrcVertexId3 = "Vertex3";
-    EdgeProperty eProp3 = new EdgeProperty(
+    EdgeProperty eProp3 = EdgeProperty.create(
         EdgeProperty.DataMovementType.ONE_TO_ONE,
-        EdgeProperty.DataSourceType.PERSISTED, 
-        SchedulingType.SEQUENTIAL, 
-        new OutputDescriptor("out"),
-        new InputDescriptor("in"));
+        EdgeProperty.DataSourceType.PERSISTED,
+        SchedulingType.SEQUENTIAL,
+        OutputDescriptor.create("out"),
+        InputDescriptor.create("in"));
     
     String mockManagedVertexId = "Vertex";
     Container mockContainer2 = mock(Container.class);
@@ -196,9 +196,9 @@ public class TestInputReadyVertexManager {
     Map<String, List<Integer>> initialCompletions = Maps.newHashMap();
     
     // 1-1 sources do not match managed tasks
-    InputReadyVertexManager manager = new InputReadyVertexManager();
     when(mockContext.getVertexNumTasks(mockManagedVertexId)).thenReturn(4);
-    manager.initialize(mockContext);
+    InputReadyVertexManager manager = new InputReadyVertexManager(mockContext);
+    manager.initialize();
     try {
       manager.onVertexStarted(initialCompletions);
       Assert.assertTrue("Should have exception", false);
@@ -207,10 +207,10 @@ public class TestInputReadyVertexManager {
     }
     
     // 1-1 sources do not match
-    manager = new InputReadyVertexManager();
     when(mockContext.getVertexNumTasks(mockManagedVertexId)).thenReturn(3);
     when(mockContext.getVertexNumTasks(mockSrcVertexId3)).thenReturn(4);
-    manager.initialize(mockContext);
+    manager = new InputReadyVertexManager(mockContext);
+    manager.initialize();
     try {
       manager.onVertexStarted(initialCompletions);
       Assert.assertTrue("Should have exception", false);
@@ -221,8 +221,8 @@ public class TestInputReadyVertexManager {
     initialCompletions.put(mockSrcVertexId1, Collections.singletonList(0));
     initialCompletions.put(mockSrcVertexId2, Collections.singletonList(0));
     when(mockContext.getVertexNumTasks(mockSrcVertexId3)).thenReturn(3);
-    manager = new InputReadyVertexManager();
-    manager.initialize(mockContext);
+    manager = new InputReadyVertexManager(mockContext);
+    manager.initialize();
     manager.onVertexStarted(initialCompletions);
     // all 1-1 0's done but not scheduled because v1 is not done
     manager.onSourceTaskCompleted(mockSrcVertexId3, 0);

@@ -22,33 +22,54 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.hadoop.classification.InterfaceStability.Evolving;
+
 /**
- * A LogicalInput that is used to merge the data from multiple inputs and provide a 
+ * A LogicalInput that is used to merge the data from multiple inputs and provide a
  * single <code>Reader</code> to read that data.
- * This Input is not initialized or closed. It is only expected to provide a 
+ * This Input is not initialized or closed. It is only expected to provide a
  * merged view of the real inputs. It cannot send or receive events
+ * <p/>
+ * <code>MergedLogicalInput</code> implementations must provide a 2 argument public constructor for
+ * Tez to create the Input. The parameters to this constructor are 1) an instance of {@link
+ * org.apache.tez.runtime.api.MergedInputContext} and 2) a list of constituent inputs. Tez will
+ * take care of initializing and closing the Input after a {@link Processor} completes. </p>
+ * <p/>
  */
+@Public
+@Evolving
 public abstract class MergedLogicalInput implements LogicalInput {
 
-  // TODO Remove with TEZ-866
-  private volatile InputReadyCallback inputReadyCallback;
+
   private AtomicBoolean notifiedInputReady = new AtomicBoolean(false);
   private List<Input> inputs;
   private final AtomicBoolean isStarted = new AtomicBoolean(false);
+  private final MergedInputContext context;
 
-  public final void initialize(List<Input> inputs) {
+  /**
+   * Constructor an instance of the MergedLogicalInputs. Classes extending this one to create a
+   * MergedLogicalInput, must provide the same constructor so that Tez can create an instance of
+   * the
+   * class at runtime.
+   *
+   * @param context the {@link org.apache.tez.runtime.api.MergedInputContext} which provides
+   *                the Input with context information within the running task.
+   * @param inputs  the list of constituen Inputs.
+   */
+  public MergedLogicalInput(MergedInputContext context, List<Input> inputs) {
     this.inputs = Collections.unmodifiableList(inputs);
+    this.context = context;
   }
-  
+
   public final List<Input> getInputs() {
     return inputs;
   }
   
-  @Override
-  public final List<Event> initialize(TezInputContext inputContext) throws Exception {
-    throw new UnsupportedOperationException();
+  public final MergedInputContext getContext() {
+    return context;
   }
-
+  
   @Override
   public final void start() throws Exception {
     if (!isStarted.getAndSet(true)) {
@@ -58,34 +79,12 @@ public abstract class MergedLogicalInput implements LogicalInput {
     }
   }
 
-  @Override
-  public final void handleEvents(List<Event> inputEvents) throws Exception {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public final List<Event> close() throws Exception {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public final void setNumPhysicalInputs(int numInputs) {
-    throw new UnsupportedOperationException();
-  }
-
-  // TODO Remove with TEZ-866
-  public void setInputReadyCallback(InputReadyCallback callback) {
-    this.inputReadyCallback =  callback;
-  }
-  
   /**
    * Used by the actual MergedInput to notify that it's ready for consumption.
-   * TBD eventually via the context.
    */
   protected final void informInputReady() {
-    // TODO Fix with TEZ-866
     if (!notifiedInputReady.getAndSet(true)) {
-      inputReadyCallback.setInputReady(this);
+      context.inputIsReady();
     }
   }
 

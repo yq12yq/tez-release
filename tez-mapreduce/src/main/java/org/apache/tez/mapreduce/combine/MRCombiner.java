@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.RawComparator;
@@ -46,15 +47,19 @@ import org.apache.tez.mapreduce.hadoop.MRConfig;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.mapreduce.hadoop.mapred.MRCounters;
 import org.apache.tez.mapreduce.processor.MRTaskReporter;
-import org.apache.tez.runtime.api.TezInputContext;
-import org.apache.tez.runtime.api.TezOutputContext;
-import org.apache.tez.runtime.api.TezTaskContext;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.api.TaskContext;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.ValuesIterator;
 import org.apache.tez.runtime.library.common.combine.Combiner;
 import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
 import org.apache.tez.runtime.library.common.sort.impl.IFile.Writer;
 
+/**
+ * Implements a Map Reduce compatible combiner
+ */
+@Public
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class MRCombiner implements Combiner {
 
@@ -72,20 +77,20 @@ public class MRCombiner implements Combiner {
   private final MRTaskReporter reporter;
   private final TaskAttemptID mrTaskAttemptID;
 
-  public MRCombiner(TezTaskContext taskContext) throws IOException {
+  public MRCombiner(TaskContext taskContext) throws IOException {
     this.conf = TezUtils.createConfFromUserPayload(taskContext.getUserPayload());
 
-    assert(taskContext instanceof TezInputContext || taskContext instanceof TezOutputContext);
-    if (taskContext instanceof TezOutputContext) {
+    assert(taskContext instanceof InputContext || taskContext instanceof OutputContext);
+    if (taskContext instanceof OutputContext) {
       this.keyClass = ConfigUtils.getIntermediateOutputKeyClass(conf);
       this.valClass = ConfigUtils.getIntermediateOutputValueClass(conf);
       this.comparator = ConfigUtils.getIntermediateOutputKeyComparator(conf);
-      this.reporter = new MRTaskReporter((TezOutputContext)taskContext);
+      this.reporter = new MRTaskReporter((OutputContext)taskContext);
     } else {
       this.keyClass = ConfigUtils.getIntermediateInputKeyClass(conf);
       this.valClass = ConfigUtils.getIntermediateInputValueClass(conf);
       this.comparator = ConfigUtils.getIntermediateInputKeyComparator(conf);
-      this.reporter = new MRTaskReporter((TezInputContext)taskContext);
+      this.reporter = new MRTaskReporter((InputContext)taskContext);
     }
 
     this.useNewApi = ConfigUtils.useNewApi(conf);

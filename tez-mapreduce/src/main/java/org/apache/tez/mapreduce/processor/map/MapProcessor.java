@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
@@ -44,33 +45,22 @@ import org.apache.tez.mapreduce.output.MROutputLegacy;
 import org.apache.tez.mapreduce.processor.MRTask;
 import org.apache.tez.mapreduce.processor.MRTaskReporter;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.LogicalIOProcessor;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.TezProcessorContext;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.library.api.KeyValueReader;
 import org.apache.tez.runtime.library.api.KeyValueWriter;
-import org.apache.tez.runtime.library.output.OnFileSortedOutput;
+import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
-public class MapProcessor extends MRTask implements LogicalIOProcessor {
+@Private
+public class MapProcessor extends MRTask{
 
   private static final Log LOG = LogFactory.getLog(MapProcessor.class);
 
-  public MapProcessor(){
-    super(true);
+  public MapProcessor(ProcessorContext processorContext) {
+    super(processorContext, true);
   }
-
-  @Override
-  public void initialize(TezProcessorContext processorContext)
-      throws IOException {
-    try {
-      super.initialize(processorContext);
-    } catch (InterruptedException e) {
-      throw new IOException(e);
-    }
-  }
-
 
   @Override
   public void handleEvents(List<Event> processorEvents) {
@@ -123,8 +113,8 @@ public class MapProcessor extends MRTask implements LogicalIOProcessor {
     KeyValueWriter kvWriter = null;
     if ((out instanceof MROutputLegacy)) {
       kvWriter = ((MROutputLegacy)out).getWriter();
-    } else if ((out instanceof OnFileSortedOutput)){
-      kvWriter = ((OnFileSortedOutput)out).getWriter();
+    } else if ((out instanceof OrderedPartitionedKVOutput)){
+      kvWriter = ((OrderedPartitionedKVOutput)out).getWriter();
     } else {
       throw new IOException("Illegal output to map, outputClass="
           + out.getClass());

@@ -25,20 +25,21 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.yarn.api.records.Container;
-
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
-import org.apache.tez.runtime.api.RootInputSpecUpdate;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
+import org.apache.tez.dag.api.TaskLocationHint;
+import org.apache.tez.runtime.api.InputSpecUpdate;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
 
 import com.google.common.base.Preconditions;
 
-@Unstable
 /**
  * Object with API's to interact with the Tez execution engine
  */
+@Unstable
+@Public
 public interface VertexManagerPluginContext {
   
   public class TaskWithLocationHint {
@@ -75,8 +76,7 @@ public interface VertexManagerPluginContext {
    * Get the payload set for the plugin
    * @return user payload
    */
-  @Nullable
-  public byte[] getUserPayload();
+  public UserPayload getUserPayload();
   
   /**
    * Get the number of tasks in the given vertex
@@ -127,8 +127,8 @@ public interface VertexManagerPluginContext {
    */
   public boolean setVertexParallelism(int parallelism,
       @Nullable VertexLocationHint locationHint,
-      @Nullable Map<String, EdgeManagerDescriptor> sourceEdgeManagers,
-      @Nullable Map<String, RootInputSpecUpdate> rootInputSpecUpdate);
+      @Nullable Map<String, EdgeManagerPluginDescriptor> sourceEdgeManagers,
+      @Nullable Map<String, InputSpecUpdate> rootInputSpecUpdate);
   
   /**
    * Allows a VertexManagerPlugin to assign Events for Root Inputs
@@ -143,7 +143,7 @@ public interface VertexManagerPluginContext {
    *          the Vertex. The target index on individual events represents the
    *          task to which events need to be sent.
    */
-  public void addRootInputEvents(String inputName, Collection<RootInputDataInformationEvent> events);
+  public void addRootInputEvents(String inputName, Collection<InputDataInformationEvent> events);
   
   /**
    * Notify the vertex to start the given tasks

@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,8 +34,8 @@ import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.runtime.api.TezOutputContext;
-import org.apache.tez.runtime.library.api.KeyValueWriter;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.library.api.KeyValuesWriter;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.TezRuntimeUtils;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
@@ -44,7 +45,8 @@ import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutput;
 
 import com.google.common.base.Preconditions;
 
-public class FileBasedKVWriter implements KeyValueWriter {
+@Private
+public class FileBasedKVWriter extends KeyValuesWriter {
 
   private static final Log LOG = LogFactory.getLog(FileBasedKVWriter.class);
   
@@ -82,7 +84,7 @@ public class FileBasedKVWriter implements KeyValueWriter {
   // Time waiting for a write to complete, if that's possible.
   // Size of key-value pairs written.
 
-  public FileBasedKVWriter(TezOutputContext outputContext, Configuration conf) throws IOException {
+  public FileBasedKVWriter(OutputContext outputContext, Configuration conf) throws IOException {
     this.conf = conf;
 
     this.outputRecordsCounter = outputContext.getCounters().findCounter(TaskCounter.OUTPUT_RECORDS);
@@ -150,7 +152,14 @@ public class FileBasedKVWriter implements KeyValueWriter {
     this.outputRecordsCounter.increment(1);
     numRecords++;
   }
-  
+
+  @Override
+  public void write(Object key, Iterable<Object> values) throws IOException {
+    writer.appendKeyValues(key, values.iterator());
+    this.outputRecordsCounter.increment(1);
+    numRecords++;
+  }
+
   public long getRawLength() {
     Preconditions.checkState(closed, "Only available after the Writer has been closed");
     return this.writer.getRawLength();
@@ -177,4 +186,5 @@ public class FileBasedKVWriter implements KeyValueWriter {
     }
     return buf;
   }
+
 }

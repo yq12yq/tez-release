@@ -65,7 +65,7 @@ public class FaultToleranceTestRunner {
     tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR,
         remoteStagingDir.toString());
 
-    tezSession = new TezClient("FaultToleranceTestRunner", tezConf);
+    tezSession = TezClient.create("FaultToleranceTestRunner", tezConf);
     tezSession.start();
   }
   
@@ -104,7 +104,7 @@ public class FaultToleranceTestRunner {
       while (!dagStatus.isCompleted()) {
         System.out.println("Waiting for dag to complete. Sleeping for 500ms."
             + " DAG name: " + dag.getName()
-            + " DAG appId: " + dagClient.getApplicationId()
+            + " DAG appContext: " + dagClient.getExecutionContext()
             + " Current state: " + dagStatus.getState());
         Thread.sleep(500);
         dagStatus = dagClient.getDAGStatus(null);

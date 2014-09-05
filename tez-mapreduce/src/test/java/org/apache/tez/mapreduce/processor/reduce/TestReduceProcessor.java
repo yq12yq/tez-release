@@ -26,7 +26,6 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -38,33 +37,34 @@ import org.apache.hadoop.mapred.SequenceFileOutputFormat;
 import org.apache.hadoop.mapreduce.MRConfig;
 import org.apache.hadoop.security.token.Token;
 import org.apache.tez.common.MRFrameworkConfigs;
-import org.apache.tez.common.TezJobConfig;
-import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.security.JobTokenIdentifier;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.ProcessorDescriptor;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.mapreduce.TestUmbilical;
 import org.apache.tez.mapreduce.TezTestUtils;
 import org.apache.tez.mapreduce.hadoop.IDConverter;
 import org.apache.tez.mapreduce.hadoop.MRHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
-import org.apache.tez.mapreduce.hadoop.MultiStageMRConfToTezTranslator;
 import org.apache.tez.mapreduce.hadoop.MultiStageMRConfigUtil;
+import org.apache.tez.mapreduce.input.LocalMergedInput;
 import org.apache.tez.mapreduce.input.MRInputLegacy;
+import org.apache.tez.mapreduce.output.LocalOnFileSorterOutput;
 import org.apache.tez.mapreduce.output.MROutputLegacy;
 import org.apache.tez.mapreduce.partition.MRPartitioner;
 import org.apache.tez.mapreduce.processor.MapUtils;
+import org.apache.tez.mapreduce.protos.MRRuntimeProtos;
 import org.apache.tez.runtime.LogicalIOProcessorRuntimeTask;
 import org.apache.tez.runtime.api.impl.InputSpec;
 import org.apache.tez.runtime.api.impl.OutputSpec;
 import org.apache.tez.runtime.api.impl.TaskSpec;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.Constants;
 import org.apache.tez.runtime.library.common.task.local.output.TezLocalTaskOutputFiles;
 import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutput;
-import org.apache.tez.runtime.library.input.LocalMergedInput;
-import org.apache.tez.runtime.library.output.LocalOnFileSorterOutput;
 import org.apache.tez.runtime.library.shuffle.common.ShuffleUtils;
 import org.junit.After;
 import org.junit.Assert;
@@ -103,7 +103,7 @@ public class TestReduceProcessor {
         Constants.TEZ_RUNTIME_TASK_OUTPUT_MANAGER,
         TezLocalTaskOutputFiles.class, 
         TezTaskOutput.class);
-    job.set(TezJobConfig.TEZ_RUNTIME_PARTITIONER_CLASS, MRPartitioner.class.getName());
+    job.set(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS, MRPartitioner.class.getName());
     job.setNumReduceTasks(1);
   }
 
@@ -121,28 +121,28 @@ public class TestReduceProcessor {
     JobConf jobConf = new JobConf(defaultConf);
     setUpJobConf(jobConf);
     
-    Configuration conf = MultiStageMRConfToTezTranslator.convertMRToLinearTez(jobConf);
-    conf.setInt(MRJobConfig.APPLICATION_ATTEMPT_ID, 0);
-    
-    Configuration mapStageConf = MultiStageMRConfigUtil.getConfForVertex(conf,
-        mapVertexName);
-    
-    JobConf mapConf = new JobConf(mapStageConf);
-    
-    mapConf.set(MRFrameworkConfigs.TASK_LOCAL_RESOURCE_DIR, new Path(workDir,
+    MRHelpers.translateMRConfToTez(jobConf);
+    jobConf.setInt(MRJobConfig.APPLICATION_ATTEMPT_ID, 0);
+
+    jobConf.set(MRFrameworkConfigs.TASK_LOCAL_RESOURCE_DIR, new Path(workDir,
         "localized-resources").toUri().toString());
-    mapConf.setBoolean(MRJobConfig.MR_TEZ_SPLITS_VIA_EVENTS, false);
+    jobConf.setBoolean(MRJobConfig.MR_TEZ_SPLITS_VIA_EVENTS, false);
     
     Path mapInput = new Path(workDir, "map0");
-    MapUtils.generateInputSplit(localFs, workDir, mapConf, mapInput);
-    
+    MapUtils.generateInputSplit(localFs, workDir, jobConf, mapInput);
+
     InputSpec mapInputSpec = new InputSpec("NullSrcVertex",
-        new InputDescriptor(MRInputLegacy.class.getName())
-            .setUserPayload(MRHelpers.createMRInputPayload(mapConf, null)),
+        InputDescriptor.create(MRInputLegacy.class.getName())
+            .setUserPayload(UserPayload.create(ByteBuffer.wrap(
+                MRRuntimeProtos.MRInputUserPayloadProto.newBuilder()
+                    .setConfigurationBytes(TezUtils.createByteStringFromConf(jobConf)).build()
+                    .toByteArray()))),
         1);
-    OutputSpec mapOutputSpec = new OutputSpec("NullDestVertex", new OutputDescriptor(LocalOnFileSorterOutput.class.getName()), 1);
+    OutputSpec mapOutputSpec = new OutputSpec("NullDestVertex", 
+        OutputDescriptor.create(LocalOnFileSorterOutput.class.getName()).
+          setUserPayload(TezUtils.createUserPayloadFromConf(jobConf)), 1);
     // Run a map
-    LogicalIOProcessorRuntimeTask mapTask = MapUtils.createLogicalTask(localFs, workDir, mapConf, 0,
+    LogicalIOProcessorRuntimeTask mapTask = MapUtils.createLogicalTask(localFs, workDir, jobConf, 0,
         mapInput, new TestUmbilical(), dagName, mapVertexName,
         Collections.singletonList(mapInputSpec),
         Collections.singletonList(mapOutputSpec));
@@ -154,27 +154,27 @@ public class TestReduceProcessor {
     LOG.info("Starting reduce...");
     
     Token<JobTokenIdentifier> shuffleToken = new Token<JobTokenIdentifier>();
-    
-    Configuration reduceStageConf = MultiStageMRConfigUtil.getConfForVertex(conf,
-        reduceVertexName);
-    JobConf reduceConf = new JobConf(reduceStageConf);
-    reduceConf.setOutputFormat(SequenceFileOutputFormat.class);
-    reduceConf.set(MRFrameworkConfigs.TASK_LOCAL_RESOURCE_DIR, new Path(workDir,
+
+    jobConf.setOutputFormat(SequenceFileOutputFormat.class);
+    jobConf.set(MRFrameworkConfigs.TASK_LOCAL_RESOURCE_DIR, new Path(workDir,
         "localized-resources").toUri().toString());
-    FileOutputFormat.setOutputPath(reduceConf, new Path(workDir, "output"));
-    ProcessorDescriptor reduceProcessorDesc = new ProcessorDescriptor(
-        ReduceProcessor.class.getName()).setUserPayload(TezUtils.createUserPayloadFromConf(reduceConf));
+    FileOutputFormat.setOutputPath(jobConf, new Path(workDir, "output"));
+    ProcessorDescriptor reduceProcessorDesc = ProcessorDescriptor.create(
+        ReduceProcessor.class.getName()).setUserPayload(
+        TezUtils.createUserPayloadFromConf(jobConf));
     
     InputSpec reduceInputSpec = new InputSpec(mapVertexName,
-        new InputDescriptor(LocalMergedInput.class.getName()), 1);
+        InputDescriptor.create(LocalMergedInput.class.getName())
+            .setUserPayload(TezUtils.createUserPayloadFromConf(jobConf)), 1);
     OutputSpec reduceOutputSpec = new OutputSpec("NullDestinationVertex",
-        new OutputDescriptor(MROutputLegacy.class.getName()), 1);
+        OutputDescriptor.create(MROutputLegacy.class.getName())
+            .setUserPayload(TezUtils.createUserPayloadFromConf(jobConf)), 1);
 
     // Now run a reduce
     TaskSpec taskSpec = new TaskSpec(
         TezTestUtils.getMockTaskAttemptId(0, 1, 0, 0),
         dagName,
-        reduceVertexName,
+        reduceVertexName, -1,
         reduceProcessorDesc,
         Collections.singletonList(reduceInputSpec),
         Collections.singletonList(reduceOutputSpec), null);
@@ -186,11 +186,11 @@ public class TestReduceProcessor {
     LogicalIOProcessorRuntimeTask task = new LogicalIOProcessorRuntimeTask(
         taskSpec,
         0,
-        reduceConf,
+        jobConf,
         new String[] {workDir.toString()},
         new TestUmbilical(),
         serviceConsumerMetadata,
-        HashMultimap.<String, String>create());
+        HashMultimap.<String, String>create(), null);
     
     task.initialize();
     task.run();
@@ -211,7 +211,7 @@ public class TestReduceProcessor {
     Path reduceOutputFile = new Path(reduceOutputDir, "part-v001-o000-00000");
     
     SequenceFile.Reader reader = new SequenceFile.Reader(localFs,
-        reduceOutputFile, reduceConf);
+        reduceOutputFile, jobConf);
 
     LongWritable key = new LongWritable();
     Text value = new Text();

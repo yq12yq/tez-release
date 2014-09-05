@@ -37,6 +37,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.TezConstants;
 import org.apache.tez.dag.app.AppContext;
 import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
@@ -157,7 +158,7 @@ public class RecoveryService extends AbstractService {
     if (summaryStream != null) {
       try {
         LOG.info("Closing Summary Stream");
-        summaryStream.hsync();
+        summaryStream.hflush();
         summaryStream.close();
       } catch (IOException ioe) {
         LOG.warn("Error when closing summary stream", ioe);
@@ -166,7 +167,7 @@ public class RecoveryService extends AbstractService {
     for (Entry<TezDAGID, FSDataOutputStream> entry : outputStreamMap.entrySet()) {
       try {
         LOG.info("Closing Output Stream for DAG " + entry.getKey());
-        entry.getValue().hsync();
+        entry.getValue().hflush();
         entry.getValue().close();
       } catch (IOException ioe) {
         LOG.warn("Error when closing output stream", ioe);
@@ -200,7 +201,7 @@ public class RecoveryService extends AbstractService {
       String dagName = dagSubmittedEvent.getDAGName();
       if (dagName != null
           && dagName.startsWith(
-          TezConfiguration.TEZ_PREWARM_DAG_NAME_PREFIX)) {
+              TezConstants.TEZ_PREWARM_DAG_NAME_PREFIX)) {
         // Skip recording pre-warm DAG events
         skippedDAGs.add(dagId);
         return;
@@ -222,11 +223,11 @@ public class RecoveryService extends AbstractService {
         try {
           SummaryEvent summaryEvent = (SummaryEvent) event.getHistoryEvent();
           handleSummaryEvent(dagId, eventType, summaryEvent);
-          summaryStream.hsync();
+          summaryStream.hflush();
           if (summaryEvent.writeToRecoveryImmediately()) {
             handleRecoveryEvent(event);
             doFlush(outputStreamMap.get(event.getDagID()),
-                appContext.getClock().getTime(), true);
+                appContext.getClock().getTime());
           } else {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Queueing Non-immediate Summary/Recovery event of type"
@@ -388,16 +389,12 @@ public class RecoveryService extends AbstractService {
     if (!doFlush) {
       return;
     }
-    doFlush(outputStream, currentTime, false);
+    doFlush(outputStream, currentTime);
   }
 
   private void doFlush(FSDataOutputStream outputStream,
-      long currentTime, boolean sync) throws IOException {
-    if (sync) {
-      outputStream.hsync();
-    } else {
-      outputStream.hflush();
-    }
+      long currentTime) throws IOException {
+    outputStream.hflush();
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("Flushing output stream"

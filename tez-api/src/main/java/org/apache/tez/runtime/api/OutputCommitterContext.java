@@ -18,15 +18,16 @@
 
 package org.apache.tez.runtime.api;
 
-import org.apache.hadoop.classification.InterfaceStability.Evolving;
-import org.apache.hadoop.classification.InterfaceStability.Unstable;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.tez.dag.api.UserPayload;
 
 /**
  * Context through which the OutputCommitter can access all the relevant
- * information that it needs.
+ * information that it needs. This interface is not supposed to be implemented
+ * by users
  */
-
+@Public
 public interface OutputCommitterContext {
 
   /**
@@ -63,14 +64,18 @@ public interface OutputCommitterContext {
    * Get the User Payload for the Output
    * @return User Payload
    */
-  public byte[] getUserPayload();
+  public UserPayload getOutputUserPayload();
 
+  /**
+   * Get the User Payload for the OutputCommitter
+   * @return User Payload
+   */
+  public UserPayload getUserPayload();
+  
   /**
    * Get Vertex Index in the DAG
    * @return Vertex index
    */
-  @Unstable
-  @Evolving
   public int getVertexIndex();
 
 }

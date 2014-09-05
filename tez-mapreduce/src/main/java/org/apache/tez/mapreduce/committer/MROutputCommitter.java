@@ -20,6 +20,7 @@ package org.apache.tez.mapreduce.committer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.mapred.FileOutputCommitter;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobContext;
@@ -33,44 +34,52 @@ import org.apache.hadoop.mapreduce.TypeConverter;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.TezUncheckedException;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.client.VertexStatus;
 import org.apache.tez.mapreduce.hadoop.MRConfig;
-import org.apache.tez.mapreduce.hadoop.MRHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.runtime.api.OutputCommitter;
 import org.apache.tez.runtime.api.OutputCommitterContext;
 
 import java.io.IOException;
 
+/**
+ * Implements the {@link OutputCommitter} and provide Map Reduce compatible
+ * output commit operations for Map Reduce compatible data sinks. 
+ */
+@Public
 public class MROutputCommitter extends OutputCommitter {
 
   private static final Log LOG = LogFactory.getLog(MROutputCommitter.class);
 
-  private OutputCommitterContext context;
   private org.apache.hadoop.mapreduce.OutputCommitter committer = null;
   private JobContext jobContext = null;
   private volatile boolean initialized = false;
   private JobConf jobConf = null;
   private boolean newApiCommitter;
 
+  public MROutputCommitter(OutputCommitterContext committerContext) {
+    super(committerContext);
+  }
+
   @Override
-  public void initialize(OutputCommitterContext context) throws IOException {
-    byte[] userPayload = context.getUserPayload();
-    if (userPayload == null) {
+  public void initialize() throws IOException {
+    UserPayload userPayload = getContext().getOutputUserPayload();
+    if (!userPayload.hasPayload()) {
       jobConf = new JobConf();
     } else {
       jobConf = new JobConf(
-          MRHelpers.createConfFromUserPayload(context.getUserPayload()));
+          TezUtils.createConfFromUserPayload(userPayload));
     }
-
+    
     // Read all credentials into the credentials instance stored in JobConf.
     jobConf.getCredentials().mergeAll(UserGroupInformation.getCurrentUser().getCredentials());
     jobConf.setInt(MRJobConfig.APPLICATION_ATTEMPT_ID,
-        context.getDAGAttemptNumber());
-    this.context = context;
-    committer = getOutputCommitter(this.context);
-    jobContext = getJobContextFromVertexContext(context);
+        getContext().getDAGAttemptNumber());
+    committer = getOutputCommitter(getContext());
+    jobContext = getJobContextFromVertexContext(getContext());
     initialized = true;
   }
 
@@ -110,12 +119,6 @@ public class MROutputCommitter extends OutputCommitter {
       newApiCommitter = true;
       LOG.info("Using mapred newApiCommitter.");
     }
-
-    LOG.info("OutputCommitter set in config for outputName="
-        + context.getOutputName()
-        + ", vertexName=" + context.getVertexName()
-        + ", outputCommitterClass="
-        + jobConf.get("mapred.output.committer.class"));
 
     if (newApiCommitter) {
       TaskAttemptID taskAttemptID = new TaskAttemptID(
@@ -196,9 +199,9 @@ public class MROutputCommitter extends OutputCommitter {
       throw new RuntimeException("Committer not initialized");
     }
     TaskAttemptID taskAttemptID = new TaskAttemptID(
-        Long.toString(context.getApplicationId().getClusterTimestamp())
-        + String.valueOf(context.getVertexIndex()),
-        context.getApplicationId().getId(),
+        Long.toString(getContext().getApplicationId().getClusterTimestamp())
+        + String.valueOf(getContext().getVertexIndex()),
+        getContext().getApplicationId().getId(),
         ((jobConf.getBoolean(MRConfig.IS_MAP_PROCESSOR, false) ?
             TaskType.MAP : TaskType.REDUCE)),
         taskIndex, attemptId);

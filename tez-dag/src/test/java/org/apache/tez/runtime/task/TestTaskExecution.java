@@ -55,10 +55,12 @@ import org.apache.tez.common.TezTaskUmbilicalProtocol;
 import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.dag.records.TezVertexID;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.api.events.TaskAttemptCompletedEvent;
 import org.apache.tez.runtime.api.events.TaskAttemptFailedEvent;
 import org.apache.tez.runtime.api.impl.InputSpec;
@@ -177,6 +179,7 @@ public class TestTaskExecution {
     }
   }
 
+  // test tasked failed due to exception in Processor
   @Test
   public void testFailedTask() throws IOException, InterruptedException, TezException {
 
@@ -205,7 +208,38 @@ public class TestTaskExecution {
       }
 
       assertNull(taskReporter.currentCallable);
-      umbilical.verifyTaskFailedEvent();
+      umbilical.verifyTaskFailedEvent("Failure while running task:org.apache.tez.dag.api.TezException: TezException");
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  // Test task failed due to Processor class not found
+  @Test
+  public void testFailedTask2() throws IOException, InterruptedException, TezException {
+
+    ListeningExecutorService executor = null;
+    try {
+      ExecutorService rawExecutor = Executors.newFixedThreadPool(1);
+      executor = MoreExecutors.listeningDecorator(rawExecutor);
+      ApplicationId appId = ApplicationId.newInstance(10000, 1);
+      TezTaskUmbilicalForTest umbilical = new TezTaskUmbilicalForTest();
+      TaskReporter taskReporter = createTaskReporter(appId, umbilical);
+
+      TezTaskRunner taskRunner = createTaskRunner(appId, umbilical, taskReporter, executor,
+          "NotExitedProcessor", TestProcessor.CONF_THROW_TEZ_EXCEPTION);
+      // Setup the executor
+      Future<Boolean> taskRunnerFuture = taskExecutor.submit(new TaskRunnerCallable(taskRunner));
+      try {
+        taskRunnerFuture.get();
+      } catch (ExecutionException e) {
+        Throwable cause = e.getCause();
+        LOG.info(cause.getClass().getName());
+        assertTrue(cause instanceof TezException);
+      }
+      assertNull(taskReporter.currentCallable);
+      umbilical.verifyTaskFailedEvent("Failure while running task:org.apache.tez.dag.api.TezUncheckedException: "
+            + "Unable to load class: NotExitedProcessor");
     } finally {
       executor.shutdownNow();
     }
@@ -355,9 +389,13 @@ public class TestTaskExecution {
     private boolean signalFatalAndLoop = false;
     private boolean signalFatalAndComplete = false;
 
+    public TestProcessor(ProcessorContext context) {
+      super(context);
+    }
+
     @Override
     public void initialize() throws Exception {
-      parseConf(getContext().getUserPayload());
+      parseConf(getContext().getUserPayload().deepCopyAsArray());
     }
 
     private void parseConf(byte[] bytes) {
@@ -479,7 +517,7 @@ public class TestTaskExecution {
     private final Condition eventCondition = umbilicalLock.newCondition();
     private boolean pendingEvent = false;
     private boolean eventEnacted = false;
-    
+
     volatile int getTaskInvocations = 0;
 
     private boolean shouldThrowException = false;
@@ -543,12 +581,17 @@ public class TestTaskExecution {
       }
     }
 
-    public void verifyTaskFailedEvent() {
+    public void verifyTaskFailedEvent(String diagnostics) {
       umbilicalLock.lock();
       try {
         for (TezEvent event : requestEvents) {
           if (event.getEvent() instanceof TaskAttemptFailedEvent) {
-            return;
+            TaskAttemptFailedEvent failedEvent = (TaskAttemptFailedEvent)event.getEvent();
+            if(failedEvent.getDiagnostics().startsWith(diagnostics)){
+              return ;
+            } else {
+              fail("No detailed diagnostics message in TaskAttemptFailedEvent");
+            }
           }
         }
         fail("No TaskAttemptFailedEvents sent over umbilical");
@@ -633,6 +676,12 @@ public class TestTaskExecution {
   private TezTaskRunner createTaskRunner(ApplicationId appId, TezTaskUmbilicalForTest umbilical,
       TaskReporter taskReporter, ListeningExecutorService executor, byte[] processorConf)
       throws IOException {
+    return createTaskRunner(appId, umbilical, taskReporter, executor, TestProcessor.class.getName(),
+        processorConf);
+  }
+
+  private TezTaskRunner createTaskRunner(ApplicationId appId, TezTaskUmbilicalForTest umbilical,
+      TaskReporter taskReporter, ListeningExecutorService executor, String processorClass, byte[] processorConf) throws IOException{
     TezConfiguration tezConf = new TezConfiguration(defaultConf);
     UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
     Path testDir = new Path(workDir, UUID.randomUUID().toString());
@@ -642,14 +691,14 @@ public class TestTaskExecution {
     TezVertexID vertexId = TezVertexID.getInstance(dagId, 1);
     TezTaskID taskId = TezTaskID.getInstance(vertexId, 1);
     TezTaskAttemptID taskAttemptId = TezTaskAttemptID.getInstance(taskId, 1);
-    ProcessorDescriptor processorDescriptor = new ProcessorDescriptor(TestProcessor.class.getName())
-        .setUserPayload(processorConf);
-    TaskSpec taskSpec = new TaskSpec(taskAttemptId, "dagName", "vertexName", processorDescriptor,
+    ProcessorDescriptor processorDescriptor = ProcessorDescriptor.create(processorClass)
+        .setUserPayload(UserPayload.create(ByteBuffer.wrap(processorConf)));
+    TaskSpec taskSpec = new TaskSpec(taskAttemptId, "dagName", "vertexName", -1, processorDescriptor,
         new ArrayList<InputSpec>(), new ArrayList<OutputSpec>(), null);
 
     TezTaskRunner taskRunner = new TezTaskRunner(tezConf, ugi, localDirs, taskSpec, umbilical, 1,
         new HashMap<String, ByteBuffer>(), HashMultimap.<String, String> create(), taskReporter,
-        executor);
+        executor, null);
     return taskRunner;
   }
 

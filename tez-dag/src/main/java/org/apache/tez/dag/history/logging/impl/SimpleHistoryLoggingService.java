@@ -28,7 +28,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.logging.HistoryLoggingService;
@@ -62,7 +62,9 @@ public class SimpleHistoryLoggingService extends HistoryLoggingService {
     String logDirPath = conf.get(TezConfiguration.TEZ_SIMPLE_HISTORY_LOGGING_DIR);
     final String logFileName = LOG_FILE_NAME_PREFIX + "." + appContext.getApplicationAttemptId();
     if (logDirPath == null || logDirPath.isEmpty()) {
-      String logDir = TezUtils.getContainerLogDir();
+      String logDir = TezUtilsInternal.getContainerLogDir();
+      LOG.info("Log file location for SimpleHistoryLoggingService not specified, defaulting to"
+          + " containerLogDir=" + logDir);
       Path p;
       logFileFS = FileSystem.getLocal(conf);
       if (logDir != null) {
@@ -72,6 +74,8 @@ public class SimpleHistoryLoggingService extends HistoryLoggingService {
       }
       logFileLocation = p;
     } else {
+      LOG.info("Using configured log file location for SimpleHistoryLoggingService"
+          + " logDirPath=" + logDirPath);
       Path p = new Path(logDirPath);
       logFileFS = p.getFileSystem(conf);
       if (!logFileFS.exists(p)) {
@@ -126,7 +130,7 @@ public class SimpleHistoryLoggingService extends HistoryLoggingService {
     }
     try {
       if (outputStream != null) {
-        outputStream.hsync();
+        outputStream.hflush();
         outputStream.close();
       }
     } catch (IOException ioe) {

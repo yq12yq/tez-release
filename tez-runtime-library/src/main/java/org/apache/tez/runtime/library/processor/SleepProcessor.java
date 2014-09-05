@@ -18,16 +18,21 @@
 
 package org.apache.tez.runtime.library.processor;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.LogicalIOProcessor;
-import org.apache.tez.runtime.api.LogicalInput;
-import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.TezProcessorContext;
-
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.tez.dag.api.UserPayload;
+import org.apache.tez.runtime.api.AbstractLogicalIOProcessor;
+import org.apache.tez.runtime.api.Event;
+import org.apache.tez.runtime.api.LogicalInput;
+import org.apache.tez.runtime.api.LogicalOutput;
+import org.apache.tez.runtime.api.ProcessorContext;
 
 /**
  * A simple sleep processor implementation that sleeps for the configured
@@ -35,23 +40,28 @@ import java.util.Map;
  *
  * @see SleepProcessorConfig for configuring the SleepProcessor
  */
-public class SleepProcessor implements LogicalIOProcessor {
+@Private
+public class SleepProcessor extends AbstractLogicalIOProcessor {
 
   private static final Log LOG = LogFactory.getLog(SleepProcessor.class);
 
   private int timeToSleepMS;
 
+  public SleepProcessor(ProcessorContext context) {
+    super(context);
+  }
+
   @Override
-  public void initialize(TezProcessorContext processorContext)
+  public void initialize()
     throws Exception {
-    if (processorContext.getUserPayload() == null) {
+    if (getContext().getUserPayload() == null) {
       LOG.info("No processor user payload specified"
         + ", using default timeToSleep of 1 ms");
       timeToSleepMS = 1;
     } else {
       SleepProcessorConfig cfg =
         new SleepProcessorConfig();
-      cfg.fromUserPayload(processorContext.getUserPayload());
+      cfg.fromUserPayload(getContext().getUserPayload());
       timeToSleepMS = cfg.getTimeToSleepMS();
     }
     LOG.info("Initialized SleepProcessor, timeToSleepMS=" + timeToSleepMS);
@@ -91,6 +101,7 @@ public class SleepProcessor implements LogicalIOProcessor {
    */
   public static class SleepProcessorConfig {
     private int timeToSleepMS;
+    private final Charset charSet = Charset.forName("UTF-8");
 
     public SleepProcessorConfig() {
     }
@@ -102,16 +113,17 @@ public class SleepProcessor implements LogicalIOProcessor {
       this.timeToSleepMS = timeToSleepMS;
     }
 
-    public byte[] toUserPayload() {
-      return Integer.toString(timeToSleepMS).getBytes();
+    public UserPayload toUserPayload() {
+      return UserPayload.create(ByteBuffer.wrap(Integer.toString(timeToSleepMS).getBytes()));
     }
 
-    public void fromUserPayload(byte[] userPayload) {
-      timeToSleepMS = Integer.valueOf(new String(userPayload)).intValue();
+    public void fromUserPayload(UserPayload userPayload) throws CharacterCodingException {
+      timeToSleepMS = Integer.valueOf(charSet.newDecoder().decode(userPayload.getPayload()).toString()).intValue();
     }
 
     public int getTimeToSleepMS() {
       return timeToSleepMS;
     }
   }
+
 }

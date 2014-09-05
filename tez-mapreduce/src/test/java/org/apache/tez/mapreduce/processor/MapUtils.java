@@ -49,8 +49,8 @@ import org.apache.hadoop.mapreduce.split.SplitMetaInfoReaderTez;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.tez.common.MRFrameworkConfigs;
-import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.security.JobTokenIdentifier;
 import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.mapreduce.TezTestUtils;
@@ -199,14 +199,15 @@ public class MapUtils {
       List<OutputSpec> outputSpecs) throws Exception {
     jobConf.setInputFormat(SequenceFileInputFormat.class);
 
-    ProcessorDescriptor mapProcessorDesc = new ProcessorDescriptor(
-        MapProcessor.class.getName()).setUserPayload(TezUtils.createUserPayloadFromConf(jobConf));
+    ProcessorDescriptor mapProcessorDesc = ProcessorDescriptor.create(
+        MapProcessor.class.getName()).setUserPayload(
+        TezUtils.createUserPayloadFromConf(jobConf));
     
     Token<JobTokenIdentifier> shuffleToken = new Token<JobTokenIdentifier>();
 
     TaskSpec taskSpec = new TaskSpec(
         TezTestUtils.getMockTaskAttemptId(0, 0, mapId, 0),
-        dagName, vertexName,
+        dagName, vertexName, -1,
         mapProcessorDesc,
         inputSpecs,
         outputSpecs, null);
@@ -222,7 +223,7 @@ public class MapUtils {
         new String[] {workDir.toString()},
         umbilical,
         serviceConsumerMetadata,
-        HashMultimap.<String, String>create());
+        HashMultimap.<String, String>create(), null);
     return task;
   }
 }

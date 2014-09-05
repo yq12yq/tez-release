@@ -18,6 +18,7 @@
 
 package org.apache.tez.test;
 
+import java.nio.ByteBuffer;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -28,8 +29,11 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
+import org.apache.tez.dag.api.DataSinkDescriptor;
+import org.apache.tez.dag.api.OutputCommitterDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
 import org.apache.tez.dag.api.client.DAGStatus.State;
@@ -130,7 +134,7 @@ public class TestDAGRecovery2 {
 
     TezConfiguration tezConf = createSessionConfig(remoteStagingDir);
     
-    tezSession = new TezClient("TestDAGRecovery2", tezConf);
+    tezSession = TezClient.create("TestDAGRecovery2", tezConf);
     tezSession.start();
   }
 
@@ -160,7 +164,7 @@ public class TestDAGRecovery2 {
     while (!dagStatus.isCompleted()) {
       LOG.info("Waiting for dag to complete. Sleeping for 500ms."
           + " DAG name: " + dag.getName()
-          + " DAG appId: " + dagClient.getApplicationId()
+          + " DAG appContext: " + dagClient.getExecutionContext()
           + " Current state: " + dagStatus.getState());
       Thread.sleep(100);
       dagStatus = dagClient.getDAGStatus(null);
@@ -173,12 +177,13 @@ public class TestDAGRecovery2 {
   public void testFailingCommitter() throws Exception {
     DAG dag = SimpleVTestDAG.createDAG("FailingCommitterDAG", null);
     OutputDescriptor od =
-        new OutputDescriptor(MultiAttemptDAG.NoOpOutput.class.getName());
-    od.setUserPayload(new
-        MultiAttemptDAG.FailingOutputCommitter.FailingOutputCommitterConfig(true)
-            .toUserPayload());
-    dag.getVertex("v3").addOutput("FailingOutput", od,
-        MultiAttemptDAG.FailingOutputCommitter.class);
+        OutputDescriptor.create(MultiAttemptDAG.NoOpOutput.class.getName());
+    od.setUserPayload(UserPayload.create(ByteBuffer.wrap(
+        new MultiAttemptDAG.FailingOutputCommitter.FailingOutputCommitterConfig(true)
+            .toUserPayload())));
+    OutputCommitterDescriptor ocd = OutputCommitterDescriptor.create(
+        MultiAttemptDAG.FailingOutputCommitter.class.getName());
+    dag.getVertex("v3").addDataSink("FailingOutput", new DataSinkDescriptor(od, ocd, null));
     runDAGAndVerify(dag, State.FAILED);
   }
 
@@ -191,7 +196,7 @@ public class TestDAGRecovery2 {
     TezConfiguration tezConf = createSessionConfig(remoteStagingDir);
     tezConf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, true);
     tezConf.setBoolean(TezConfiguration.DAG_RECOVERY_ENABLED, false);
-    TezClient session = new TezClient("TestDAGRecovery2SingleAttemptOnly", tezConf);
+    TezClient session = TezClient.create("TestDAGRecovery2SingleAttemptOnly", tezConf);
     session.start();
 
     // DAG should fail as it never completes on the first attempt

@@ -30,8 +30,8 @@ import java.util.List;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.VertexManagerPluginContext;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.events.RootInputConfigureVertexTasksEvent;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
+import org.apache.tez.runtime.api.events.InputConfigureVertexTasksEvent;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
 import org.junit.Test;
 
 public class TestRootInputVertexManager {
@@ -43,19 +43,21 @@ public class TestRootInputVertexManager {
     doReturn("vertex1").when(context).getVertexName();
     doReturn(1).when(context).getVertexNumTasks(eq("vertex1"));
 
-    RootInputVertexManager rootInputVertexManager = new RootInputVertexManager();
-    rootInputVertexManager.initialize(context);
+    RootInputVertexManager rootInputVertexManager = new RootInputVertexManager(context);
+    rootInputVertexManager.initialize();
 
     InputDescriptor id1 = mock(InputDescriptor.class);
     List<Event> events1 = new LinkedList<Event>();
-    RootInputDataInformationEvent diEvent11 = new RootInputDataInformationEvent(0, null);
+    InputDataInformationEvent diEvent11 = InputDataInformationEvent.createWithSerializedPayload(0,
+        null);
     events1.add(diEvent11);
     rootInputVertexManager.onRootVertexInitialized("input1", id1, events1);
     // All good so far, single input only.
 
     InputDescriptor id2 = mock(InputDescriptor.class);
     List<Event> events2 = new LinkedList<Event>();
-    RootInputDataInformationEvent diEvent21 = new RootInputDataInformationEvent(0, null);
+    InputDataInformationEvent diEvent21 = InputDataInformationEvent.createWithSerializedPayload(0,
+        null);
     events2.add(diEvent21);
     try {
       // Should fail due to second input
@@ -74,12 +76,12 @@ public class TestRootInputVertexManager {
     doReturn("vertex1").when(context).getVertexName();
     doReturn(-1).when(context).getVertexNumTasks(eq("vertex1"));
 
-    RootInputVertexManager rootInputVertexManager = new RootInputVertexManager();
-    rootInputVertexManager.initialize(context);
+    RootInputVertexManager rootInputVertexManager = new RootInputVertexManager(context);
+    rootInputVertexManager.initialize();
 
     InputDescriptor id1 = mock(InputDescriptor.class);
     List<Event> events1 = new LinkedList<Event>();
-    RootInputConfigureVertexTasksEvent diEvent11 = new RootInputConfigureVertexTasksEvent(1, null,
+    InputConfigureVertexTasksEvent diEvent11 = InputConfigureVertexTasksEvent.create(1, null,
         null);
     events1.add(diEvent11);
     rootInputVertexManager.onRootVertexInitialized("input1", id1, events1);
@@ -87,7 +89,7 @@ public class TestRootInputVertexManager {
 
     InputDescriptor id2 = mock(InputDescriptor.class);
     List<Event> events2 = new LinkedList<Event>();
-    RootInputConfigureVertexTasksEvent diEvent21 = new RootInputConfigureVertexTasksEvent(1, null,
+    InputConfigureVertexTasksEvent diEvent21 = InputConfigureVertexTasksEvent.create(1, null,
         null);
     events2.add(diEvent21);
     try {

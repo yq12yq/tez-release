@@ -23,12 +23,15 @@ import java.net.URI;
 import java.util.BitSet;
 import java.util.List;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezCommonUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezInputContext;
+import org.apache.tez.runtime.api.InputContext;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.events.InputFailedEvent;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
@@ -42,26 +45,26 @@ public class ShuffleInputEventHandler {
   private static final Log LOG = LogFactory.getLog(ShuffleInputEventHandler.class);
 
   private final ShuffleScheduler scheduler;
-  private final TezInputContext inputContext;
+  private final InputContext inputContext;
 
   private int maxMapRuntime = 0;
   private final boolean sslShuffle;
 
-  public ShuffleInputEventHandler(TezInputContext inputContext,
+  public ShuffleInputEventHandler(InputContext inputContext,
       ShuffleScheduler scheduler, boolean sslShuffle) {
     this.inputContext = inputContext;
     this.scheduler = scheduler;
     this.sslShuffle = sslShuffle;
   }
 
-  public void handleEvents(List<Event> events) {
+  public void handleEvents(List<Event> events) throws IOException {
     for (Event event : events) {
       handleEvent(event);
     }
   }
   
   
-  private void handleEvent(Event event) {
+  private void handleEvent(Event event) throws IOException {
     if (event instanceof DataMovementEvent) {
       processDataMovementEvent((DataMovementEvent) event);      
     } else if (event instanceof InputFailedEvent) {
@@ -69,19 +72,16 @@ public class ShuffleInputEventHandler {
     }
   }
 
-  private void processDataMovementEvent(DataMovementEvent dmEvent) {
+  private void processDataMovementEvent(DataMovementEvent dmEvent) throws IOException {
     DataMovementEventPayloadProto shufflePayload;
     try {
-      shufflePayload = DataMovementEventPayloadProto.parseFrom(dmEvent.getUserPayload());
+      shufflePayload = DataMovementEventPayloadProto.parseFrom(ByteString.copyFrom(dmEvent.getUserPayload()));
     } catch (InvalidProtocolBufferException e) {
       throw new TezUncheckedException("Unable to parse DataMovementEvent payload", e);
     } 
     int partitionId = dmEvent.getSourceIndex();
-    URI baseUri = getBaseURI(shufflePayload.getHost(), shufflePayload.getPort(), partitionId);
-    InputAttemptIdentifier srcAttemptIdentifier = 
-        new InputAttemptIdentifier(dmEvent.getTargetIndex(), dmEvent.getVersion(), shufflePayload.getPathComponent());
-    LOG.info("DataMovementEvent baseUri:" + baseUri + ", src: " + srcAttemptIdentifier);
-    
+    LOG.info("DataMovementEvent partitionId:" + partitionId + ", targetIndex: " + dmEvent.getTargetIndex()
+        + ", attemptNum: " + dmEvent.getVersion() + ", payload: " + ShuffleUtils.stringify(shufflePayload));
     // TODO NEWTEZ See if this duration hack can be removed.
     int duration = shufflePayload.getRunDuration();
     if (duration > maxMapRuntime) {
@@ -90,9 +90,11 @@ public class ShuffleInputEventHandler {
     }
     if (shufflePayload.hasEmptyPartitions()) {
       try {
-        byte[] emptyPartitions = TezUtils.decompressByteStringToByteArray(shufflePayload.getEmptyPartitions());
-        BitSet emptyPartitionsBitSet = TezUtils.fromByteArray(emptyPartitions);
+        byte[] emptyPartitions = TezCommonUtils.decompressByteStringToByteArray(shufflePayload.getEmptyPartitions());
+        BitSet emptyPartitionsBitSet = TezUtilsInternal.fromByteArray(emptyPartitions);
         if (emptyPartitionsBitSet.get(partitionId)) {
+          InputAttemptIdentifier srcAttemptIdentifier =
+              new InputAttemptIdentifier(dmEvent.getTargetIndex(), dmEvent.getVersion());
           LOG.info("Source partition: " + partitionId + " did not generate any data. SrcAttempt: ["
               + srcAttemptIdentifier + "]. Not fetching.");
           scheduler.copySucceeded(srcAttemptIdentifier, null, 0, 0, 0, null);
@@ -103,7 +105,13 @@ public class ShuffleInputEventHandler {
                 "the empty partition to succeeded", e);
       }
     }
-    scheduler.addKnownMapOutput(shufflePayload.getHost(), shufflePayload.getPort(), 
+
+    InputAttemptIdentifier srcAttemptIdentifier =
+        new InputAttemptIdentifier(dmEvent.getTargetIndex(), dmEvent.getVersion(),
+            shufflePayload.getPathComponent());
+
+    URI baseUri = getBaseURI(shufflePayload.getHost(), shufflePayload.getPort(), partitionId);
+    scheduler.addKnownMapOutput(shufflePayload.getHost(), shufflePayload.getPort(),
         partitionId, baseUri.toString(), srcAttemptIdentifier);
   }
   
@@ -114,11 +122,13 @@ public class ShuffleInputEventHandler {
   }
 
   // TODO NEWTEZ Handle encrypted shuffle
-  private URI getBaseURI(String host, int port, int partitionId) {
+  @VisibleForTesting
+  URI getBaseURI(String host, int port, int partitionId) {
     StringBuilder sb = ShuffleUtils.constructBaseURIForShuffleHandler(host, port,
       partitionId, inputContext.getApplicationId().toString(), sslShuffle);
     URI u = URI.create(sb.toString());
     return u;
   }
+
 }
 

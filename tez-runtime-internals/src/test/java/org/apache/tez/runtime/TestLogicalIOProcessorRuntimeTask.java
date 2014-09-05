@@ -41,11 +41,15 @@ import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
 import org.apache.tez.runtime.api.Reader;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.api.Writer;
 import org.apache.tez.runtime.api.impl.InputSpec;
 import org.apache.tez.runtime.api.impl.OutputSpec;
 import org.apache.tez.runtime.api.impl.TaskSpec;
 import org.apache.tez.runtime.api.impl.TezUmbilical;
+import org.apache.tez.runtime.common.resources.ScalingAllocator;
 import org.junit.Test;
 
 import com.google.common.collect.HashMultimap;
@@ -62,15 +66,17 @@ public class TestLogicalIOProcessorRuntimeTask {
     Multimap<String, String> startedInputsMap = HashMultimap.create();
     TezUmbilical umbilical = mock(TezUmbilical.class);
     TezConfiguration tezConf = new TezConfiguration();
+    tezConf.set(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ALLOCATOR_CLASS,
+        ScalingAllocator.class.getName());
 
     TezTaskAttemptID taId1 = createTaskAttemptID(vertexId, 1);
-    TaskSpec task1 = createTaskSpec(taId1, "dag1", "vertex1");
+    TaskSpec task1 = createTaskSpec(taId1, "dag1", "vertex1", 30);
 
     TezTaskAttemptID taId2 = createTaskAttemptID(vertexId, 2);
-    TaskSpec task2 = createTaskSpec(taId2, "dag2", "vertex1");
+    TaskSpec task2 = createTaskSpec(taId2, "dag2", "vertex1", 10);
 
     LogicalIOProcessorRuntimeTask lio1 = new LogicalIOProcessorRuntimeTask(task1, 0, tezConf, null,
-        umbilical, serviceConsumerMetadata, startedInputsMap);
+        umbilical, serviceConsumerMetadata, startedInputsMap, null);
 
     lio1.initialize();
     lio1.run();
@@ -80,9 +86,14 @@ public class TestLogicalIOProcessorRuntimeTask {
     assertEquals(1, TestProcessor.runCount);
     assertEquals(1, TestInput.startCount);
     assertEquals(0, TestOutput.startCount);
+    assertEquals(30, TestInput.vertexParallelism);
+    assertEquals(0, TestOutput.vertexParallelism);
+    assertEquals(30, lio1.getProcessorContext().getVertexParallelism());
+    assertEquals(30, lio1.getInputContexts().iterator().next().getVertexParallelism());
+    assertEquals(30, lio1.getOutputContexts().iterator().next().getVertexParallelism());
 
     LogicalIOProcessorRuntimeTask lio2 = new LogicalIOProcessorRuntimeTask(task2, 0, tezConf, null,
-        umbilical, serviceConsumerMetadata, startedInputsMap);
+        umbilical, serviceConsumerMetadata, startedInputsMap, null);
 
     lio2.initialize();
     lio2.run();
@@ -92,32 +103,38 @@ public class TestLogicalIOProcessorRuntimeTask {
     assertEquals(2, TestProcessor.runCount);
     assertEquals(1, TestInput.startCount);
     assertEquals(0, TestOutput.startCount);
+    assertEquals(30, TestInput.vertexParallelism);
+    assertEquals(0, TestOutput.vertexParallelism);
+    //Check if parallelism is available in processor/ i/p / o/p contexts
+    assertEquals(10, lio2.getProcessorContext().getVertexParallelism());
+    assertEquals(10, lio2.getInputContexts().iterator().next().getVertexParallelism());
+    assertEquals(10, lio2.getOutputContexts().iterator().next().getVertexParallelism());
 
   }
 
   private TaskSpec createTaskSpec(TezTaskAttemptID taskAttemptID,
-      String dagName, String vertexName) {
+      String dagName, String vertexName, int parallelism) {
     ProcessorDescriptor processorDesc = createProcessorDescriptor();
     TaskSpec taskSpec = new TaskSpec(taskAttemptID,
-        dagName, vertexName, processorDesc,
+        dagName, vertexName, parallelism, processorDesc,
         createInputSpecList(), createOutputSpecList(), null);
     return taskSpec;
   }
 
   private List<InputSpec> createInputSpecList() {
-    InputDescriptor inputDesc = new InputDescriptor(TestInput.class.getName());
+    InputDescriptor inputDesc = InputDescriptor.create(TestInput.class.getName());
     InputSpec inputSpec = new InputSpec("inedge", inputDesc, 1);
     return Lists.newArrayList(inputSpec);
   }
 
   private List<OutputSpec> createOutputSpecList() {
-    OutputDescriptor outputtDesc = new OutputDescriptor(TestOutput.class.getName());
+    OutputDescriptor outputtDesc = OutputDescriptor.create(TestOutput.class.getName());
     OutputSpec outputSpec = new OutputSpec("outedge", outputtDesc, 1);
     return Lists.newArrayList(outputSpec);
   }
 
   private ProcessorDescriptor createProcessorDescriptor() {
-    ProcessorDescriptor desc = new ProcessorDescriptor(TestProcessor.class.getName());
+    ProcessorDescriptor desc = ProcessorDescriptor.create(TestProcessor.class.getName());
     return desc;
   }
 
@@ -139,7 +156,8 @@ public class TestLogicalIOProcessorRuntimeTask {
 
     public static volatile int runCount = 0;
 
-    public TestProcessor() {
+    public TestProcessor(ProcessorContext context) {
+      super(context);
     }
 
     @Override
@@ -167,8 +185,10 @@ public class TestLogicalIOProcessorRuntimeTask {
   public static class TestInput extends AbstractLogicalInput {
 
     public static volatile int startCount = 0;
+    public static volatile int vertexParallelism;
 
-    public TestInput() {
+    public TestInput(InputContext inputContext, int numPhysicalInputs) {
+      super(inputContext, numPhysicalInputs);
     }
 
     @Override
@@ -181,6 +201,7 @@ public class TestLogicalIOProcessorRuntimeTask {
     @Override
     public void start() throws Exception {
       startCount++;
+      this.vertexParallelism = getContext().getVertexParallelism();
       System.err.println("In started");
     }
 
@@ -203,9 +224,12 @@ public class TestLogicalIOProcessorRuntimeTask {
   public static class TestOutput extends AbstractLogicalOutput {
 
     public static volatile int startCount = 0;
+    public static volatile int vertexParallelism;
 
-    public TestOutput() {
+    public TestOutput(OutputContext outputContext, int numPhysicalOutputs) {
+      super(outputContext, numPhysicalOutputs);
     }
+
 
     @Override
     public List<Event> initialize() throws Exception {
@@ -217,6 +241,7 @@ public class TestLogicalIOProcessorRuntimeTask {
     public void start() throws Exception {
       System.err.println("Out started");
       startCount++;
+      this.vertexParallelism = getContext().getVertexParallelism();
     }
 
     @Override

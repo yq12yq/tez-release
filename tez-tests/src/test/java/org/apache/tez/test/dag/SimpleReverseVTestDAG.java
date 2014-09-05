@@ -24,6 +24,7 @@ import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.Edge;
 import org.apache.tez.dag.api.EdgeProperty;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
 import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
@@ -47,29 +48,29 @@ public class SimpleReverseVTestDAG {
   
   public static DAG createDAG(String name, 
       Configuration conf) throws Exception {
-    byte[] payload = null;
+    UserPayload payload = UserPayload.create(null);
     int taskCount = TEZ_SIMPLE_REVERSE_V_DAG_NUM_TASKS_DEFAULT;
     if (conf != null) {
       taskCount = conf.getInt(TEZ_SIMPLE_REVERSE_V_DAG_NUM_TASKS, TEZ_SIMPLE_REVERSE_V_DAG_NUM_TASKS_DEFAULT);
       payload = TezUtils.createUserPayloadFromConf(conf);
     }
-    DAG dag = new DAG(name);
-    Vertex v1 = new Vertex("v1", TestProcessor.getProcDesc(payload), taskCount, defaultResource);
-    Vertex v2 = new Vertex("v2", TestProcessor.getProcDesc(payload), taskCount, defaultResource);
-    Vertex v3 = new Vertex("v3", TestProcessor.getProcDesc(payload), taskCount, defaultResource);
+    DAG dag = DAG.create(name);
+    Vertex v1 = Vertex.create("v1", TestProcessor.getProcDesc(payload), taskCount, defaultResource);
+    Vertex v2 = Vertex.create("v2", TestProcessor.getProcDesc(payload), taskCount, defaultResource);
+    Vertex v3 = Vertex.create("v3", TestProcessor.getProcDesc(payload), taskCount, defaultResource);
     dag.addVertex(v1).addVertex(v2).addVertex(v3);
-    dag.addEdge(new Edge(v1, v2, 
-        new EdgeProperty(DataMovementType.SCATTER_GATHER, 
-            DataSourceType.PERSISTED, 
-            SchedulingType.SEQUENTIAL, 
-            TestOutput.getOutputDesc(payload), 
+    dag.addEdge(Edge.create(v1, v2,
+        EdgeProperty.create(DataMovementType.SCATTER_GATHER,
+            DataSourceType.PERSISTED,
+            SchedulingType.SEQUENTIAL,
+            TestOutput.getOutputDesc(payload),
             TestInput.getInputDesc(payload))));
-    dag.addEdge(new Edge(v1, v3, 
-            new EdgeProperty(DataMovementType.SCATTER_GATHER, 
-                DataSourceType.PERSISTED, 
-                SchedulingType.SEQUENTIAL, 
-                TestOutput.getOutputDesc(payload), 
-                TestInput.getInputDesc(payload))));
+    dag.addEdge(Edge.create(v1, v3,
+        EdgeProperty.create(DataMovementType.SCATTER_GATHER,
+            DataSourceType.PERSISTED,
+            SchedulingType.SEQUENTIAL,
+            TestOutput.getOutputDesc(payload),
+            TestInput.getInputDesc(payload))));
     return dag;
   }
   

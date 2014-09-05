@@ -20,7 +20,6 @@ package org.apache.tez.dag.app.dag.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -28,18 +27,15 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.tez.common.RuntimeUtils;
-import org.apache.tez.common.TezUserPayload;
-import org.apache.tez.common.TezUtils;
-import org.apache.tez.dag.api.DagTypeConverters;
-import org.apache.tez.dag.api.EdgeManagerDescriptor;
+import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
 import org.apache.tez.dag.api.EdgeProperty;
 import org.apache.tez.dag.api.InputDescriptor;
-import org.apache.tez.dag.api.TezUncheckedException;
+import org.apache.tez.dag.api.InputInitializerDescriptor;
+import org.apache.tez.dag.api.RootInputLeafOutput;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.VertexLocationHint;
 import org.apache.tez.dag.api.VertexManagerPlugin;
 import org.apache.tez.dag.api.VertexManagerPluginContext;
@@ -52,8 +48,8 @@ import org.apache.tez.dag.app.dag.event.VertexEventRouteEvent;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.RootInputSpecUpdate;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
+import org.apache.tez.runtime.api.InputSpecUpdate;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
 import org.apache.tez.runtime.api.events.VertexManagerEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData;
 import org.apache.tez.runtime.api.impl.TezEvent;
@@ -70,11 +66,9 @@ public class VertexManager {
   VertexManagerPlugin plugin;
   Vertex managedVertex;
   VertexManagerPluginContextImpl pluginContext;
-  TezUserPayload payload = null;
+  UserPayload payload = null;
   AppContext appContext;
-  
-  private static final Log LOG = LogFactory.getLog(VertexManager.class);
-  
+    
   class VertexManagerPluginContextImpl implements VertexManagerPluginContext {
     // TODO Add functionality to allow VertexManagers to send VertexManagerEvents
     
@@ -106,8 +100,8 @@ public class VertexManager {
 
     @Override
     public boolean setVertexParallelism(int parallelism, VertexLocationHint vertexLocationHint,
-        Map<String, EdgeManagerDescriptor> sourceEdgeManagers,
-        Map<String, RootInputSpecUpdate> rootInputSpecUpdate) {
+        Map<String, EdgeManagerPluginDescriptor> sourceEdgeManagers,
+        Map<String, InputSpecUpdate> rootInputSpecUpdate) {
       return managedVertex.setParallelism(parallelism, vertexLocationHint, sourceEdgeManagers,
           rootInputSpecUpdate);
     }
@@ -121,29 +115,28 @@ public class VertexManager {
     @Override
     public Set<String> getVertexInputNames() {
       Set<String> inputNames = null;
-      Map<String, RootInputLeafOutputDescriptor<InputDescriptor>> inputs = 
-          managedVertex.getAdditionalInputs();
+      Map<String, RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>> 
+          inputs = managedVertex.getAdditionalInputs();
       if (inputs != null) {
         inputNames = inputs.keySet();
       }
       return inputNames;
     }
 
-    @Nullable
     @Override
-    public byte[] getUserPayload() {
-      return payload == null ? null: payload.getPayload();
+    public UserPayload getUserPayload() {
+      return payload;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void addRootInputEvents(final String inputName,
-        Collection<RootInputDataInformationEvent> events) {
+        Collection<InputDataInformationEvent> events) {
       verifyIsRootInput(inputName);
       Iterable<TezEvent> tezEvents = Iterables.transform(events,
-          new Function<RootInputDataInformationEvent, TezEvent>() {
+          new Function<InputDataInformationEvent, TezEvent>() {
             @Override
-            public TezEvent apply(RootInputDataInformationEvent riEvent) {
+            public TezEvent apply(InputDataInformationEvent riEvent) {
               TezEvent tezEvent = new TezEvent(riEvent, rootEventSourceMetadata);
               tezEvent.setDestinationInfo(getDestinationMetaData(inputName));
               return tezEvent;
@@ -207,17 +200,7 @@ public class VertexManager {
       return null;
     }
   }
-  
-  public VertexManager(VertexManagerPlugin plugin, 
-      Vertex managedVertex, AppContext appContext) {
-    checkNotNull(plugin, "plugin is null");
-    checkNotNull(managedVertex, "managedVertex is null");
-    checkNotNull(appContext, "appContext is null");
-    this.plugin = plugin;
-    this.managedVertex = managedVertex;
-    this.appContext = appContext;
-  }
-  
+
   public VertexManager(VertexManagerPluginDescriptor pluginDesc, 
       Vertex managedVertex, AppContext appContext) {
     checkNotNull(pluginDesc, "pluginDesc is null");
@@ -235,20 +218,11 @@ public class VertexManager {
   public void initialize() {
     pluginContext = new VertexManagerPluginContextImpl();
     if (pluginDesc != null) {
-      plugin = RuntimeUtils.createClazzInstance(pluginDesc.getClassName());
-      payload = DagTypeConverters.convertToTezUserPayload(pluginDesc.getUserPayload());
+      plugin = ReflectionUtils.createClazzInstance(pluginDesc.getClassName(),
+          new Class[]{VertexManagerPluginContext.class}, new Object[]{pluginContext});
+      payload = pluginDesc.getUserPayload();
     }
-    if (payload == null || payload.getPayload() == null) {
-      // Ease of use. If no payload present then give the common configuration
-      // TODO TEZ-744 Don't do this - AMConf should not be used to configure vertexManagers.
-      try {
-        payload = DagTypeConverters.convertToTezUserPayload(
-            TezUtils.createUserPayloadFromConf(appContext.getAMConf()));
-      } catch (IOException e) {
-        throw new TezUncheckedException(e);
-      }
-    }
-    plugin.initialize(pluginContext);
+    plugin.initialize();
   }
 
   public void onVertexStarted(List<TezTaskAttemptID> completions) {

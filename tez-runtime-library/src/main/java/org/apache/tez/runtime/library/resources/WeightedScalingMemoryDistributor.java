@@ -27,15 +27,17 @@ import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tez.common.TezJobConfig;
+import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.runtime.common.resources.InitialMemoryAllocator;
 import org.apache.tez.runtime.common.resources.InitialMemoryRequestContext;
-import org.apache.tez.runtime.library.input.ShuffledMergedInput;
-import org.apache.tez.runtime.library.input.ShuffledMergedInputLegacy;
-import org.apache.tez.runtime.library.input.ShuffledUnorderedKVInput;
-import org.apache.tez.runtime.library.output.OnFileSortedOutput;
-import org.apache.tez.runtime.library.output.OnFileUnorderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.input.OrderedGroupedKVInput;
+import org.apache.tez.runtime.library.input.OrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.input.UnorderedKVInput;
+import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.output.UnorderedPartitionedKVOutput;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -45,23 +47,24 @@ import com.google.common.collect.Maps;
 /**
  * Distributes memory between various requesting components by applying a
  * weighted scaling function. Overall, ensures that all requestors stay within the JVM limits.
- * 
+ *
  * Configuration involves specifying weights for the different Inputs available
  * in the tez-runtime-library. As an example, SortedShuffle : SortedOutput :
  * UnsortedShuffle could be configured to be 20:10:1. In this case, if both
  * SortedShuffle and UnsortedShuffle ask for the same amount of initial memory,
  * SortedShuffle will be given 20 times more; both may be scaled down to fit within the JVM though.
- * 
+ *
  */
+@Public
+@Unstable
 public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator {
 
   private static final Log LOG = LogFactory.getLog(WeightedScalingMemoryDistributor.class);
 
-  @VisibleForTesting
-  static final double DEFAULT_RESERVE_FRACTION = 0.25d;
-
-  static final double MAX_ADDITIONAL_RESERVATION_FRACTION_PER_IO = 0.3d;
-  static final double RESERVATION_FRACTION_PER_IO = 0.025d;
+  static final double MAX_ADDITIONAL_RESERVATION_FRACTION_PER_IO = 0.1d;
+  static final double RESERVATION_FRACTION_PER_IO = 0.015d;
+  static final String[] DEFAULT_TASK_MEMORY_WEIGHTED_RATIOS =
+      generateWeightStrings(1, 1, 12, 12, 1, 1);
 
   private Configuration conf;
 
@@ -71,7 +74,8 @@ public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator 
   @Private
   @VisibleForTesting
   public enum RequestType {
-    PARTITIONED_UNSORTED_OUTPUT, UNSORTED_INPUT, SORTED_OUTPUT, SORTED_MERGED_INPUT, PROCESSOR, OTHER
+    PARTITIONED_UNSORTED_OUTPUT, UNSORTED_INPUT, UNSORTED_OUTPUT, SORTED_OUTPUT,
+    SORTED_MERGED_INPUT, PROCESSOR, OTHER
   };
 
   private EnumMap<RequestType, Integer> typeScaleMap = Maps.newEnumMap(RequestType.class);
@@ -179,14 +183,14 @@ public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator 
 
   private RequestType getRequestTypeForClass(String className) {
     RequestType requestType;
-    if (className.equals(OnFileSortedOutput.class.getName())) {
+    if (className.equals(OrderedPartitionedKVOutput.class.getName())) {
       requestType = RequestType.SORTED_OUTPUT;
-    } else if (className.equals(ShuffledMergedInput.class.getName())
-        || className.equals(ShuffledMergedInputLegacy.class.getName())) {
+    } else if (className.equals(OrderedGroupedKVInput.class.getName())
+        || className.equals(OrderedGroupedInputLegacy.class.getName())) {
       requestType = RequestType.SORTED_MERGED_INPUT;
-    } else if (className.equals(ShuffledUnorderedKVInput.class.getName())) {
+    } else if (className.equals(UnorderedKVInput.class.getName())) {
       requestType = RequestType.UNSORTED_INPUT;
-    } else if (className.equals(OnFileUnorderedPartitionedKVOutput.class.getName())) {
+    } else if (className.equals(UnorderedPartitionedKVOutput.class.getName())) {
       requestType = RequestType.PARTITIONED_UNSORTED_OUTPUT;
     } else {
       requestType = RequestType.OTHER;
@@ -196,7 +200,8 @@ public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator 
   }
 
   private void populateTypeScaleMap() {
-    String[] ratios = conf.getStrings(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_WEIGHTED_RATIOS);
+    String[] ratios = conf.getStrings(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_WEIGHTED_RATIOS,
+        DEFAULT_TASK_MEMORY_WEIGHTED_RATIOS);
     int numExpectedValues = RequestType.values().length;
     if (ratios == null) {
       LOG.info("No ratio specified. Falling back to Linear scaling");
@@ -233,10 +238,10 @@ public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator 
   private double computeReservedFraction(int numTotalRequests) {
 
     double reserveFractionPerIo = conf.getDouble(
-        TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ADDITIONAL_RESERVATION_FRACTION_PER_IO,
+        TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ADDITIONAL_RESERVATION_FRACTION_PER_IO,
         RESERVATION_FRACTION_PER_IO);
     double maxAdditionalReserveFraction = conf.getDouble(
-        TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ADDITIONAL_RESERVATION_FRACTION_MAX,
+        TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ADDITIONAL_RESERVATION_FRACTION_MAX,
         MAX_ADDITIONAL_RESERVATION_FRACTION_PER_IO);
     Preconditions.checkArgument(maxAdditionalReserveFraction >= 0f
         && maxAdditionalReserveFraction <= 1f);
@@ -247,8 +252,8 @@ public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator 
           + maxAdditionalReserveFraction);
     }
 
-    double initialReserveFraction = conf.getDouble(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_RESERVE_FRACTION,
-        DEFAULT_RESERVE_FRACTION);
+    double initialReserveFraction = conf.getDouble(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_RESERVE_FRACTION,
+        TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_RESERVE_FRACTION_DEFAULT);
     double additionalReserveFraction = Math.min(maxAdditionalReserveFraction, numTotalRequests
         * reserveFractionPerIo);
 
@@ -258,6 +263,19 @@ public class WeightedScalingMemoryDistributor implements InitialMemoryAllocator 
         + ", AdditionalReservationFractionForIOs=" + additionalReserveFraction
         + ", finalReserveFractionUsed=" + reserveFraction);
     return reserveFraction;
+  }
+
+  public static String[] generateWeightStrings(int unsortedPartitioned, int broadcastIn,
+      int sortedOut, int scatterGatherShuffleIn, int proc, int other) {
+    String[] weights = new String[RequestType.values().length];
+    weights[0] = RequestType.PARTITIONED_UNSORTED_OUTPUT.name() + ":" + unsortedPartitioned;
+    weights[1] = RequestType.UNSORTED_OUTPUT.name() + ":" + 0;
+    weights[2] = RequestType.UNSORTED_INPUT.name() + ":" + broadcastIn;
+    weights[3] = RequestType.SORTED_OUTPUT.name() + ":" + sortedOut;
+    weights[4] = RequestType.SORTED_MERGED_INPUT.name() + ":" + scatterGatherShuffleIn;
+    weights[5] = RequestType.PROCESSOR.name() + ":" + proc;
+    weights[6] = RequestType.OTHER.name() + ":" + other;
+    return weights;
   }
 
   @Override

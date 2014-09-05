@@ -18,18 +18,24 @@
 
 package org.apache.tez.dag.api.client;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hadoop.util.StringUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.tez.common.counters.TezCounters;
+import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.records.DAGProtos.DAGStatusProtoOrBuilder;
 import org.apache.tez.dag.api.records.DAGProtos.StringProgressPairProto;
 import org.apache.tez.dag.api.TezUncheckedException;
 
+/**
+ * Describes the status of the {@link DAG}
+ */
+@Public
 public class DAGStatus {
 
   private static final String LINE_SEPARATOR = System
@@ -47,7 +53,8 @@ public class DAGStatus {
 
   DAGStatusProtoOrBuilder proxy = null;
   Progress progress = null;
-  Map<String, Progress> vertexProgress = null;
+  // use LinkedHashMap to ensure the vertex order (TEZ-1065)
+  LinkedHashMap<String, Progress> vertexProgress = null;
   TezCounters dagCounters = null;
   AtomicBoolean countersInitialized = new AtomicBoolean(false);
 
@@ -119,7 +126,7 @@ public class DAGStatus {
     if(vertexProgress == null) {
       if(proxy.getVertexProgressList() != null) {
         List<StringProgressPairProto> kvList = proxy.getVertexProgressList();
-        vertexProgress = new HashMap<String, Progress>(kvList.size());
+        vertexProgress = new LinkedHashMap<String, Progress>(kvList.size());
         for(StringProgressPairProto kv : kvList){
           vertexProgress.put(kv.getKey(), new Progress(kv.getProgress()));
         }
@@ -161,7 +168,7 @@ public class DAGStatus {
     sb.append("status=" + getState()
       + ", progress=" + getDAGProgress()
       + ", diagnostics="
-      + StringUtils.join(LINE_SEPARATOR, getDiagnostics())
+      + StringUtils.join(getDiagnostics(), LINE_SEPARATOR)
       + ", counters="
       + (dagCounters == null ? "null" : dagCounters.toString()));
     return sb.toString();

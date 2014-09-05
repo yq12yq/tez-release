@@ -30,13 +30,15 @@ import org.apache.hadoop.util.StringInterner;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.TezConstants;
 
 @Private
 public class TezYARNUtils {
   
   private static Pattern ENV_VARIABLE_PATTERN = Pattern.compile(Shell.getEnvironmentVariableRegex());
-  
-  public static String getFrameworkClasspath(Configuration conf) {
+
+  public static String getFrameworkClasspath(Configuration conf, boolean usingArchive) {
     Map<String, String> environment = new HashMap<String, String>();
 
     TezYARNUtils.addToEnvironment(environment,
@@ -49,12 +51,31 @@ public class TezYARNUtils {
         Environment.PWD.$() + File.separator + "*",
         File.pathSeparator);
 
-    // Add YARN/COMMON/HDFS jars and conf locations to path
-    for (String c : conf.getStrings(
-        YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-        YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+    // Next add the tez libs, if specified via an archive.
+    if (usingArchive) {
       TezYARNUtils.addToEnvironment(environment, Environment.CLASSPATH.name(),
-          c.trim(), File.pathSeparator);
+          Environment.PWD.$() + File.separator +
+              TezConstants.TEZ_TAR_LR_NAME + File.separator + "*", File.pathSeparator);
+
+      TezYARNUtils.addToEnvironment(environment, Environment.CLASSPATH.name(),
+          Environment.PWD.$() + File.separator +
+              TezConstants.TEZ_TAR_LR_NAME + File.separator + "lib" + File.separator + "*",
+          File.pathSeparator);
+    }
+
+    // Last add HADOOP_CLASSPATH, if it's required.
+    if (conf.getBoolean(TezConfiguration.TEZ_USE_CLUSTER_HADOOP_LIBS,
+        TezConfiguration.TEZ_USE_CLUSTER_HADOOP_LIBS_DEFAULT)) {
+      for (String c : conf.getStrings(
+          YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+          YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+        TezYARNUtils.addToEnvironment(environment, Environment.CLASSPATH.name(),
+            c.trim(), File.pathSeparator);
+      }
+    } else {
+      // Setup HADOOP_CONF_DIR after PWD and tez-libs, if it's required.
+      TezYARNUtils.addToEnvironment(environment, Environment.CLASSPATH.name(),
+          Environment.HADOOP_CONF_DIR.$(), File.pathSeparator);
     }
     return StringInterner.weakIntern(environment.get(Environment.CLASSPATH.name()));
   }
@@ -133,10 +154,10 @@ public class TezYARNUtils {
   }
 
   public static void setupDefaultEnv(Map<String, String> env,
-      Configuration conf,  String confEnvKey, String confEnvKeyDefault) {
+      Configuration conf,  String confEnvKey, String confEnvKeyDefault, boolean usingArchive) {
     // Setup the CLASSPATH in environment
     // i.e. add { Hadoop jars, job jar, CWD } to classpath.
-    String classpath = getFrameworkClasspath(conf);
+    String classpath = getFrameworkClasspath(conf, usingArchive);
     TezYARNUtils.addToEnvironment(env,
         ApplicationConstants.Environment.CLASSPATH.name(),
         classpath, File.pathSeparator);

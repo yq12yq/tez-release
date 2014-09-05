@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.tez</groupId>
     <artifactId>tez</artifactId>
-    <version>0.5.0-incubating-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
   </parent>
   <artifactId>tez-dist</artifactId>
 
@@ -35,7 +35,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.tez</groupId>
-      <artifactId>tez-mapreduce-examples</artifactId>
+      <artifactId>tez-examples</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -47,9 +47,7 @@
   </dependencies>
 
   <properties>
-    <package.format>dir</package.format>
-    <!--includeBaseDirectory is not used - replacement does not work in the packaging-->
-    <package.includeBaseDirectory>false</package.includeBaseDirectory>
+    <package.format>tar.gz</package.format>
   </properties>
 
   <profiles>
@@ -65,19 +63,6 @@
           <version>${project.version}</version>
         </dependency>
       </dependencies>
-    </profile>
-    <profile>
-      <id>dist-tar</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-        <property>
-          <name>tar</name>
-        </property>
-      </activation>
-      <properties>
-        <package.format>tar.gz</package.format>
-        <package.includeBaseDirectory>true</package.includeBaseDirectory>
-      </properties>
     </profile>
   </profiles>
 
@@ -107,7 +92,8 @@
                 <descriptor>src/main/assembly/tez-dist.xml</descriptor>
               </descriptors>
               <formats>
-                <format>${package.format}</format>
+                <format>dir</format>
+                <format>tar.gz</format>
               </formats>
             </configuration>
             <phase>prepare-package</phase>
@@ -116,11 +102,11 @@
             </goals>
           </execution>
           <execution>
-            <id>package-tez-full</id>
+            <id>package-tez-minimal</id>
             <configuration>
-              <finalName>tez-${project.version}-full</finalName>
+              <finalName>tez-${project.version}-minimal</finalName>
               <descriptors>
-                <descriptor>src/main/assembly/tez-dist-full.xml</descriptor>
+                <descriptor>src/main/assembly/tez-dist-minimal.xml</descriptor>
               </descriptors>
               <formats>
                 <format>${package.format}</format>

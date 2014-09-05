@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.RawComparator;
@@ -33,19 +34,17 @@ import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.tez.common.TezJobConfig;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 @InterfaceAudience.Private
 public class ConfigUtils {
 
-
-
   public static Class<? extends CompressionCodec> getIntermediateOutputCompressorClass(
       Configuration conf, Class<DefaultCodec> defaultValue) {
     Class<? extends CompressionCodec> codecClass = defaultValue;
     String name = conf
-        .get(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_COMPRESS_CODEC);
+        .get(TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS_CODEC);
     if (name != null) {
       try {
         codecClass = conf.getClassByName(name).asSubclass(
@@ -62,7 +61,7 @@ public class ConfigUtils {
       Configuration conf, Class<DefaultCodec> defaultValue) {
     Class<? extends CompressionCodec> codecClass = defaultValue;
     String name = conf
-        .get(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_INPUT_COMPRESS_CODEC);
+        .get(TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS_CODEC);
     if (name != null) {
       try {
         codecClass = conf.getClassByName(name).asSubclass(
@@ -80,45 +79,45 @@ public class ConfigUtils {
   
   public static boolean shouldCompressIntermediateOutput(Configuration conf) {
     return conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_SHOULD_COMPRESS, false);
+        TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS, false);
   }
 
   public static boolean isIntermediateInputCompressed(Configuration conf) {
     return conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_INPUT_IS_COMPRESSED, false);
+        TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS, false);
   }
 
   public static <V> Class<V> getIntermediateOutputValueClass(Configuration conf) {
     Class<V> retv = (Class<V>) conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_VALUE_CLASS, null,
+        TezRuntimeConfiguration.TEZ_RUNTIME_VALUE_CLASS, null,
         Object.class);
     return retv;
   }
   
   public static <V> Class<V> getIntermediateInputValueClass(Configuration conf) {
     Class<V> retv = (Class<V>) conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_INPUT_VALUE_CLASS, null,
+        TezRuntimeConfiguration.TEZ_RUNTIME_VALUE_CLASS, null,
         Object.class);
     return retv;
   }
 
   public static <K> Class<K> getIntermediateOutputKeyClass(Configuration conf) {
     Class<K> retv = (Class<K>) conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_KEY_CLASS, null,
+        TezRuntimeConfiguration.TEZ_RUNTIME_KEY_CLASS, null,
         Object.class);
     return retv;
   }
 
   public static <K> Class<K> getIntermediateInputKeyClass(Configuration conf) {
     Class<K> retv = (Class<K>) conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_INPUT_KEY_CLASS, null,
+        TezRuntimeConfiguration.TEZ_RUNTIME_KEY_CLASS, null,
         Object.class);
     return retv;
   }
 
   public static <K> RawComparator<K> getIntermediateOutputKeyComparator(Configuration conf) {
     Class<? extends RawComparator> theClass = conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_KEY_COMPARATOR_CLASS, null,
+        TezRuntimeConfiguration.TEZ_RUNTIME_KEY_COMPARATOR_CLASS, null,
         RawComparator.class);
     if (theClass != null)
       return ReflectionUtils.newInstance(theClass, conf);
@@ -128,7 +127,7 @@ public class ConfigUtils {
 
   public static <K> RawComparator<K> getIntermediateInputKeyComparator(Configuration conf) {
     Class<? extends RawComparator> theClass = conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_INPUT_KEY_COMPARATOR_CLASS, null,
+        TezRuntimeConfiguration.TEZ_RUNTIME_KEY_COMPARATOR_CLASS, null,
         RawComparator.class);
     if (theClass != null)
       return ReflectionUtils.newInstance(theClass, conf);
@@ -143,7 +142,7 @@ public class ConfigUtils {
       Configuration conf) {
     Class<? extends RawComparator> theClass = conf
         .getClass(
-            TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_INPUT_KEY_SECONDARY_COMPARATOR_CLASS,
+            TezRuntimeConfiguration.TEZ_RUNTIME_KEY_SECONDARY_COMPARATOR_CLASS,
             null, RawComparator.class);
     if (theClass == null) {
       return getIntermediateInputKeyComparator(conf);
@@ -218,10 +217,10 @@ public class ConfigUtils {
   }
 
   @InterfaceAudience.Private
-  public static void mergeConfsWithExclusions(Configuration destConf, Configuration srcConf, Set<String> excludedKeySet) {
+  public static void mergeConfsWithExclusions(Configuration destConf, Map<String, String> srcConf, Set<String> excludedKeySet) {
     Preconditions.checkState(destConf != null, "Destination conf cannot be null");
     Preconditions.checkState(srcConf != null, "Source conf cannot be null");
-    for (Map.Entry<String, String> entry : srcConf) {
+    for (Map.Entry<String, String> entry : srcConf.entrySet()) {
       if (!excludedKeySet.contains(entry.getKey())) {
         destConf.set(entry.getKey(), entry.getValue());
       }

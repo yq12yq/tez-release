@@ -26,13 +26,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.tez.dag.app.dag.DAG;
 import org.apache.tez.dag.app.rm.TaskSchedulerEventHandler;
 import org.apache.tez.dag.app.rm.container.AMContainerMap;
 import org.apache.tez.dag.app.rm.node.AMNodeMap;
+import org.apache.tez.common.security.ACLManager;
 import org.apache.tez.dag.history.HistoryEventHandler;
 import org.apache.tez.dag.records.TezDAGID;
 
@@ -78,8 +78,6 @@ public interface AppContext {
 
   TaskSchedulerEventHandler getTaskScheduler();
 
-  Map<String, LocalResource> getSessionResources();
-
   boolean isSession();
 
   DAGAppMasterState getAMState();
@@ -89,5 +87,7 @@ public interface AppContext {
   Path getCurrentRecoveryDir();
 
   boolean isRecoveryEnabled();
+
+  ACLManager getAMACLManager();
 
 }

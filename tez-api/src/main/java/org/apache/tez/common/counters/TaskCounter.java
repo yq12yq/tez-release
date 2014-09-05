@@ -18,11 +18,10 @@
 
 package org.apache.tez.common.counters;
 
-import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
 
 // Counters used by Task classes
-@InterfaceAudience.Private
-
+@Private
 public enum TaskCounter {
   // TODO Eventually, rename counters to be non-MR specific and map them to MR equivalent.
 
@@ -158,6 +157,11 @@ public enum TaskCounter {
    * Number of bytes which were shuffled directly to disk 
    */
   SHUFFLE_BYTES_TO_DISK,
+
+  /**
+   * Number of bytes which were read directly from local disk
+   */
+  SHUFFLE_BYTES_DISK_DIRECT,
 
   /**
    * Number of Memory to Disk merges performed during sort-merge.

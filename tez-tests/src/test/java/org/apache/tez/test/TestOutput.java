@@ -25,8 +25,10 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.tez.dag.api.OutputDescriptor;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.runtime.api.AbstractLogicalOutput;
 import org.apache.tez.runtime.api.Event;
+import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.Writer;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 
@@ -34,10 +36,17 @@ import com.google.common.collect.Lists;
 
 public class TestOutput extends AbstractLogicalOutput {
   private static final Log LOG = LogFactory.getLog(TestOutput.class);
-  
-  public static OutputDescriptor getOutputDesc(byte[] payload) {
-    return new OutputDescriptor(TestOutput.class.getName()).
-        setUserPayload(payload);
+
+  public TestOutput(OutputContext outputContext, int numPhysicalOutputs) {
+    super(outputContext, numPhysicalOutputs);
+  }
+
+  public static OutputDescriptor getOutputDesc(UserPayload payload) {
+    OutputDescriptor desc = OutputDescriptor.create(TestOutput.class.getName());
+    if (payload != null) {
+      desc.setUserPayload(payload);
+    }
+    return desc;
   }
   
   int output;
@@ -68,10 +77,11 @@ public class TestOutput extends AbstractLogicalOutput {
   @Override
   public List<Event> close() throws Exception {
     LOG.info("Sending data movement event with value: " + output);
-    byte[] result = ByteBuffer.allocate(4).putInt(output).array();
+    ByteBuffer result = ByteBuffer.allocate(4).putInt(output);
+    result.flip();
     List<Event> events = Lists.newArrayListWithCapacity(getNumPhysicalOutputs());
     for (int i = 0; i < getNumPhysicalOutputs(); i++) {
-      DataMovementEvent event = new DataMovementEvent(i, result);
+      DataMovementEvent event = DataMovementEvent.create(i, result);
       events.add(event);
     }
     return events;

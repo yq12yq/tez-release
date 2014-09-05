@@ -30,15 +30,15 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tez.common.RuntimeUtils;
-import org.apache.tez.common.TezJobConfig;
-import org.apache.tez.dag.api.TezEntityDescriptor;
+import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.EntityDescriptor;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.runtime.api.MemoryUpdateCallback;
-import org.apache.tez.runtime.api.TezInputContext;
-import org.apache.tez.runtime.api.TezOutputContext;
-import org.apache.tez.runtime.api.TezProcessorContext;
-import org.apache.tez.runtime.api.TezTaskContext;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.api.ProcessorContext;
+import org.apache.tez.runtime.api.TaskContext;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -60,22 +60,22 @@ public class MemoryDistributor {
 
   private long totalJvmMemory;
   private final boolean isEnabled;
-  private final Set<TezTaskContext> dupSet = Collections
-      .newSetFromMap(new ConcurrentHashMap<TezTaskContext, Boolean>());
+  private final Set<TaskContext> dupSet = Collections
+      .newSetFromMap(new ConcurrentHashMap<TaskContext, Boolean>());
   private final List<RequestorInfo> requestList;
 
   /**
-   * @param numInputs
+   * @param numTotalInputs
    *          total number of Inputs for the task
-   * @param numOutputs
+   * @param numTotalOutputs
    *          total number of Outputs for the task
    * @param conf
    *          Tez specific task configuration
    */
   public MemoryDistributor(int numTotalInputs, int numTotalOutputs, Configuration conf) {
     this.conf = conf;
-    isEnabled = conf.getBoolean(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ENABLED,
-        TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ENABLED_DEFAULT);
+    isEnabled = conf.getBoolean(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ENABLED,
+        TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ENABLED_DEFAULT);
     
 
     this.numTotalInputs = numTotalInputs;
@@ -93,7 +93,7 @@ public class MemoryDistributor {
    * Used by the Tez framework to request memory on behalf of user requests.
    */
   public void requestMemory(long requestSize, MemoryUpdateCallback callback,
-      TezTaskContext taskContext, TezEntityDescriptor descriptor) {
+      TaskContext taskContext, EntityDescriptor<?> descriptor) {
     registerRequest(requestSize, callback, taskContext, descriptor);
   }
   
@@ -119,10 +119,10 @@ public class MemoryDistributor {
         }
       });
     } else {
-      String allocatorClassName = conf.get(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ALLOCATOR_CLASS,
-          TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ALLOCATOR_CLASS_DEFAULT);
+      String allocatorClassName = conf.get(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ALLOCATOR_CLASS,
+          TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ALLOCATOR_CLASS_DEFAULT);
       LOG.info("Using Allocator class: " + allocatorClassName);
-      InitialMemoryAllocator allocator = RuntimeUtils.createClazzInstance(allocatorClassName);
+      InitialMemoryAllocator allocator = ReflectionUtils.createClazzInstance(allocatorClassName);
       allocator.setConf(conf);
       allocations = allocator.assignMemory(totalJvmMemory, numTotalInputs, numTotalOutputs,
           Iterables.unmodifiableIterable(requestContexts));
@@ -154,7 +154,7 @@ public class MemoryDistributor {
   }
 
   private long registerRequest(long requestSize, MemoryUpdateCallback callback,
-      TezTaskContext entityContext, TezEntityDescriptor descriptor) {
+      TaskContext entityContext, EntityDescriptor<?> descriptor) {
     Preconditions.checkArgument(requestSize >= 0);
     Preconditions.checkNotNull(callback);
     Preconditions.checkNotNull(entityContext);
@@ -210,19 +210,19 @@ public class MemoryDistributor {
     private final MemoryUpdateCallback callback;
     private final InitialMemoryRequestContext requestContext;
 
-    public RequestorInfo(TezTaskContext taskContext, long requestSize,
-        final MemoryUpdateCallback callback, TezEntityDescriptor descriptor) {
+    public RequestorInfo(TaskContext taskContext, long requestSize,
+        final MemoryUpdateCallback callback, EntityDescriptor<?> descriptor) {
       InitialMemoryRequestContext.ComponentType type;
       String componentVertexName;
-      if (taskContext instanceof TezInputContext) {
+      if (taskContext instanceof InputContext) {
         type = InitialMemoryRequestContext.ComponentType.INPUT;
-        componentVertexName = ((TezInputContext) taskContext).getSourceVertexName();
-      } else if (taskContext instanceof TezOutputContext) {
+        componentVertexName = ((InputContext) taskContext).getSourceVertexName();
+      } else if (taskContext instanceof OutputContext) {
         type = InitialMemoryRequestContext.ComponentType.OUTPUT;
-        componentVertexName = ((TezOutputContext) taskContext).getDestinationVertexName();
-      } else if (taskContext instanceof TezProcessorContext) {
+        componentVertexName = ((OutputContext) taskContext).getDestinationVertexName();
+      } else if (taskContext instanceof ProcessorContext) {
         type = InitialMemoryRequestContext.ComponentType.PROCESSOR;
-        componentVertexName = ((TezProcessorContext) taskContext).getTaskVertexName();
+        componentVertexName = ((ProcessorContext) taskContext).getTaskVertexName();
       } else {
         throw new IllegalArgumentException("Unknown type of entityContext: "
             + taskContext.getClass().getName());

@@ -19,6 +19,7 @@
 package org.apache.tez.mapreduce.input.base;
 
 import com.google.common.base.Preconditions;
+
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
@@ -26,14 +27,16 @@ import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapred.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.mapreduce.hadoop.MRHelpers;
+import org.apache.tez.mapreduce.hadoop.MRInputHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos;
 import org.apache.tez.runtime.api.AbstractLogicalInput;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.Reader;
+import org.apache.tez.runtime.api.InputContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -44,6 +47,10 @@ public abstract class MRInputBase extends AbstractLogicalInput {
 
   protected JobConf jobConf;
   protected TezCounter inputRecordCounter;
+
+  public MRInputBase(InputContext inputContext, int numPhysicalInputs) {
+    super(inputContext, numPhysicalInputs);
+  }
 
   @Override
   public Reader getReader() throws Exception {
@@ -56,12 +63,25 @@ public abstract class MRInputBase extends AbstractLogicalInput {
   public List<Event> initialize() throws IOException {
     getContext().requestInitialMemory(0l, null); // mandatory call
     MRRuntimeProtos.MRInputUserPayloadProto mrUserPayload =
-        MRHelpers.parseMRInputPayload(getContext().getUserPayload());
+        MRInputHelpers.parseMRInputPayload(getContext().getUserPayload());
+    boolean isGrouped = mrUserPayload.getGroupingEnabled();
     Preconditions.checkArgument(mrUserPayload.hasSplits() == false,
         "Split information not expected in " + this.getClass().getName());
-    Configuration conf = MRHelpers.createConfFromByteString(mrUserPayload.getConfigurationBytes());
-
+    Configuration conf = TezUtils
+        .createConfFromByteString(mrUserPayload.getConfigurationBytes());
     this.jobConf = new JobConf(conf);
+    useNewApi = this.jobConf.getUseNewMapper();
+    if (isGrouped) {
+      if (useNewApi) {
+        jobConf.set(MRJobConfig.INPUT_FORMAT_CLASS_ATTR,
+            org.apache.hadoop.mapreduce.split.TezGroupedSplitsInputFormat.class.getName());
+      } else {
+        jobConf.set("mapred.input.format.class",
+            org.apache.hadoop.mapred.split.TezGroupedSplitsInputFormat.class.getName());
+      }
+    }
+
+
     // Add tokens to the jobConf - in case they are accessed within the RR / IF
     jobConf.getCredentials().mergeAll(UserGroupInformation.getCurrentUser().getCredentials());
 
@@ -80,7 +100,7 @@ public abstract class MRInputBase extends AbstractLogicalInput {
     this.inputRecordCounter = getContext().getCounters().findCounter(
         TaskCounter.INPUT_RECORDS_PROCESSED);
 
-    useNewApi = this.jobConf.getUseNewMapper();
+
     return null;
   }
 }

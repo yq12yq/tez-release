@@ -24,32 +24,40 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.dag.api.VertexGroup.GroupInfo;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.runtime.api.LogicalIOProcessor;
-import org.apache.tez.runtime.api.OutputCommitter;
-import org.apache.tez.runtime.api.TezRootInputInitializer;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+/**
+ * Defines a vertex in the DAG. It represents the application logic that 
+ * processes and transforms the input data to create the output data. The 
+ * vertex represents the template from which tasks are created to execute 
+ * the application in parallel across a distributed execution environment.
+ */
+@Public
 public class Vertex {
 
   private final String vertexName;
   private final ProcessorDescriptor processorDescriptor;
 
   private int parallelism;
-  private VertexLocationHint taskLocationsHint;
-  private final Resource taskResource;
-  private Map<String, LocalResource> taskLocalResources = new HashMap<String, LocalResource>();
+  private VertexLocationHint locationHint;
+  private Resource taskResource;
+  private final Map<String, LocalResource> taskLocalResources = new HashMap<String, LocalResource>();
   private Map<String, String> taskEnvironment = new HashMap<String, String>();
-  private final List<RootInputLeafOutput<InputDescriptor>> additionalInputs 
-                      = new ArrayList<RootInputLeafOutput<InputDescriptor>>();
-  private final List<RootInputLeafOutput<OutputDescriptor>> additionalOutputs 
-                      = new ArrayList<RootInputLeafOutput<OutputDescriptor>>();
+  private final List<RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>> additionalInputs 
+                      = new ArrayList<RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>>();
+  private final List<RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor>> additionalOutputs 
+                      = new ArrayList<RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor>>();
   private VertexManagerPluginDescriptor vertexManagerPlugin;
 
   private final List<Vertex> inputVertices = new ArrayList<Vertex>();
@@ -57,12 +65,50 @@ public class Vertex {
   private final List<Edge> inputEdges = new ArrayList<Edge>();
   private final List<Edge> outputEdges = new ArrayList<Edge>();
   private final Map<String, GroupInfo> groupInputs = Maps.newHashMap();
+  private final List<DataSourceDescriptor> dataSources = Lists.newLinkedList();
+  private final List<DataSinkDescriptor> dataSinks = Lists.newLinkedList();
   
   private String taskLaunchCmdOpts = "";
 
+  @InterfaceAudience.Private
+  Vertex(String vertexName,
+         ProcessorDescriptor processorDescriptor,
+         int parallelism,
+         Resource taskResource) {
+    this(vertexName, processorDescriptor, parallelism, taskResource, false);
+  }
+
+  private Vertex(String vertexName, ProcessorDescriptor processorDescriptor, int parallelism) {
+    this(vertexName, processorDescriptor, parallelism, null, true);
+  }
+  
+
+  private Vertex(String vertexName, ProcessorDescriptor processorDescriptor) {
+    this(vertexName, processorDescriptor, -1);
+  }
+  
+  private Vertex(String vertexName,
+      ProcessorDescriptor processorDescriptor,
+      int parallelism,
+      Resource taskResource,
+      boolean allowIncomplete) {
+    this.vertexName = vertexName;
+    this.processorDescriptor = processorDescriptor;
+    this.parallelism = parallelism;
+    this.taskResource = taskResource;
+    if (parallelism < -1) {
+      throw new IllegalArgumentException(
+          "Parallelism should be -1 if determined by the AM"
+          + ", otherwise should be >= 0");
+    }
+    if (!allowIncomplete && taskResource == null) {
+      throw new IllegalArgumentException("Resource cannot be null");
+    }
+  }
+
   /**
    * Create a new vertex with the given name.
-   * 
+   *
    * @param vertexName
    *          Name of the vertex
    * @param processorDescriptor
@@ -74,25 +120,64 @@ public class Vertex {
    *          reconfigurations.
    * @param taskResource
    *          Physical resources like memory/cpu thats used by each task of this
-   *          vertex
+   *          vertex.
+   * @return a new Vertex with the given parameters
    */
-  public Vertex(String vertexName,
-      ProcessorDescriptor processorDescriptor,
-      int parallelism,
-      Resource taskResource) {
-    this.vertexName = vertexName;
-    this.processorDescriptor = processorDescriptor;
-    this.parallelism = parallelism;
-    this.taskResource = taskResource;
-    if (parallelism < -1) {
-      throw new IllegalArgumentException(
-          "Parallelism should be -1 if determined by the AM"
-          + ", otherwise should be >= 0");
-    }
-    if (taskResource == null) {
-      throw new IllegalArgumentException("Resource cannot be null");
-    }
+  public static Vertex create(String vertexName,
+                              ProcessorDescriptor processorDescriptor,
+                              int parallelism,
+                              Resource taskResource) {
+    return new Vertex(vertexName, processorDescriptor, parallelism, taskResource);
   }
+
+  /**
+   * Create a new vertex with the given name. <br>
+   * The vertex task resource will be picked from configuration <br>
+   * The vertex parallelism will be inferred. If it cannot be inferred then an
+   * error will be reported. This constructor may be used for vertices that have
+   * data sources, or connected via 1-1 edges or have runtime parallelism
+   * estimation via data source initializers or vertex managers. Calling this
+   * constructor is equivalent to calling
+   * {@link Vertex#Vertex(String, ProcessorDescriptor, int)} with the
+   * parallelism set to -1.
+   *
+   * @param vertexName
+   *          Name of the vertex
+   * @param processorDescriptor
+   *          Description of the processor that is executed in every task of
+   *          this vertex
+   * @return a new Vertex with the given parameters
+   */
+  public static Vertex create(String vertexName, ProcessorDescriptor processorDescriptor) {
+    return new Vertex(vertexName, processorDescriptor);
+  }
+
+  /**
+   * Create a new vertex with the given name and parallelism. <br>
+   * The vertex task resource will be picked from configuration
+   * {@link TezConfiguration#TEZ_TASK_RESOURCE_MEMORY_MB} &
+   * {@link TezConfiguration#TEZ_TASK_RESOURCE_CPU_VCORES} Applications that
+   * want more control over their task resource specification may create their
+   * own logic to determine task resources and use
+   * {@link Vertex#Vertex(String, ProcessorDescriptor, int, Resource)} to create
+   * the Vertex.
+   *
+   * @param vertexName
+   *          Name of the vertex
+   * @param processorDescriptor
+   *          Description of the processor that is executed in every task of
+   *          this vertex
+   * @param parallelism
+   *          Number of tasks in this vertex. Set to -1 if this is going to be
+   *          decided at runtime. Parallelism may change at runtime due to graph
+   *          reconfigurations.
+   * @return a new Vertex with the given parameters
+   */
+  public static Vertex create(String vertexName, ProcessorDescriptor processorDescriptor,
+                              int parallelism) {
+    return new Vertex(vertexName, processorDescriptor, parallelism);
+  }
+
 
   /**
    * Get the vertex name
@@ -104,7 +189,7 @@ public class Vertex {
 
   /**
    * Get the vertex task processor descriptor
-   * @return
+   * @return process descriptor
    */
   public ProcessorDescriptor getProcessorDescriptor() {
     return this.processorDescriptor;
@@ -120,6 +205,10 @@ public class Vertex {
     return parallelism;
   }
   
+  /**
+   * Set the number of tasks for this vertex
+   * @param parallelism Parallelism for this vertex
+   */
   void setParallelism(int parallelism) {
     this.parallelism = parallelism;
   }
@@ -135,22 +224,23 @@ public class Vertex {
   /**
    * Specify location hints for the tasks of this vertex. Hints must be specified 
    * for all tasks as defined by the parallelism
-   * @param locations list of locations for each task in the vertex
+   * @param locationHint list of locations for each task in the vertex
    * @return this Vertex
    */
-  public Vertex setTaskLocationsHint(List<TaskLocationHint> locations) {
+  public Vertex setLocationHint(VertexLocationHint locationHint) {
+    List<TaskLocationHint> locations = locationHint.getTaskLocationHints();
     if (locations == null) {
       return this;
     }
     Preconditions.checkArgument((locations.size() == parallelism), 
         "Locations array length must match the parallelism set for the vertex");
-    taskLocationsHint = new VertexLocationHint(locations);
+    this.locationHint = locationHint;
     return this;
   }
 
   // used internally to create parallelism location resource file
-  VertexLocationHint getTaskLocationsHint() {
-    return taskLocationsHint;
+  VertexLocationHint getLocationHint() {
+    return locationHint;
   }
 
   /**
@@ -161,11 +251,9 @@ public class Vertex {
    *          elements of the map.
    * @return this Vertex
    */
-  public Vertex setTaskLocalFiles(Map<String, LocalResource> localFiles) {
-    if (localFiles == null) {
-      this.taskLocalResources = new HashMap<String, LocalResource>();
-    } else {
-      this.taskLocalResources = localFiles;
+  public Vertex addTaskLocalFiles(Map<String, LocalResource> localFiles) {
+    if (localFiles != null) {
+      TezCommonUtils.addAdditionalLocalResources(localFiles, taskLocalResources);
     }
     return this;
   }
@@ -212,8 +300,8 @@ public class Vertex {
   }
   
   /**
-   * Specifies an Input for a Vertex. This is meant to be used when a Vertex
-   * reads Input directly from an external source </p>
+   * Specifies an external data source for a Vertex. This is meant to be used
+   * when a Vertex reads Input directly from an external source </p>
    * 
    * For vertices which read data generated by another vertex - use the
    * {@link DAG addEdge} method.
@@ -222,37 +310,30 @@ public class Vertex {
    * also from an external source, a combination of this API and the DAG.addEdge
    * API can be used. </p>
    * 
-   * Note: If more than one RootInput exists on a vertex, which generates events which need to be
-   * routed, or generates information to set parallelism, a custom vertex manager should be setup
-   * to handle this. Not using a custom vertex manager for such a scenario will lead to a
-   * runtime failure. 
+   * Note: If more than one RootInput exists on a vertex, which generates events
+   * which need to be routed, or generates information to set parallelism, a
+   * custom vertex manager should be setup to handle this. Not using a custom
+   * vertex manager for such a scenario will lead to a runtime failure.
    * 
    * @param inputName
    *          the name of the input. This will be used when accessing the input
    *          in the {@link LogicalIOProcessor}
-   * @param inputDescriptor
-   *          the inputDescriptor for this input
-   * @param inputInitializer
-   *          An initializer for this Input which may run within the AM. This
-   *          can be used to set the parallelism for this vertex and generate
-   *          {@link RootInputDataInformationEvent}s for the actual Input.</p>
-   *          If this is not specified, the parallelism must be set for the
-   *          vertex. In addition, the Input should know how to access data for
-   *          each of it's tasks. </p> If a {@link TezRootInputInitializer} is
-   *          meant to determine the parallelism of the vertex, the initial
-   *          vertex parallelism should be set to -1.
+   * @param dataSourceDescriptor
+   *          the @{link DataSourceDescriptor} for this input.
    * @return this Vertex
    */
-  public Vertex addInput(String inputName, InputDescriptor inputDescriptor,
-      Class<? extends TezRootInputInitializer> inputInitializer) {
-    additionalInputs.add(new RootInputLeafOutput<InputDescriptor>(inputName,
-        inputDescriptor, inputInitializer));
+  public Vertex addDataSource(String inputName, DataSourceDescriptor dataSourceDescriptor) {
+    additionalInputs
+        .add(new RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>(
+            inputName, dataSourceDescriptor.getInputDescriptor(),
+            dataSourceDescriptor.getInputInitializerDescriptor()));
+    this.dataSources.add(dataSourceDescriptor);
     return this;
   }
 
   /**
-   * Specifies an Output for a Vertex. This is meant to be used when a Vertex
-   * writes Output directly to an external destination. </p>
+   * Specifies an external data sink for a Vertex. This is meant to be used when
+   * a Vertex writes Output directly to an external destination. </p>
    * 
    * If an output of the vertex is meant to be consumed by another Vertex in the
    * DAG - use the {@link DAG addEdge} method.
@@ -264,42 +345,22 @@ public class Vertex {
    * @param outputName
    *          the name of the output. This will be used when accessing the
    *          output in the {@link LogicalIOProcessor}
-   * @param outputDescriptor
-   * @param outputCommitterClazz Class to be used for the OutputCommitter.
-   *                             Can be null.
+   * @param dataSinkDescriptor
+   *          the {@link DataSinkDescriptor} for this output
    * @return this Vertex
    */
-  public Vertex addOutput(String outputName, OutputDescriptor outputDescriptor,
-      Class<? extends OutputCommitter> outputCommitterClazz) {
-    additionalOutputs.add(new RootInputLeafOutput<OutputDescriptor>(outputName,
-        outputDescriptor, outputCommitterClazz));
+  public Vertex addDataSink(String outputName, DataSinkDescriptor dataSinkDescriptor) {
+    additionalOutputs
+        .add(new RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor>(
+            outputName, dataSinkDescriptor.getOutputDescriptor(),
+            dataSinkDescriptor.getOutputCommitterDescriptor()));
+    this.dataSinks.add(dataSinkDescriptor);
     return this;
   }
   
-  Vertex addAdditionalOutput(RootInputLeafOutput<OutputDescriptor> output) {
+  Vertex addAdditionalDataSink(RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor> output) {
     additionalOutputs.add(output);
     return this;
-  }
-
-  /**
-   * Specifies an Output for a Vertex. This is meant to be used when a Vertex
-   * writes Output directly to an external destination. </p>
-   * 
-   * If an output of the vertex is meant to be consumed by another Vertex in the
-   * DAG - use the {@link DAG addEdge} method.
-   * 
-   * If a vertex needs generate data to an external source as well as for
-   * another Vertex in the DAG, a combination of this API and the DAG.addEdge
-   * API can be used.
-   * 
-   * @param outputName
-   *          the name of the output. This will be used when accessing the
-   *          output in the {@link LogicalIOProcessor}
-   * @param outputDescriptor
-   * @return this Vertex
-   */
-  public Vertex addOutput(String outputName, OutputDescriptor outputDescriptor) {
-    return addOutput(outputName, outputDescriptor, null);
   }
   
   /**
@@ -355,12 +416,36 @@ public class Vertex {
     outputEdges.add(edge);
   }
   
+  /**
+   * Get the input vertices for this vertex
+   * @return List of input vertices
+   */
   public List<Vertex> getInputVertices() {
     return Collections.unmodifiableList(inputVertices);
   }
 
+  /**
+   * Get the output vertices for this vertex
+   * @return List of output vertices
+   */
   public List<Vertex> getOutputVertices() {
     return Collections.unmodifiableList(outputVertices);
+  }
+
+  /**
+   * Set the cpu/memory etc resources used by tasks of this vertex
+   * @param resource {@link Resource} for the tasks of this vertex
+   */
+  void setTaskResource(Resource resource) {
+    this.taskResource = resource;
+  }
+
+  List<DataSourceDescriptor> getDataSources() {
+    return dataSources;
+  }
+  
+  List<DataSinkDescriptor> getDataSinks() {
+    return dataSinks;
   }
 
   List<Edge> getInputEdges() {
@@ -371,11 +456,11 @@ public class Vertex {
     return outputEdges;
   }
   
-  List<RootInputLeafOutput<InputDescriptor>> getInputs() {
+  List<RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>> getInputs() {
     return additionalInputs;
   }
 
-  List<RootInputLeafOutput<OutputDescriptor>> getOutputs() {
+  List<RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor>> getOutputs() {
     return additionalOutputs;
   }
 }

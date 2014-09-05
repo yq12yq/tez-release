@@ -48,13 +48,14 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.tez.common.TezJobConfig;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezCommonUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezOutputContext;
+import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.events.CompositeDataMovementEvent;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.Constants;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
 import org.apache.tez.runtime.library.common.sort.impl.TezIndexRecord;
@@ -129,7 +130,7 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
   private final ReentrantLock spillLock = new ReentrantLock();
   private final Condition spillInProgress = spillLock.newCondition();
 
-  public UnorderedPartitionedKVWriter(TezOutputContext outputContext, Configuration conf,
+  public UnorderedPartitionedKVWriter(OutputContext outputContext, Configuration conf,
       int numOutputs, long availableMemoryBytes) throws IOException {
     super(outputContext, conf, numOutputs);
     Preconditions.checkArgument(availableMemoryBytes > 0, "availableMemory should not be > 0 bytes");
@@ -138,7 +139,7 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
 
     // Allow unit tests to control the buffer sizes.
     int maxSingleBufferSizeBytes = conf.getInt(
-        TezJobConfig.TEZ_RUNTIME_UNORDERED_OUTPUT_MAX_PER_BUFFER_SIZE_BYTES, Integer.MAX_VALUE);
+        TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_MAX_PER_BUFFER_SIZE_BYTES, Integer.MAX_VALUE);
     computeNumBuffersAndSize(maxSingleBufferSizeBytes);
     LOG.info("Running with numBuffers=" + numBuffers + ", sizePerBuffer=" + sizePerBuffer);
     availableBuffers = new LinkedBlockingQueue<WrappedBuffer>();
@@ -160,7 +161,7 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
             .setDaemon(true)
             .setNameFormat(
                 "UnorderedOutSpiller ["
-                    + TezUtils.cleanVertexName(outputContext.getDestinationVertexName()) + "]")
+                    + TezUtilsInternal.cleanVertexName(outputContext.getDestinationVertexName()) + "]")
             .build());
     spillExecutor = MoreExecutors.listeningDecorator(executor);
     numRecordsPerPartition = new int[numPartitions];
@@ -399,12 +400,12 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
   }
 
   public static long getInitialMemoryRequirement(Configuration conf, long maxAvailableTaskMemory) {
-    int initialMemRequestMb = conf.getInt(TezJobConfig.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB,
-        TezJobConfig.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB_DEFAULT);
+    int initialMemRequestMb = conf.getInt(TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB,
+        TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB_DEFAULT);
     Preconditions.checkArgument(initialMemRequestMb != 0,
-        TezJobConfig.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB + " should be larger than 0");
+        TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB + " should be larger than 0");
     long reqBytes = initialMemRequestMb << 20;
-    LOG.info("Requested BufferSize (" + TezJobConfig.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB
+    LOG.info("Requested BufferSize (" + TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_BUFFER_SIZE_MB
         + ") : " + initialMemRequestMb);
     return reqBytes;
   }
@@ -477,7 +478,8 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
     }
     if (emptyPartitions.cardinality() != 0) {
       // Empty partitions exist
-      ByteString emptyPartitionsByteString = TezUtils.compressByteArrayToByteString(TezUtils
+      ByteString emptyPartitionsByteString = TezCommonUtils.compressByteArrayToByteString(
+          TezUtilsInternal
           .toByteArray(emptyPartitions));
       payloadBuidler.setEmptyPartitions(emptyPartitionsByteString);
     }
@@ -488,8 +490,8 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
       payloadBuidler.setPathComponent(outputContext.getUniqueIdentifier());
     }
 
-    CompositeDataMovementEvent cDme = new CompositeDataMovementEvent(0, numPartitions,
-        payloadBuidler.build().toByteArray());
+    CompositeDataMovementEvent cDme = CompositeDataMovementEvent.create(0, numPartitions,
+        payloadBuidler.build().toByteString().asReadOnlyByteBuffer());
     return cDme;
   }
 

@@ -19,20 +19,25 @@
 package org.apache.tez.dag.api;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.tez.runtime.api.Processor;
 
-public class ProcessorDescriptor extends TezEntityDescriptor {
+/**
+ * Describes the {@link Processor}
+ */
+@Public
+public class ProcessorDescriptor extends EntityDescriptor<ProcessorDescriptor> {
 
   @Private // for Writable
   public ProcessorDescriptor() {
     super();
   }
   
-  public ProcessorDescriptor(String processorClassName) {
+  private ProcessorDescriptor(String processorClassName) {
     super(processorClassName);
   }
 
-  public ProcessorDescriptor setUserPayload(byte[] userPayload) {
-    this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
-    return this;
+  public static ProcessorDescriptor create(String processorClassName) {
+    return new ProcessorDescriptor(processorClassName);
   }
 }
