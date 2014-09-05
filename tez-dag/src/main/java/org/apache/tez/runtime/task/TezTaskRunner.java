@@ -28,17 +28,17 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSError;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ExitUtil;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.log4j.Logger;
-import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezTaskUmbilicalProtocol;
 import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.LogicalIOProcessorRuntimeTask;
+import org.apache.tez.runtime.api.ObjectRegistry;
 import org.apache.tez.runtime.api.impl.EventMetaData;
 import org.apache.tez.runtime.api.impl.TaskSpec;
 import org.apache.tez.runtime.api.impl.TezEvent;
@@ -70,16 +70,16 @@ public class TezTaskRunner implements TezUmbilical, ErrorReporter {
   TezTaskRunner(Configuration tezConf, UserGroupInformation ugi, String[] localDirs,
       TaskSpec taskSpec, TezTaskUmbilicalProtocol umbilical, int appAttemptNumber,
       Map<String, ByteBuffer> serviceConsumerMetadata, Multimap<String, String> startedInputsMap,
-      TaskReporter taskReporter, ListeningExecutorService executor) throws IOException {
+      TaskReporter taskReporter, ListeningExecutorService executor, ObjectRegistry objectRegistry) 
+          throws IOException {
     this.tezConf = tezConf;
     this.ugi = ugi;
     this.taskReporter = taskReporter;
     this.executor = executor;
     task = new LogicalIOProcessorRuntimeTask(taskSpec, appAttemptNumber, tezConf, localDirs, this,
-        serviceConsumerMetadata, startedInputsMap);
+        serviceConsumerMetadata, startedInputsMap, objectRegistry);
     taskReporter.registerTask(task, this);
     taskRunning = new AtomicBoolean(true);
-
   }
 
   /**
@@ -357,12 +357,12 @@ public class TezTaskRunner implements TezUmbilical, ErrorReporter {
   private String getTaskDiagnosticsString(Throwable t, String message) {
     String diagnostics;
     if (t != null && message != null) {
-      diagnostics = "exceptionThrown=" + StringUtils.stringifyException(t) + ", errorMessage="
+      diagnostics = "exceptionThrown=" + ExceptionUtils.getStackTrace(t) + ", errorMessage="
           + message;
     } else if (t == null && message == null) {
       diagnostics = "Unknown error";
     } else {
-      diagnostics = t != null ? "exceptionThrown=" + StringUtils.stringifyException(t)
+      diagnostics = t != null ? "exceptionThrown=" + ExceptionUtils.getStackTrace(t)
           : " errorMessage=" + message;
     }
     return diagnostics;

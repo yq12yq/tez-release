@@ -18,20 +18,16 @@
 
 package org.apache.tez.runtime.api;
 
-/**
- * An @link {@link Input} which handles all incoming physical connections on an
- * edge. A {@link LogicalIOProcessor} sees a single Logical Input per incoming
- * edge.
- */
-public interface LogicalInput extends Input {
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 
-  /**
-   * Sets the number of physical inputs that this <code>LogicalInput</code> will
-   * receive. This will be called by the Tez framework before initializing the
-   * <code>LogicalInput</code>
-   * 
-   * @param numInputs
-   *          the number of physical inputs.
-   */
-  public void setNumPhysicalInputs(int numInputs);
+/**
+ * An {@link Input} which handles all incoming physical connections on an
+ * edge. A {@link LogicalIOProcessor} sees a single Logical Input per incoming
+ * edge. It provides a unified view that hides the details of the actual physical
+ * inputs
+ * 
+ * User implementations are expected to derive from {@link AbstractLogicalInput}
+ */
+@Public
+public interface LogicalInput extends Input {
 }

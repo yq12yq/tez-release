@@ -19,21 +19,24 @@
 package org.apache.tez.dag.api;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 
-public class VertexManagerPluginDescriptor extends TezEntityDescriptor {
+/**
+ * Describes the {@link VertexManagerPlugin} 
+ */
+@Public
+public class VertexManagerPluginDescriptor extends EntityDescriptor<VertexManagerPluginDescriptor> {
 
   @Private // for Writable
   public VertexManagerPluginDescriptor() {
     super();
   }
   
-  public VertexManagerPluginDescriptor(String className) {
+  private VertexManagerPluginDescriptor(String className) {
     super(className);
   }
 
-  @Override
-  public VertexManagerPluginDescriptor setUserPayload(byte[] userPayload) {
-    this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
-    return this;
+  public static VertexManagerPluginDescriptor create(String className) {
+    return new VertexManagerPluginDescriptor(className);
   }
 }

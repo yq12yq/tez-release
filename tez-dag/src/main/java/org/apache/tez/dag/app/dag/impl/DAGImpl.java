@@ -28,6 +28,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -36,16 +37,14 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.util.StringUtils;
-import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.event.EventHandler;
-import org.apache.hadoop.yarn.server.security.ApplicationACLsManager;
 import org.apache.hadoop.yarn.state.InvalidStateTransitonException;
 import org.apache.hadoop.yarn.state.MultipleArcTransition;
 import org.apache.hadoop.yarn.state.SingleArcTransition;
@@ -95,6 +94,7 @@ import org.apache.tez.dag.app.dag.event.VertexEvent;
 import org.apache.tez.dag.app.dag.event.VertexEventRecoverVertex;
 import org.apache.tez.dag.app.dag.event.VertexEventTermination;
 import org.apache.tez.dag.app.dag.event.VertexEventType;
+import org.apache.tez.common.security.ACLManager;
 import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.events.DAGCommitStartedEvent;
@@ -105,7 +105,7 @@ import org.apache.tez.dag.history.events.VertexGroupCommitFinishedEvent;
 import org.apache.tez.dag.history.events.VertexGroupCommitStartedEvent;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezVertexID;
-import org.apache.tez.dag.utils.JavaProfilerOptions;
+import org.apache.tez.dag.utils.TaskSpecificLaunchCmdOption;
 import org.apache.tez.dag.utils.RelocalizationUtils;
 import org.apache.tez.dag.utils.TezBuilderUtils;
 import org.apache.tez.runtime.api.OutputCommitter;
@@ -129,7 +129,6 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   //final fields
   private final TezDAGID dagId;
   private final Clock clock;
-  private final ApplicationACLsManager aclsManager;
 
   // TODO Recovery
   //private final List<AMInfo> amInfos;
@@ -153,6 +152,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   private final String userName;
   private final AppContext appContext;
   private final UserGroupInformation dagUGI;
+  private final ACLManager aclManager;
 
   volatile Map<TezVertexID, Vertex> vertices = new HashMap<TezVertexID, Vertex>();
   private Map<String, Edge> edges = new HashMap<String, Edge>();
@@ -170,7 +170,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   boolean recoveryInitEventSeen = false;
   boolean recoveryStartEventSeen = false;
 
-  private JavaProfilerOptions profilerOptions;
+  private TaskSpecificLaunchCmdOption taskSpecificLaunchCmdOption;
 
   private static final DiagnosticsUpdateTransition
       DIAGNOSTIC_UPDATE_TRANSITION = new DiagnosticsUpdateTransition();
@@ -427,9 +427,10 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       dagUGI.addCredentials(this.credentials);
     }
 
-    this.aclsManager = new ApplicationACLsManager(conf);
+    this.aclManager = new ACLManager(appContext.getAMACLManager(), dagUGI.getShortUserName(),
+        this.conf);
 
-    this.profilerOptions = new JavaProfilerOptions(conf);
+    this.taskSpecificLaunchCmdOption = new TaskSpecificLaunchCmdOption(conf);
     // This "this leak" is okay because the retained pointer is in an
     //  instance variable.
     stateMachine = stateMachineFactory.make(this);
@@ -457,13 +458,6 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
 
   EventHandler getEventHandler() {
     return this.eventHandler;
-  }
-
-  @Override
-  public boolean checkAccess(UserGroupInformation callerUGI,
-      ApplicationAccessType jobOperation) {
-    return aclsManager.checkAccess(callerUGI, jobOperation, userName,
-        this.dagId.getApplicationId());
   }
 
   @Override
@@ -532,6 +526,11 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
         throw new RuntimeException("Unexpected event received for restoring"
             + " state, eventType=" + historyEvent.getEventType());
     }
+  }
+
+  @Override
+  public ACLManager getACLManager() {
+    return this.aclManager;
   }
 
   @Override
@@ -920,7 +919,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   void logJobHistoryUnsuccesfulEvent(DAGState state) throws IOException {
     DAGFinishedEvent finishEvt = new DAGFinishedEvent(dagId, startTime,
         clock.getTime(), state,
-        StringUtils.join(LINE_SEPARATOR, getDiagnostics()),
+        StringUtils.join(getDiagnostics(), LINE_SEPARATOR),
         getAllCounters(), this.userName, this.dagName);
     this.appContext.getHistoryHandler().handleCriticalEvent(
         new DAGHistoryEvent(dagId, finishEvt));
@@ -1134,16 +1133,6 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     }
   }
 
-  /*
-   * (non-Javadoc)
-   * @see org.apache.hadoop.mapreduce.v2.app2.job.Job#getJobACLs()
-   */
-  @Override
-  public Map<ApplicationAccessType, String> getJobACLs() {
-    // TODO ApplicationACLs
-    return null;
-  }
-
   public DAGState initializeDAG() {
     return initializeDAG(null);
   }
@@ -1254,7 +1243,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
         dag.eventHandler, dag.taskAttemptListener,
         dag.clock, dag.taskHeartbeatHandler,
         !dag.commitAllOutputsOnSuccess, dag.appContext, vertexLocationHint,
-        dag.vertexGroups, dag.profilerOptions);
+        dag.vertexGroups, dag.taskSpecificLaunchCmdOption);
     return v;
   }
 
@@ -1338,8 +1327,9 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
               if (!entry.getValue().booleanValue()) {
                 LOG.info("Found a pending Vertex Group commit"
                     + ", vertexGroup=" + entry.getKey());
+                groupCommitInProgress = true;
+                break;
               }
-              groupCommitInProgress = true;
             }
           }
 
@@ -1479,7 +1469,8 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     }
   }
 
-  Map<String, Vertex> vertexMap = new HashMap<String, Vertex>();
+  // use LinkedHashMap to ensure the vertex order (TEZ-1065)
+  LinkedHashMap<String, Vertex> vertexMap = new LinkedHashMap<String, Vertex>();
   void addVertex(Vertex v) {
     vertices.put(v.getVertexId(), v);
     vertexMap.put(v.getName(), v);

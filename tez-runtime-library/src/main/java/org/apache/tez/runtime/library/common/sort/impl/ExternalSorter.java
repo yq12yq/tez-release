@@ -21,17 +21,20 @@ package org.apache.tez.runtime.library.common.sort.impl;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Iterator;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.io.serializer.Serializer;
@@ -39,12 +42,12 @@ import org.apache.hadoop.util.IndexedSorter;
 import org.apache.hadoop.util.Progressable;
 import org.apache.hadoop.util.QuickSort;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.tez.common.TezJobConfig;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.runtime.api.TezOutputContext;
+import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.library.api.Partitioner;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.TezRuntimeUtils;
 import org.apache.tez.runtime.library.common.combine.Combiner;
@@ -66,8 +69,16 @@ public abstract class ExternalSorter {
 
   public abstract void write(Object key, Object value) throws IOException;
 
+  public void write(Object key, Iterable<Object> values) throws IOException {
+    //TODO: Sorter classes should override this method later.
+    Iterator<Object> it = values.iterator();
+    while(it.hasNext()) {
+      write(key, it.next());
+    }
+  }
+
   protected final Progressable nullProgressable = new NullProgressable();
-  protected final TezOutputContext outputContext;
+  protected final OutputContext outputContext;
   protected final Combiner combiner;
   protected final Partitioner partitioner;
   protected final Configuration conf;
@@ -119,7 +130,7 @@ public abstract class ExternalSorter {
   // spills)
   protected final TezCounter numAdditionalSpills;
 
-  public ExternalSorter(TezOutputContext outputContext, Configuration conf, int numOutputs,
+  public ExternalSorter(OutputContext outputContext, Configuration conf, int numOutputs,
       long initialMemoryAvailable) throws IOException {
     this.outputContext = outputContext;
     this.conf = conf;
@@ -142,7 +153,7 @@ public abstract class ExternalSorter {
 
     // sorter
     sorter = ReflectionUtils.newInstance(this.conf.getClass(
-        TezJobConfig.TEZ_RUNTIME_INTERNAL_SORTER_CLASS, QuickSort.class,
+        TezRuntimeConfiguration.TEZ_RUNTIME_INTERNAL_SORTER_CLASS, QuickSort.class,
         IndexedSorter.class), this.conf);
 
     comparator = ConfigUtils.getIntermediateOutputKeyComparator(this.conf);
@@ -153,6 +164,9 @@ public abstract class ExternalSorter {
     serializationFactory = new SerializationFactory(this.conf);
     keySerializer = serializationFactory.getSerializer(keyClass);
     valSerializer = serializationFactory.getSerializer(valClass);
+    LOG.info("keySerializer=" + keySerializer + "; valueSerializer=" + valSerializer
+        + "; comparator=" + (RawComparator) ConfigUtils.getIntermediateOutputKeyComparator(conf)
+        + "; conf=" + conf.get(CommonConfigurationKeys.IO_SERIALIZATIONS_KEY));
 
     //    counters    
     mapOutputByteCounter = outputContext.getCounters().findCounter(TaskCounter.OUTPUT_BYTES);
@@ -169,28 +183,45 @@ public abstract class ExternalSorter {
       Class<? extends CompressionCodec> codecClass =
           ConfigUtils.getIntermediateOutputCompressorClass(this.conf, DefaultCodec.class);
       codec = ReflectionUtils.newInstance(codecClass, this.conf);
+
+      if (codec != null) {
+        Class<? extends Compressor> compressorType = null;
+        Throwable cause = null;
+        try {
+          compressorType = codec.getCompressorType();
+        } catch (RuntimeException e) {
+          cause = e;
+        }
+        if (compressorType == null) {
+          String errMsg =
+              String.format("Unable to get CompressorType for codec (%s). This is most" +
+                      " likely due to missing native libraries for the codec.",
+                  conf.get(TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS_CODEC));
+          throw new IOException(errMsg, cause);
+        }
+      }
     } else {
       codec = null;
     }
 
     this.ifileReadAhead = this.conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD,
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD,
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
     if (this.ifileReadAhead) {
       this.ifileReadAheadLength = conf.getInt(
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
     } else {
       this.ifileReadAheadLength = 0;
     }
     this.ifileBufferSize = conf.getInt("io.file.buffer.size",
-        TezJobConfig.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
 
     
     // Task outputs
     mapOutputFile = TezRuntimeUtils.instantiateTaskOutputManager(conf, outputContext);
     
-    LOG.info("Instantiating Partitioner: [" + conf.get(TezJobConfig.TEZ_RUNTIME_PARTITIONER_CLASS) + "]");
+    LOG.info("Instantiating Partitioner: [" + conf.get(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS) + "]");
     this.conf.setInt(TezRuntimeFrameworkConfigs.TEZ_RUNTIME_NUM_EXPECTED_PARTITIONS, this.partitions);
     this.partitioner = TezRuntimeUtils.instantiatePartitioner(this.conf);
     this.combiner = TezRuntimeUtils.instantiateCombiner(this.conf, outputContext);
@@ -253,8 +284,8 @@ public abstract class ExternalSorter {
   public static long getInitialMemoryRequirement(Configuration conf, long maxAvailableTaskMemory) {
     int initialMemRequestMb = 
         conf.getInt(
-            TezJobConfig.TEZ_RUNTIME_IO_SORT_MB, 
-            TezJobConfig.TEZ_RUNTIME_IO_SORT_MB_DEFAULT);
+            TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB, 
+            TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB_DEFAULT);
     Preconditions.checkArgument(initialMemRequestMb != 0, "io.sort.mb should be larger than 0");
     long reqBytes = initialMemRequestMb << 20;
     LOG.info("Requested SortBufferSize (io.sort.mb): " + initialMemRequestMb);

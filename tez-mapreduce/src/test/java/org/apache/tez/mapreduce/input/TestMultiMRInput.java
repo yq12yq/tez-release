@@ -18,6 +18,7 @@
 
 package org.apache.tez.mapreduce.input;
 
+import java.nio.ByteBuffer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -44,12 +45,13 @@ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TezCounters;
-import org.apache.tez.mapreduce.hadoop.MRHelpers;
+import org.apache.tez.dag.api.UserPayload;
+import org.apache.tez.mapreduce.hadoop.MRInputHelpers;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRInputUserPayloadProto;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitProto;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezInputContext;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
 import org.apache.tez.runtime.library.api.KeyValueReader;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,15 +92,14 @@ public class TestMultiMRInput {
     FileInputFormat.setInputPaths(jobConf, workDir);
 
     MRInputUserPayloadProto.Builder builder = MRInputUserPayloadProto.newBuilder();
-    builder.setInputFormatName(SequenceFileInputFormat.class.getName());
+    builder.setGroupingEnabled(false);
     builder.setConfigurationBytes(TezUtils.createByteStringFromConf(jobConf));
     byte[] payload = builder.build().toByteArray();
 
-    TezInputContext inputContext = createTezInputContext(payload);
+    InputContext inputContext = createTezInputContext(payload);
 
-    MultiMRInput input = new MultiMRInput();
-    input.setNumPhysicalInputs(1);
-    input.initialize(inputContext);
+    MultiMRInput input = new MultiMRInput(inputContext, 1);
+    input.initialize();
     List<Event> eventList = new ArrayList<Event>();
 
     String file1 = "file1";
@@ -109,9 +110,10 @@ public class TestMultiMRInput {
     InputSplit[] splits = format.getSplits(jobConf, 1);
     assertEquals(1, splits.length);
 
-    MRSplitProto splitProto = MRHelpers.createSplitProto(splits[0]);
-    RootInputDataInformationEvent event = new RootInputDataInformationEvent(0,
-        splitProto.toByteArray());
+    MRSplitProto splitProto = MRInputHelpers.createSplitProto(splits[0]);
+    InputDataInformationEvent event =
+        InputDataInformationEvent.createWithSerializedPayload(0,
+            splitProto.toByteString().asReadOnlyByteBuffer());
 
     eventList.clear();
     eventList.add(event);
@@ -141,15 +143,14 @@ public class TestMultiMRInput {
     FileInputFormat.setInputPaths(jobConf, workDir);
 
     MRInputUserPayloadProto.Builder builder = MRInputUserPayloadProto.newBuilder();
-    builder.setInputFormatName(SequenceFileInputFormat.class.getName());
+    builder.setGroupingEnabled(false);
     builder.setConfigurationBytes(TezUtils.createByteStringFromConf(jobConf));
     byte[] payload = builder.build().toByteArray();
 
-    TezInputContext inputContext = createTezInputContext(payload);
+    InputContext inputContext = createTezInputContext(payload);
 
-    MultiMRInput input = new MultiMRInput();
-    input.setNumPhysicalInputs(2);
-    input.initialize(inputContext);
+    MultiMRInput input = new MultiMRInput(inputContext, 2);
+    input.initialize();
     List<Event> eventList = new ArrayList<Event>();
 
     LinkedHashMap<LongWritable, Text> data = new LinkedHashMap<LongWritable, Text>();
@@ -170,13 +171,15 @@ public class TestMultiMRInput {
     InputSplit[] splits = format.getSplits(jobConf, 2);
     assertEquals(2, splits.length);
 
-    MRSplitProto splitProto1 = MRHelpers.createSplitProto(splits[0]);
-    RootInputDataInformationEvent event1 = new RootInputDataInformationEvent(0,
-        splitProto1.toByteArray());
+    MRSplitProto splitProto1 = MRInputHelpers.createSplitProto(splits[0]);
+    InputDataInformationEvent event1 =
+        InputDataInformationEvent.createWithSerializedPayload(0,
+            splitProto1.toByteString().asReadOnlyByteBuffer());
 
-    MRSplitProto splitProto2 = MRHelpers.createSplitProto(splits[1]);
-    RootInputDataInformationEvent event2 = new RootInputDataInformationEvent(0,
-        splitProto2.toByteArray());
+    MRSplitProto splitProto2 = MRInputHelpers.createSplitProto(splits[1]);
+    InputDataInformationEvent event2 =
+        InputDataInformationEvent.createWithSerializedPayload(0,
+            splitProto2.toByteString().asReadOnlyByteBuffer());
 
     eventList.clear();
     eventList.add(event1);
@@ -206,15 +209,14 @@ public class TestMultiMRInput {
     FileInputFormat.setInputPaths(jobConf, workDir);
 
     MRInputUserPayloadProto.Builder builder = MRInputUserPayloadProto.newBuilder();
-    builder.setInputFormatName(SequenceFileInputFormat.class.getName());
+    builder.setGroupingEnabled(false);
     builder.setConfigurationBytes(TezUtils.createByteStringFromConf(jobConf));
     byte[] payload = builder.build().toByteArray();
 
-    TezInputContext inputContext = createTezInputContext(payload);
+    InputContext inputContext = createTezInputContext(payload);
 
-    MultiMRInput input = new MultiMRInput();
-    input.setNumPhysicalInputs(1);
-    input.initialize(inputContext);
+    MultiMRInput input = new MultiMRInput(inputContext, 1);
+    input.initialize();
     List<Event> eventList = new ArrayList<Event>();
 
     String file1 = "file1";
@@ -224,11 +226,13 @@ public class TestMultiMRInput {
     InputSplit[] splits = format.getSplits(jobConf, 1);
     assertEquals(1, splits.length);
 
-    MRSplitProto splitProto = MRHelpers.createSplitProto(splits[0]);
-    RootInputDataInformationEvent event1 = new RootInputDataInformationEvent(0,
-        splitProto.toByteArray());
-    RootInputDataInformationEvent event2 = new RootInputDataInformationEvent(1,
-        splitProto.toByteArray());
+    MRSplitProto splitProto = MRInputHelpers.createSplitProto(splits[0]);
+    InputDataInformationEvent event1 =
+        InputDataInformationEvent.createWithSerializedPayload(0,
+            splitProto.toByteString().asReadOnlyByteBuffer());
+    InputDataInformationEvent event2 =
+        InputDataInformationEvent.createWithSerializedPayload(1,
+            splitProto.toByteString().asReadOnlyByteBuffer());
 
     eventList.clear();
     eventList.add(event1);
@@ -242,11 +246,11 @@ public class TestMultiMRInput {
     }
   }
 
-  private TezInputContext createTezInputContext(byte[] payload) {
+  private InputContext createTezInputContext(byte[] payload) {
     ApplicationId applicationId = ApplicationId.newInstance(10000, 1);
     TezCounters counters = new TezCounters();
 
-    TezInputContext inputContext = mock(TezInputContext.class);
+    InputContext inputContext = mock(InputContext.class);
     doReturn(applicationId).when(inputContext).getApplicationId();
     doReturn(counters).when(inputContext).getCounters();
     doReturn(1).when(inputContext).getDAGAttemptNumber();
@@ -257,7 +261,7 @@ public class TestMultiMRInput {
     doReturn(1).when(inputContext).getTaskIndex();
     doReturn(1).when(inputContext).getTaskVertexIndex();
     doReturn("taskVertexName").when(inputContext).getTaskVertexName();
-    doReturn(payload).when(inputContext).getUserPayload();
+    doReturn(UserPayload.create(ByteBuffer.wrap(payload))).when(inputContext).getUserPayload();
     return inputContext;
   }
 

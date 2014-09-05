@@ -24,7 +24,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitsProto;
 
 // TODO Fix this to be more usable. Interface is broken since half the methods apply to only a specific type.
@@ -79,4 +79,22 @@ public interface InputSplitInfo {
    * @return {@link Credentials} which may be required to access the splits.
    */
   public abstract Credentials getCredentials();
+
+  /**
+   * Check whether the current instance is using old / new format splits
+   * @return true if using new format splits, false otherwise
+   */
+  public boolean holdsNewFormatSplits();
+
+  /**
+   * Get new format splits. Should only be used if the mapreduce API is being used
+   * @return array of mapreduce format splits
+   */
+  public org.apache.hadoop.mapreduce.InputSplit[] getNewFormatSplits();
+
+  /**
+   * Get old format splits. Should only be used if the mapred API is being used
+   * @return array of mapred format splits
+   */
+  public org.apache.hadoop.mapred.InputSplit[] getOldFormatSplits();
 }

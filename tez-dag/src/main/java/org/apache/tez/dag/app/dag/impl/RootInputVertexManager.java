@@ -18,20 +18,21 @@
 
 package org.apache.tez.dag.app.dag.impl;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.tez.dag.api.InputDescriptor;
-import org.apache.tez.dag.api.VertexLocationHint;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.VertexManagerPlugin;
 import org.apache.tez.dag.api.VertexManagerPluginContext;
 import org.apache.tez.dag.api.VertexManagerPluginContext.TaskWithLocationHint;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.RootInputSpecUpdate;
-import org.apache.tez.runtime.api.events.RootInputConfigureVertexTasksEvent;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
-import org.apache.tez.runtime.api.events.RootInputUpdatePayloadEvent;
+import org.apache.tez.runtime.api.InputSpecUpdate;
+import org.apache.tez.runtime.api.events.InputConfigureVertexTasksEvent;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
+import org.apache.tez.runtime.api.events.InputUpdatePayloadEvent;
 import org.apache.tez.runtime.api.events.VertexManagerEvent;
 
 import com.google.common.base.Preconditions;
@@ -39,22 +40,24 @@ import com.google.common.collect.Lists;
 
 public class RootInputVertexManager extends VertexManagerPlugin {
 
-  VertexManagerPluginContext context;
   private String configuredInputName;
 
+  public RootInputVertexManager(VertexManagerPluginContext context) {
+    super(context);
+  }
+
   @Override
-  public void initialize(VertexManagerPluginContext context) {
-    this.context = context;
+  public void initialize() {
   }
 
   @Override
   public void onVertexStarted(Map<String, List<Integer>> completions) {
-    int numTasks = context.getVertexNumTasks(context.getVertexName());
+    int numTasks = getContext().getVertexNumTasks(getContext().getVertexName());
     List<TaskWithLocationHint> scheduledTasks = Lists.newArrayListWithCapacity(numTasks);
     for (int i=0; i<numTasks; ++i) {
       scheduledTasks.add(new TaskWithLocationHint(new Integer(i), null));
     }
-    context.scheduleVertexTasks(scheduledTasks);
+    getContext().scheduleVertexTasks(scheduledTasks);
   }
 
   @Override
@@ -68,50 +71,50 @@ public class RootInputVertexManager extends VertexManagerPlugin {
   @Override
   public void onRootVertexInitialized(String inputName, InputDescriptor inputDescriptor,
       List<Event> events) {
-    List<RootInputDataInformationEvent> riEvents = Lists.newLinkedList();
+    List<InputDataInformationEvent> riEvents = Lists.newLinkedList();
     boolean dataInformationEventSeen = false;
     for (Event event : events) {
-      if (event instanceof RootInputConfigureVertexTasksEvent) {
+      if (event instanceof InputConfigureVertexTasksEvent) {
         // No tasks should have been started yet. Checked by initial state check.
         Preconditions.checkState(dataInformationEventSeen == false);
-        Preconditions.checkState(context.getVertexNumTasks(context.getVertexName()) == -1,
+        Preconditions.checkState(getContext().getVertexNumTasks(getContext().getVertexName()) == -1,
             "Parallelism for the vertex should be set to -1 if the InputInitializer is setting parallelism"
-                + ", VertexName: " + context.getVertexName());
+                + ", VertexName: " + getContext().getVertexName());
         Preconditions.checkState(configuredInputName == null,
             "RootInputVertexManager cannot configure multiple inputs. Use a custom VertexManager"
-                + ", VertexName: " + context.getVertexName() + ", ConfiguredInput: "
+                + ", VertexName: " + getContext().getVertexName() + ", ConfiguredInput: "
                 + configuredInputName + ", CurrentInput: " + inputName);
         configuredInputName = inputName;
-        RootInputConfigureVertexTasksEvent cEvent = (RootInputConfigureVertexTasksEvent) event;
-        Map<String, RootInputSpecUpdate> rootInputSpecUpdate = new HashMap<String, RootInputSpecUpdate>();
+        InputConfigureVertexTasksEvent cEvent = (InputConfigureVertexTasksEvent) event;
+        Map<String, InputSpecUpdate> rootInputSpecUpdate = new HashMap<String, InputSpecUpdate>();
         rootInputSpecUpdate.put(
             inputName,
-            cEvent.getRootInputSpecUpdate() == null ? RootInputSpecUpdate
-                .getDefaultSinglePhysicalInputSpecUpdate() : cEvent.getRootInputSpecUpdate());
-        context.setVertexParallelism(cEvent.getNumTasks(),
-            new VertexLocationHint(cEvent.getTaskLocationHints()), null, rootInputSpecUpdate);
+            cEvent.getInputSpecUpdate() == null ? InputSpecUpdate
+                .getDefaultSinglePhysicalInputSpecUpdate() : cEvent.getInputSpecUpdate());
+        getContext().setVertexParallelism(cEvent.getNumTasks(),
+            cEvent.getLocationHint(), null, rootInputSpecUpdate);
       }
-      if (event instanceof RootInputUpdatePayloadEvent) {
+      if (event instanceof InputUpdatePayloadEvent) {
         // No tasks should have been started yet. Checked by initial state check.
         Preconditions.checkState(dataInformationEventSeen == false);
-        inputDescriptor.setUserPayload(((RootInputUpdatePayloadEvent) event)
-            .getUserPayload());
-      } else if (event instanceof RootInputDataInformationEvent) {
+        inputDescriptor.setUserPayload(UserPayload.create(
+            ((InputUpdatePayloadEvent) event).getUserPayload()));
+      } else if (event instanceof InputDataInformationEvent) {
         dataInformationEventSeen = true;
         // # Tasks should have been set by this point.
-        Preconditions.checkState(context.getVertexNumTasks(context.getVertexName()) != 0);
+        Preconditions.checkState(getContext().getVertexNumTasks(getContext().getVertexName()) != 0);
         Preconditions.checkState(
             configuredInputName == null || configuredInputName.equals(inputName),
             "RootInputVertexManager cannot configure multiple inputs. Use a custom VertexManager"
-                + ", VertexName:" + context.getVertexName() + ", ConfiguredInput: "
+                + ", VertexName:" + getContext().getVertexName() + ", ConfiguredInput: "
                 + configuredInputName + ", CurrentInput: " + inputName);
         configuredInputName = inputName;
         
-        RootInputDataInformationEvent rEvent = (RootInputDataInformationEvent)event;
+        InputDataInformationEvent rEvent = (InputDataInformationEvent)event;
         rEvent.setTargetIndex(rEvent.getSourceIndex()); // 1:1 routing
         riEvents.add(rEvent);
       }
     }
-    context.addRootInputEvents(inputName, riEvents);
+    getContext().addRootInputEvents(inputName, riEvents);
   }
 }

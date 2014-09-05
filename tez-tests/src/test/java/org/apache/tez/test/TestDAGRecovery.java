@@ -28,8 +28,11 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
+import org.apache.tez.dag.api.DataSourceDescriptor;
 import org.apache.tez.dag.api.InputDescriptor;
+import org.apache.tez.dag.api.InputInitializerDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
 import org.apache.tez.dag.api.client.DAGStatus.State;
@@ -128,7 +131,7 @@ public class TestDAGRecovery {
     tezConf.set(TezConfiguration.TEZ_AM_LAUNCH_CMD_OPTS, " -Xmx256m");
     tezConf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, true);
 
-    tezSession = new TezClient("TestDAGRecovery", tezConf);
+    tezSession = TezClient.create("TestDAGRecovery", tezConf);
     tezSession.start();
   }
 
@@ -153,7 +156,7 @@ public class TestDAGRecovery {
     while (!dagStatus.isCompleted()) {
       LOG.info("Waiting for dag to complete. Sleeping for 500ms."
           + " DAG name: " + dag.getName()
-          + " DAG appId: " + dagClient.getApplicationId()
+          + " DAG appContext: " + dagClient.getExecutionContext()
           + " Current state: " + dagStatus.getState());
       Thread.sleep(100);
       dagStatus = dagClient.getDAGStatus(null);
@@ -167,14 +170,24 @@ public class TestDAGRecovery {
     DAG dag = MultiAttemptDAG.createDAG("TestBasicRecovery", null);
     runDAGAndVerify(dag, DAGStatus.State.SUCCEEDED);
 
+    // it should fail if submitting same dags in recovery mode (TEZ-1064)
+    try{
+      DAGClient dagClient = tezSession.submitDAG(dag);
+      Assert.fail("Expected DAG submit to fail on duplicate dag name");
+    } catch (TezException e) {
+      Assert.assertTrue(e.getMessage().contains("Duplicate dag name"));
+    }
   }
 
   @Test(timeout=120000)
   public void testDelayedInit() throws Exception {
     DAG dag = SimpleVTestDAG.createDAG("DelayedInitDAG", null);
-    dag.getVertex("v1").addInput("i1",
-        new InputDescriptor(NoOpInput.class.getName()),
-        FailingInputInitializer.class);
+    dag.getVertex("v1").addDataSource(
+        "i1",
+        DataSourceDescriptor.create(
+            InputDescriptor.create(NoOpInput.class.getName()),
+            InputInitializerDescriptor.create(FailingInputInitializer.class
+                .getName()), null));
     runDAGAndVerify(dag, State.SUCCEEDED);
   }
 

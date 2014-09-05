@@ -1,7 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.tez.dag.api.client.rpc;
 
-
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -12,11 +30,9 @@ import java.io.IOException;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
-import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
-import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGStatus;
 import org.apache.tez.dag.api.client.StatusGetOpts;
 import org.apache.tez.dag.api.client.VertexStatus;
@@ -42,7 +58,6 @@ import org.mockito.internal.util.collections.Sets;
 
 import com.google.protobuf.RpcController;
 import com.google.protobuf.ServiceException;
-
 
 public class TestDAGClient {
 
@@ -175,15 +190,15 @@ public class TestDAGClient {
    
     
     
-    dagClient = new DAGClientRPCImpl(mockAppId, dagIdStr, new TezConfiguration());
+    dagClient = new DAGClientRPCImpl(mockAppId, dagIdStr, new TezConfiguration(), null);
     dagClient.appReport = mockAppReport;
     ((DAGClientRPCImpl)dagClient).proxy = mockProxy;
   }
   
   @Test
   public void testApp() throws IOException, TezException, ServiceException{
-    assertEquals(mockAppId, dagClient.getApplicationId());
-    assertEquals(mockAppReport, dagClient.getApplicationReport());
+    assertTrue(dagClient.getExecutionContext().contains(mockAppId.toString()));
+    assertEquals(mockAppReport, dagClient.getApplicationReportInternal());
   }
   
   @Test
@@ -236,33 +251,9 @@ public class TestDAGClient {
     verify(mockProxy, times(2)).getDAGStatus(null, GetDAGStatusRequestProto.newBuilder()
       .setDagId(dagIdStr).build());
   }
-  
+
   @Test
   public void testWaitForCompletionWithStatusUpdates() throws Exception{
-    // first time return DAG_RUNNING, second time return DAG_SUCCEEDED
-    when(mockProxy.getDAGStatus(isNull(RpcController.class), any(GetDAGStatusRequestProto.class)))
-      .thenReturn(GetDAGStatusResponseProto.newBuilder().setDagStatus(dagStatusProtoWithoutCounters).build())
-      .thenReturn(GetDAGStatusResponseProto.newBuilder().setDagStatus
-                  (DAGStatusProto.newBuilder(dagStatusProtoWithoutCounters).setState(DAGStatusStateProto.DAG_SUCCEEDED).build())
-               .build());
-    dagClient.waitForCompletionWithStatusUpdates(null, null);
-    verify(mockProxy, times(2)).getDAGStatus(null, GetDAGStatusRequestProto.newBuilder()
-        .setDagId(dagIdStr).build());
-    
-    // first time return DAG_RUNNING, second time return DAG_SUCCEEDED
-    when(mockProxy.getDAGStatus(isNull(RpcController.class), any(GetDAGStatusRequestProto.class)))
-    .thenReturn(GetDAGStatusResponseProto.newBuilder().setDagStatus(dagStatusProtoWithCounters).build())
-    .thenReturn(GetDAGStatusResponseProto.newBuilder().setDagStatus
-                (DAGStatusProto.newBuilder(dagStatusProtoWithCounters).setState(DAGStatusStateProto.DAG_SUCCEEDED).build())
-             .build());
-    dagClient.waitForCompletionWithStatusUpdates(Sets.newSet(new Vertex("v1",null, 1, Resource.newInstance(1024, 1))), 
-        Sets.newSet(StatusGetOpts.GET_COUNTERS));
-    verify(mockProxy, times(2)).getDAGStatus(null, GetDAGStatusRequestProto.newBuilder()
-        .setDagId(dagIdStr).addStatusOptions(StatusGetOptsProto.GET_COUNTERS).build());
-  }
-  
-  @Test
-  public void testWaitForCompletionWithAllStatusUpdates() throws Exception{
 
     // first time and second time return DAG_RUNNING, third time return DAG_SUCCEEDED
     when(mockProxy.getDAGStatus(isNull(RpcController.class), any(GetDAGStatusRequestProto.class)))
@@ -274,7 +265,7 @@ public class TestDAGClient {
     
     //  first time for getVertexSet
     //  second & third time for check completion
-    dagClient.waitForCompletionWithAllStatusUpdates(null);
+    dagClient.waitForCompletionWithStatusUpdates(null);
     verify(mockProxy, times(3)).getDAGStatus(null, GetDAGStatusRequestProto.newBuilder()
         .setDagId(dagIdStr).build());
 
@@ -285,7 +276,7 @@ public class TestDAGClient {
       .thenReturn(GetDAGStatusResponseProto.newBuilder().setDagStatus
                 (DAGStatusProto.newBuilder(dagStatusProtoWithCounters).setState(DAGStatusStateProto.DAG_SUCCEEDED).build())
              .build());
-    dagClient.waitForCompletionWithAllStatusUpdates(Sets.newSet(StatusGetOpts.GET_COUNTERS));
+    dagClient.waitForCompletionWithStatusUpdates(Sets.newSet(StatusGetOpts.GET_COUNTERS));
     verify(mockProxy, times(3)).getDAGStatus(null, GetDAGStatusRequestProto.newBuilder()
       .setDagId(dagIdStr).addStatusOptions(StatusGetOptsProto.GET_COUNTERS).build());
   }

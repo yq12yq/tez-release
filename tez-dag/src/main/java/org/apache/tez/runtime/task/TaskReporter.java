@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.hadoop.util.StringUtils;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.log4j.Logger;
 import org.apache.tez.common.TezTaskUmbilicalProtocol;
 import org.apache.tez.common.counters.TezCounters;
@@ -46,7 +46,6 @@ import org.apache.tez.runtime.api.impl.TezEvent;
 import org.apache.tez.runtime.api.impl.TezHeartbeatRequest;
 import org.apache.tez.runtime.api.impl.TezHeartbeatResponse;
 import org.apache.tez.runtime.api.impl.EventMetaData.EventProducerConsumerType;
-import org.mortbay.log.Log;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
@@ -236,7 +235,7 @@ public class TaskReporter {
       TezHeartbeatRequest request = new TezHeartbeatRequest(requestId, events, containerIdStr,
           task.getTaskAttemptID(), task.getEventCounter(), maxEventsToGet);
       if (LOG.isDebugEnabled()) {
-        Log.debug("Sending heartbeat to AM, request=" + request);
+        LOG.debug("Sending heartbeat to AM, request=" + request);
       }
 
       maybeLogCounters();
@@ -329,7 +328,9 @@ public class TaskReporter {
       TezEvent statusUpdateEvent = new TezEvent(new TaskStatusUpdateEvent(task.getCounters(),
           task.getProgress()), updateEventMetadata);
       if (diagnostics == null) {
-        diagnostics = StringUtils.stringifyException(t);
+        diagnostics = ExceptionUtils.getStackTrace(t);
+      } else {
+        diagnostics = diagnostics + ":" + ExceptionUtils.getStackTrace(t);
       }
       TezEvent taskAttemptFailedEvent = new TezEvent(new TaskAttemptFailedEvent(diagnostics),
           srcMeta == null ? updateEventMetadata : srcMeta);

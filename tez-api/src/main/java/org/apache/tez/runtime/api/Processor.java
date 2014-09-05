@@ -18,37 +18,15 @@
 
 package org.apache.tez.runtime.api;
 
-import java.util.List;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 
 /**
  * {@link Processor} represents the <em>Tez</em> entity responsible for
- * consuming {@link Input} and producing {@link Output}.
+ * consuming {@link Input} and producing {@link Output}. It defines the 
+ * application logic that processes and transforms the data.
+ * 
+ * Users are expected to derive from {@link AbstractLogicalIOProcessor}
  */
+@Public
 public interface Processor {
-
-  /**
-   * Initializes the <code>Processor</code>
-   *
-   * @param processorContext
-   * @throws IOException
-   *           if an error occurs
-   */
-  public void initialize(TezProcessorContext processorContext)
-      throws Exception;
-
-  /**
-   * Handles user and system generated {@link Event}s.
-   *
-   * @param processorEvents
-   *          the list of {@link Event}s
-   */
-  public void handleEvents(List<Event> processorEvents);
-
-  /**
-   * Closes the <code>Processor</code>
-   *
-   * @throws IOException
-   *           if an error occurs
-   */
-  public void close() throws Exception;
 }

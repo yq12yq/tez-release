@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceStability.Unstable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,10 +31,10 @@ import org.apache.hadoop.io.RawComparator;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.tez.common.TezJobConfig;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.runtime.api.TezInputContext;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.sort.impl.TezMerger;
 import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
@@ -40,11 +42,13 @@ import org.apache.tez.runtime.library.common.task.local.output.TezLocalTaskOutpu
 import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutput;
 
 @SuppressWarnings({"rawtypes"})
+@Unstable
+@Private
 public class LocalShuffle {
 
   // TODO NEWTEZ This is broken.
 
-  private final TezInputContext inputContext;
+  private final InputContext inputContext;
   private final Configuration conf;
   private final int numInputs;
 
@@ -63,7 +67,7 @@ public class LocalShuffle {
   private final int ifileReadAheadLength;
   private final int ifileBufferSize;
 
-  public LocalShuffle(TezInputContext inputContext, Configuration conf, int numInputs) throws IOException {
+  public LocalShuffle(InputContext inputContext, Configuration conf, int numInputs) throws IOException {
     this.inputContext = inputContext;
     this.conf = conf;
     this.numInputs = numInputs;
@@ -74,8 +78,8 @@ public class LocalShuffle {
     
     this.sortFactor =
         conf.getInt(
-            TezJobConfig.TEZ_RUNTIME_IO_SORT_FACTOR, 
-            TezJobConfig.TEZ_RUNTIME_IO_SORT_FACTOR_DEFAULT);
+            TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_FACTOR, 
+            TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_FACTOR_DEFAULT);
     
     this.rfs = FileSystem.getLocal(conf).getRaw();
 
@@ -90,17 +94,17 @@ public class LocalShuffle {
       this.codec = null;
     }
     this.ifileReadAhead = conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD,
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD,
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
     if (this.ifileReadAhead) {
       this.ifileReadAheadLength = conf.getInt(
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
     } else {
       this.ifileReadAheadLength = 0;
     }
     this.ifileBufferSize = conf.getInt("io.file.buffer.size",
-        TezJobConfig.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
     
     // Always local
     this.mapOutputFile = new TezLocalTaskOutputFiles(conf, inputContext.getUniqueIdentifier());

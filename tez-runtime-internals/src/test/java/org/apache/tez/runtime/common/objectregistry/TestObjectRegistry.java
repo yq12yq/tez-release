@@ -18,24 +18,11 @@
 
 package org.apache.tez.runtime.common.objectregistry;
 
-import org.apache.tez.runtime.common.objectregistry.ObjectLifeCycle;
-import org.apache.tez.runtime.common.objectregistry.ObjectRegistry;
-import org.apache.tez.runtime.common.objectregistry.ObjectRegistryFactory;
-import org.apache.tez.runtime.common.objectregistry.ObjectRegistryModule;
+import org.apache.tez.runtime.api.ObjectRegistry;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
-import com.google.inject.Guice;
-import com.google.inject.Injector;
-
 public class TestObjectRegistry {
-
-  @SuppressWarnings("unused")
-  @Before
-  public void setup() {
-    Injector injector = Guice.createInjector(new ObjectRegistryModule());
-  }
 
   private void testCRUD(ObjectRegistry objectRegistry) {
     Assert.assertNotNull(objectRegistry);
@@ -45,10 +32,10 @@ public class TestObjectRegistry {
     Integer one = new Integer(1);
     Integer two_1 = new Integer(2);
     Integer two_2 = new Integer(3);
-    Assert.assertNull(objectRegistry.add(ObjectLifeCycle.DAG, "one", one));
+    Assert.assertNull(objectRegistry.cacheForDAG("one", one));
     Assert.assertEquals(one, objectRegistry.get("one"));
-    Assert.assertNull(objectRegistry.add(ObjectLifeCycle.DAG, "two", two_1));
-    Assert.assertNotNull(objectRegistry.add(ObjectLifeCycle.SESSION, "two", two_2));
+    Assert.assertNull(objectRegistry.cacheForDAG("two", two_1));
+    Assert.assertNotNull(objectRegistry.cacheForSession("two", two_2));
     Assert.assertNotEquals(two_1, objectRegistry.get("two"));
     Assert.assertEquals(two_2, objectRegistry.get("two"));
     Assert.assertTrue(objectRegistry.delete("one"));
@@ -58,8 +45,7 @@ public class TestObjectRegistry {
 
   @Test
   public void testBasicCRUD() {
-    ObjectRegistry objectRegistry =
-        ObjectRegistryFactory.getObjectRegistry();
+    ObjectRegistry objectRegistry = new ObjectRegistryImpl();
     testCRUD(objectRegistry);
   }
 
@@ -70,15 +56,15 @@ public class TestObjectRegistry {
 
     String one = "one";
     String two = "two";
-    objectRegistry.add(ObjectLifeCycle.VERTEX, one, one);
-    objectRegistry.add(ObjectLifeCycle.DAG, two, two);
+    objectRegistry.cacheForVertex(one, one);
+    objectRegistry.cacheForDAG(two, two);
 
-    ((ObjectRegistryImpl)objectRegistry).clearCache(ObjectLifeCycle.VERTEX);
+    ((ObjectRegistryImpl)objectRegistry).clearCache(ObjectRegistryImpl.ObjectLifeCycle.VERTEX);
     Assert.assertNull(objectRegistry.get(one));
     Assert.assertNotNull(objectRegistry.get(two));
 
-    objectRegistry.add(ObjectLifeCycle.VERTEX, one, one);
-    ((ObjectRegistryImpl)objectRegistry).clearCache(ObjectLifeCycle.DAG);
+    objectRegistry.cacheForVertex(one, one);
+    ((ObjectRegistryImpl)objectRegistry).clearCache(ObjectRegistryImpl.ObjectLifeCycle.DAG);
     Assert.assertNotNull(objectRegistry.get(one));
     Assert.assertNull(objectRegistry.get(two));
   }

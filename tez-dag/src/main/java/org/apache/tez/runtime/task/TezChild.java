@@ -18,6 +18,8 @@
 
 package org.apache.tez.runtime.task;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -41,7 +43,6 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.YarnUncaughtExceptionHandler;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
@@ -49,9 +50,10 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.tez.common.ContainerContext;
 import org.apache.tez.common.ContainerTask;
+import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezLocalResource;
 import org.apache.tez.common.TezTaskUmbilicalProtocol;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.Limits;
 import org.apache.tez.common.security.JobTokenIdentifier;
 import org.apache.tez.common.security.TokenCache;
@@ -60,9 +62,7 @@ import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.utils.RelocalizationUtils;
 import org.apache.tez.runtime.api.impl.TaskSpec;
-import org.apache.tez.runtime.common.objectregistry.ObjectLifeCycle;
 import org.apache.tez.runtime.common.objectregistry.ObjectRegistryImpl;
-import org.apache.tez.runtime.common.objectregistry.ObjectRegistryModule;
 import org.apache.tez.runtime.library.shuffle.common.ShuffleUtils;
 
 import com.google.common.base.Function;
@@ -74,8 +74,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.inject.Guice;
-import com.google.inject.Injector;
 
 public class TezChild {
 
@@ -84,7 +82,6 @@ public class TezChild {
   private final Configuration defaultConf;
   private final String containerIdString;
   private final int appAttemptNumber;
-  private final InetSocketAddress address;
   private final String[] localDirs;
 
   private final AtomicLong heartbeatCounter = new AtomicLong(0);
@@ -93,6 +90,7 @@ public class TezChild {
   private final int amHeartbeatInterval;
   private final long sendCounterInterval;
   private final int maxEventsToGet;
+  private final boolean isLocal;
 
   private final ListeningExecutorService executor;
   private final ObjectRegistryImpl objectRegistry;
@@ -107,7 +105,8 @@ public class TezChild {
 
   public TezChild(Configuration conf, String host, int port, String containerIdentifier,
       String tokenIdentifier, int appAttemptNumber, String[] localDirs,
-      ObjectRegistryImpl objectRegistry) throws IOException, InterruptedException {
+      ObjectRegistryImpl objectRegistry)
+      throws IOException, InterruptedException {
     this.defaultConf = conf;
     this.containerIdString = containerIdentifier;
     this.appAttemptNumber = appAttemptNumber;
@@ -127,8 +126,6 @@ public class TezChild {
     maxEventsToGet = defaultConf.getInt(TezConfiguration.TEZ_TASK_MAX_EVENTS_PER_HEARTBEAT,
         TezConfiguration.TEZ_TASK_MAX_EVENTS_PER_HEARTBEAT_DEFAULT);
 
-    address = NetUtils.createSocketAddrForHost(host, port);
-
     ExecutorService executor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
         .setDaemon(true).setNameFormat("TezChild").build());
     this.executor = MoreExecutors.listeningDecorator(executor);
@@ -144,24 +141,29 @@ public class TezChild {
       }
     }
 
+    this.isLocal = defaultConf.getBoolean(TezConfiguration.TEZ_LOCAL_MODE,
+        TezConfiguration.TEZ_LOCAL_MODE_DEFAULT);
     UserGroupInformation taskOwner = UserGroupInformation.createRemoteUser(tokenIdentifier);
     Token<JobTokenIdentifier> jobToken = TokenCache.getSessionToken(credentials);
-    SecurityUtil.setTokenService(jobToken, address);
-    taskOwner.addToken(jobToken);
 
     serviceConsumerMetadata.put(ShuffleUtils.SHUFFLE_HANDLER_SERVICE_ID,
         ShuffleUtils.convertJobTokenToBytes(jobToken));
 
-    umbilical = taskOwner.doAs(new PrivilegedExceptionAction<TezTaskUmbilicalProtocol>() {
-      @Override
-      public TezTaskUmbilicalProtocol run() throws Exception {
-        return (TezTaskUmbilicalProtocol) RPC.getProxy(TezTaskUmbilicalProtocol.class,
-            TezTaskUmbilicalProtocol.versionID, address, defaultConf);
-      }
-    });
+    if (!isLocal) {
+      final InetSocketAddress address = NetUtils.createSocketAddrForHost(host, port);
+      SecurityUtil.setTokenService(jobToken, address);
+      taskOwner.addToken(jobToken);
+      umbilical = taskOwner.doAs(new PrivilegedExceptionAction<TezTaskUmbilicalProtocol>() {
+        @Override
+        public TezTaskUmbilicalProtocol run() throws Exception {
+          return RPC.getProxy(TezTaskUmbilicalProtocol.class,
+              TezTaskUmbilicalProtocol.versionID, address, defaultConf);
+        }
+      });
+    }
   }
   
-  void run() throws IOException, InterruptedException, TezException {
+  public ContainerExecutionResult run() throws IOException, InterruptedException, TezException {
 
     ContainerContext containerContext = new ContainerContext(containerIdString);
     ContainerReporter containerReporter = new ContainerReporter(umbilical, containerContext,
@@ -174,7 +176,7 @@ public class TezChild {
 
     while (!executor.isTerminated()) {
       if (taskCount > 0) {
-        TezUtils.updateLoggers("");
+        TezUtilsInternal.updateLoggers("");
       }
       ListenableFuture<ContainerTask> getTaskFuture = executor.submit(containerReporter);
       ContainerTask containerTask = null;
@@ -183,21 +185,24 @@ public class TezChild {
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
         handleError(cause);
-        return;
+        return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.EXECUTION_FAILURE,
+            cause, "Execution Exception while fetching new work: " + e.getMessage());
       } catch (InterruptedException e) {
-        LOG.info("Interrupted while waiting for task to complete:"
+        LOG.info("Interrupted while waiting for new work:"
             + containerTask.getTaskSpec().getTaskAttemptID());
         handleError(e);
-        return;
+        return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.INTERRUPTED, e,
+            "Interrupted while waiting for new work");
       }
       if (containerTask.shouldDie()) {
         LOG.info("ContainerTask returned shouldDie=true, Exiting");
         shutdown();
-        return;
+        return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.SUCCESS, null,
+            "Asked to die by the AM");
       } else {
         String loggerAddend = containerTask.getTaskSpec().getTaskAttemptID().toString();
         taskCount++;
-        TezUtils.updateLoggers(loggerAddend);
+        TezUtilsInternal.updateLoggers(loggerAddend);
         FileSystem.clearStatistics();
 
         childUGI = handleNewTaskCredentials(containerTask, childUGI);
@@ -207,26 +212,31 @@ public class TezChild {
         // Execute the Actual Task
         TezTaskRunner taskRunner = new TezTaskRunner(new TezConfiguration(defaultConf), childUGI,
             localDirs, containerTask.getTaskSpec(), umbilical, appAttemptNumber,
-            serviceConsumerMetadata, startedInputsMap, taskReporter, executor);
-        boolean shouldDie = false;
+            serviceConsumerMetadata, startedInputsMap, taskReporter, executor, objectRegistry);
+        boolean shouldDie;
         try {
           shouldDie = !taskRunner.run();
           if (shouldDie) {
             LOG.info("Got a shouldDie notification via hearbeats. Shutting down");
             shutdown();
-            return;
+            return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.SUCCESS, null,
+                "Asked to die by the AM");
           }
         } catch (IOException e) {
           handleError(e);
-          return;
+          return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.EXECUTION_FAILURE,
+              e, "TaskExecutionFailure: " + e.getMessage());
         } catch (TezException e) {
           handleError(e);
-          return;
+          return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.EXECUTION_FAILURE,
+              e, "TaskExecutionFailure: " + e.getMessage());
         } finally {
           FileSystem.closeAllForUGI(childUGI);
         }
       }
     }
+    return new ContainerExecutionResult(ContainerExecutionResult.ExitStatus.SUCCESS, null,
+        null);
   }
 
   /**
@@ -236,12 +246,12 @@ public class TezChild {
    *          the new task specification. Must be a valid task
    * @param childUGI
    *          the old UGI instance being used
-   * @return
+   * @return childUGI
    */
   UserGroupInformation handleNewTaskCredentials(ContainerTask containerTask,
       UserGroupInformation childUGI) {
     // Re-use the UGI only if the Credentials have not changed.
-    Preconditions.checkState(containerTask.shouldDie() != true);
+    Preconditions.checkState(!containerTask.shouldDie());
     Preconditions.checkState(containerTask.getTaskSpec() != null);
     if (containerTask.haveCredentialsChanged()) {
       LOG.info("Refreshing UGI since Credentials have changed");
@@ -297,16 +307,16 @@ public class TezChild {
    *          the new task specification. Must be a valid task
    */
   private void cleanupOnTaskChanged(ContainerTask containerTask) {
-    Preconditions.checkState(containerTask.shouldDie() != true);
+    Preconditions.checkState(!containerTask.shouldDie());
     Preconditions.checkState(containerTask.getTaskSpec() != null);
     TezVertexID newVertexID = containerTask.getTaskSpec().getTaskAttemptID().getTaskID()
         .getVertexID();
     if (lastVertexID != null) {
       if (!lastVertexID.equals(newVertexID)) {
-        objectRegistry.clearCache(ObjectLifeCycle.VERTEX);
+        objectRegistry.clearCache(ObjectRegistryImpl.ObjectLifeCycle.VERTEX);
       }
       if (!lastVertexID.getDAGId().equals(newVertexID.getDAGId())) {
-        objectRegistry.clearCache(ObjectLifeCycle.DAG);
+        objectRegistry.clearCache(ObjectRegistryImpl.ObjectLifeCycle.DAG);
         startedInputsMap = HashMultimap.create();
       }
     }
@@ -320,30 +330,71 @@ public class TezChild {
     }
     RPC.stopProxy(umbilical);
     DefaultMetricsSystem.shutdown();
-    LogManager.shutdown();
+    if (!isLocal) {
+      LogManager.shutdown();
+    }
   }
 
-  public static void main(String[] args) throws IOException, InterruptedException, TezException {
-    Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
-    LOG.info("TezChild starting");
+  public void setUmbilical(TezTaskUmbilicalProtocol tezTaskUmbilicalProtocol){
+    if(tezTaskUmbilicalProtocol != null){
+      this.umbilical = tezTaskUmbilicalProtocol;
+    }
+  }
 
-    final Configuration defaultConf = new Configuration();
+  public static class ContainerExecutionResult {
+    public static enum ExitStatus {
+      SUCCESS(0),
+      EXECUTION_FAILURE(1),
+      INTERRUPTED(2),
+      ASKED_TO_DIE(3);
+
+      private final int exitCode;
+
+      ExitStatus(int code) {
+        this.exitCode = code;
+      }
+
+      public int getExitCode() {
+        return this.exitCode;
+      }
+    }
+
+    private final ExitStatus exitStatus;
+    private final Throwable throwable;
+    private final String errorMessage;
+
+    ContainerExecutionResult(ExitStatus exitStatus, @Nullable Throwable throwable,
+                             @Nullable String errorMessage) {
+      this.exitStatus = exitStatus;
+      this.throwable = throwable;
+      this.errorMessage = errorMessage;
+    }
+
+    public ExitStatus getExitStatus() {
+      return this.exitStatus;
+    }
+
+    public Throwable getThrowable() {
+      return this.throwable;
+    }
+
+    public String getErrorMessage() {
+      return this.errorMessage;
+    }
+  }
+
+  public static TezChild newTezChild(Configuration conf, String host, int port, String containerIdentifier,
+      String tokenIdentifier, int attemptNumber, String[] localDirs, String workingDirectory)
+      throws IOException, InterruptedException, TezException {
+
     // Pull in configuration specified for the session.
     // TODO TEZ-1233. This needs to be moved over the wire rather than localizing the file
     // for each and every task, and reading it back from disk. Also needs to be per vertex.
-    TezUtils.addUserSpecifiedTezConfiguration(defaultConf);
-    UserGroupInformation.setConfiguration(defaultConf);
-    Limits.setConfiguration(defaultConf);
+    TezUtilsInternal.addUserSpecifiedTezConfiguration(workingDirectory, conf);
+    UserGroupInformation.setConfiguration(conf);
+    Limits.setConfiguration(conf);
 
-    assert args.length == 5;
-    String host = args[0];
-    int port = Integer.parseInt(args[1]);
-    final String containerIdentifier = args[2];
-    final String tokenIdentifier = args[3];
-    final int attemptNumber = Integer.parseInt(args[4]);
     final String pid = System.getenv().get("JVM_PID");
-    final String[] localDirs = StringUtils.getTrimmedStrings(System.getenv(Environment.LOCAL_DIRS
-        .name()));
     LOG.info("PID, containerIdentifier:  " + pid + ", " + containerIdentifier);
     if (LOG.isDebugEnabled()) {
       LOG.debug("Info from cmd line: AM-host: " + host + " AM-port: " + port
@@ -355,13 +406,30 @@ public class TezChild {
     // of this class. Leaving it here, till there's some entity representing a running JVM.
     DefaultMetricsSystem.initialize("TezTask");
 
+    // singleton of ObjectRegistry for this JVM
     ObjectRegistryImpl objectRegistry = new ObjectRegistryImpl();
-    @SuppressWarnings("unused")
-    Injector injector = Guice.createInjector(new ObjectRegistryModule(objectRegistry));
 
-    TezChild tezChild = new TezChild(defaultConf, host, port, containerIdentifier, tokenIdentifier,
+    return new TezChild(conf, host, port, containerIdentifier, tokenIdentifier,
         attemptNumber, localDirs, objectRegistry);
+  }
 
+  public static void main(String[] args) throws IOException, InterruptedException, TezException {
+
+    final Configuration defaultConf = new Configuration();
+
+    Thread.setDefaultUncaughtExceptionHandler(new YarnUncaughtExceptionHandler());
+    LOG.info("TezChild starting");
+
+    assert args.length == 5;
+    String host = args[0];
+    int port = Integer.parseInt(args[1]);
+    final String containerIdentifier = args[2];
+    final String tokenIdentifier = args[3];
+    final int attemptNumber = Integer.parseInt(args[4]);
+    final String[] localDirs = TezCommonUtils.getTrimmedStrings(System.getenv(Environment.LOCAL_DIRS
+        .name()));
+    TezChild tezChild = newTezChild(defaultConf, host, port, containerIdentifier,
+        tokenIdentifier, attemptNumber, localDirs, System.getenv(Environment.PWD.name()));
     tezChild.run();
   }
 

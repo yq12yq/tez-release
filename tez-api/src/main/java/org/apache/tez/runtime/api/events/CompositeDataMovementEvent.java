@@ -18,10 +18,10 @@
 
 package org.apache.tez.runtime.api.events;
 
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
-import org.apache.tez.common.TezUserPayload;
-import org.apache.tez.dag.api.DagTypeConverters;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.tez.runtime.api.Event;
 
 /**
@@ -36,40 +36,46 @@ import org.apache.tez.runtime.api.Event;
  * the Physical Outputs that it generates.
  * 
  */
+@Public
 public class CompositeDataMovementEvent extends Event {
 
   protected final int sourceIndexStart;
-  protected final int sourceIndexEnd;
+  protected final int count;
   protected int version;
 
-  protected final TezUserPayload userPayload;
+  protected final ByteBuffer userPayload;
+
+  private CompositeDataMovementEvent(int srcIndexStart, int count, ByteBuffer userPayload) {
+    this.sourceIndexStart = srcIndexStart;
+    this.count = count;
+    this.userPayload = userPayload;
+  }
 
   /**
    * @param srcIndexStart
    *          the startIndex of the physical source which generated the event
    *          (inclusive)
-   * @param srcIndexEnd
-   *          the endIndex of the physical source which generated the event
-   *          (non-inclusive)
+   * @param count
+   *          the number of physical sources represented by this event,
+   *          starting from the srcIndexStart(non-inclusive)
    * @param userPayload
    *          the common payload between all the events.
    */
-  public CompositeDataMovementEvent(int srcIndexStart, int srcIndexEnd, byte[] userPayload) {
-    this.sourceIndexStart = srcIndexStart;
-    this.sourceIndexEnd = srcIndexEnd;
-    this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
+  public static CompositeDataMovementEvent create(int srcIndexStart, int count,
+                                                  ByteBuffer userPayload) {
+    return new CompositeDataMovementEvent(srcIndexStart, count, userPayload);
   }
 
   public int getSourceIndexStart() {
     return sourceIndexStart;
   }
 
-  public int getSourceIndexEnd() {
-    return sourceIndexEnd;
+  public int getCount() {
+    return count;
   }
 
-  public byte[] getUserPayload() {
-    return userPayload.getPayload();
+  public ByteBuffer getUserPayload() {
+    return userPayload == null ? null : userPayload.asReadOnlyBuffer();
   }
 
   public void setVersion(int version) {
@@ -92,12 +98,12 @@ public class CompositeDataMovementEvent extends Event {
 
           @Override
           public boolean hasNext() {
-            return currentPos < sourceIndexEnd;
+            return currentPos < (count + sourceIndexStart);
           }
 
           @Override
           public DataMovementEvent next() {
-            DataMovementEvent dmEvent = new DataMovementEvent(currentPos, userPayload.getPayload());
+            DataMovementEvent dmEvent = DataMovementEvent.create(currentPos, userPayload);
             currentPos++;
             dmEvent.setVersion(version);
             return dmEvent;

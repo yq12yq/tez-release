@@ -20,14 +20,21 @@ package org.apache.tez.mapreduce.partition;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
+import org.apache.tez.runtime.library.api.Partitioner;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 
+/**
+ * Provides an implementation of {@link Partitioner} that is compatible
+ * with Map Reduce partitioners. 
+ */
 @SuppressWarnings({ "rawtypes", "unchecked" })
+@Public
 public class MRPartitioner implements org.apache.tez.runtime.library.api.Partitioner {
 
   static final Log LOG = LogFactory.getLog(MRPartitioner.class);
@@ -62,7 +69,8 @@ public class MRPartitioner implements org.apache.tez.runtime.library.api.Partiti
       if (partitions > 1) {
         oldPartitioner = (org.apache.hadoop.mapred.Partitioner) ReflectionUtils.newInstance(
             (Class<? extends org.apache.hadoop.mapred.Partitioner>) conf.getClass(
-                "mapred.partitioner.class", org.apache.hadoop.mapred.lib.HashPartitioner.class), conf);
+                "mapred.partitioner.class", org.apache.hadoop.mapred.lib.HashPartitioner.class),
+            new JobConf(conf));
       } else {
         oldPartitioner = new org.apache.hadoop.mapred.Partitioner() {
           @Override

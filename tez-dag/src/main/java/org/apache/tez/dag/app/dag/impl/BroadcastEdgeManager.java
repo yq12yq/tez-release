@@ -22,22 +22,24 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.tez.dag.api.EdgeManager;
-import org.apache.tez.dag.api.EdgeManagerContext;
+import org.apache.tez.dag.api.EdgeManagerPlugin;
+import org.apache.tez.dag.api.EdgeManagerPluginContext;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.events.InputReadErrorEvent;
 
-public class BroadcastEdgeManager extends EdgeManager {
+public class BroadcastEdgeManager extends EdgeManagerPlugin {
 
-  EdgeManagerContext context;
+  public BroadcastEdgeManager(EdgeManagerPluginContext context) {
+    super(context);
+  }
+
   @Override
-  public void initialize(EdgeManagerContext edgeManagerContext) {
-    this.context = edgeManagerContext;
+  public void initialize() {
   }
   
   @Override
   public int getNumDestinationTaskPhysicalInputs(int destinationTaskIndex) {
-    return context.getSourceVertexNumTasks();
+    return getContext().getSourceVertexNumTasks();
   }
   
   @Override
@@ -52,7 +54,7 @@ public class BroadcastEdgeManager extends EdgeManager {
     List<Integer> inputIndices = 
         Collections.unmodifiableList(Collections.singletonList(sourceTaskIndex));
     // for each task make the i-th source task as the i-th physical input
-    for (int i=0; i<context.getDestinationVertexNumTasks(); ++i) {
+    for (int i=0; i<getContext().getDestinationVertexNumTasks(); ++i) {
       destinationTaskAndInputIndices.put(i, inputIndices);
     }
   }
@@ -63,7 +65,7 @@ public class BroadcastEdgeManager extends EdgeManager {
     List<Integer> inputIndices = 
         Collections.unmodifiableList(Collections.singletonList(sourceTaskIndex));
     // for each task make the i-th source task as the i-th physical input
-    for (int i=0; i<context.getDestinationVertexNumTasks(); ++i) {
+    for (int i=0; i<getContext().getDestinationVertexNumTasks(); ++i) {
       destinationTaskAndInputIndices.put(i, inputIndices);
     }
   }
@@ -76,7 +78,7 @@ public class BroadcastEdgeManager extends EdgeManager {
   
   @Override
   public int getNumDestinationConsumerTasks(int sourceTaskIndex) {
-    return context.getDestinationVertexNumTasks();
+    return getContext().getDestinationVertexNumTasks();
   }
 
 }

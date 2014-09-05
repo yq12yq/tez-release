@@ -21,28 +21,34 @@ package org.apache.tez.dag.api;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 
 @Private
-class  RootInputLeafOutput <T extends TezEntityDescriptor> {
+public class RootInputLeafOutput <T extends EntityDescriptor<T>, S extends EntityDescriptor<S>> {
 
   private final String name;
-  private final T descriptor;
-  private final Class<?> initializerClazz;
+  private final T ioDescriptor;
+  private final S controllerDescriptor;
 
-  RootInputLeafOutput(String name, T descriptor, Class<?> initializerClazz) {
+  public RootInputLeafOutput(String name, T ioDescriptor, S controllerDescriptor) {
     this.name = name;
-    this.descriptor = descriptor;
-    this.initializerClazz = initializerClazz;
+    this.ioDescriptor = ioDescriptor;
+    this.controllerDescriptor = controllerDescriptor;
   }
   
   public String getName() {
     return this.name;
   }
 
-  public T getDescriptor() {
-    return this.descriptor;
+  public T getIODescriptor() {
+    return this.ioDescriptor;
   }
   
-  public Class<?> getInitializerClass() {
-    return this.initializerClazz;
+  public S getControllerDescriptor() {
+    return this.controllerDescriptor;
+  }
+
+  @Override
+  public String toString() {
+    return "{InputName=" + name + "}, {Descriptor=" + ioDescriptor + "}, {ControllerDescriptor=" +
+        controllerDescriptor + "}";
   }
 
 }

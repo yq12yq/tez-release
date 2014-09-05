@@ -19,10 +19,14 @@
 package org.apache.tez.common;
 
 import com.google.protobuf.ByteString;
+
 import org.apache.tez.runtime.api.events.CompositeDataMovementEvent;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.events.EventProtos;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
+import org.apache.tez.runtime.api.events.InputInitializerEvent;
+import org.apache.tez.runtime.api.events.VertexManagerEvent;
+import org.apache.tez.runtime.api.events.EventProtos.VertexManagerEventProto;
 
 public class ProtoConverters {
 
@@ -40,11 +44,11 @@ public class ProtoConverters {
 
   public static DataMovementEvent convertDataMovementEventFromProto(
       EventProtos.DataMovementEventProto proto) {
-    return new DataMovementEvent(proto.getSourceIndex(),
+    return DataMovementEvent.create(proto.getSourceIndex(),
         proto.getTargetIndex(),
         proto.getVersion(),
         proto.getUserPayload() != null ?
-            proto.getUserPayload().toByteArray() : null);
+            proto.getUserPayload().asReadOnlyByteBuffer() : null);
   }
 
   public static EventProtos.CompositeEventProto convertCompositeDataMovementEventToProto(
@@ -52,7 +56,7 @@ public class ProtoConverters {
     EventProtos.CompositeEventProto.Builder builder =
         EventProtos.CompositeEventProto.newBuilder();
     builder.setStartIndex(event.getSourceIndexStart());
-    builder.setEndIndex(event.getSourceIndexEnd());
+    builder.setCount(event.getCount());
     if (event.getUserPayload() != null) {
       builder.setUserPayload(ByteString.copyFrom(event.getUserPayload()));
     }
@@ -61,14 +65,29 @@ public class ProtoConverters {
 
   public static CompositeDataMovementEvent convertCompositeDataMovementEventFromProto(
       EventProtos.CompositeEventProto proto) {
-    return new CompositeDataMovementEvent(proto.getStartIndex(),
-        proto.getEndIndex(),
-        proto.hasUserPayload() ?
-            proto.getUserPayload().toByteArray() : null);
+    return CompositeDataMovementEvent.create(proto.getStartIndex(),
+        proto.getCount(),
+        proto.hasUserPayload() ? proto.getUserPayload().asReadOnlyByteBuffer() : null);
+  }
+  
+  public static EventProtos.VertexManagerEventProto convertVertexManagerEventToProto(
+      VertexManagerEvent event) {
+    EventProtos.VertexManagerEventProto.Builder vmBuilder = VertexManagerEventProto.newBuilder();
+    vmBuilder.setTargetVertexName(event.getTargetVertexName());
+    if (event.getUserPayload() != null) {
+      vmBuilder.setUserPayload(ByteString.copyFrom(event.getUserPayload()));
+    }
+    return vmBuilder.build();
+  }
+  
+  public static VertexManagerEvent convertVertexManagerEventFromProto(
+      EventProtos.VertexManagerEventProto vmProto) {
+    return VertexManagerEvent.create(vmProto.getTargetVertexName(),
+        vmProto.hasUserPayload() ? vmProto.getUserPayload().asReadOnlyByteBuffer() : null);
   }
 
   public static EventProtos.RootInputDataInformationEventProto
-      convertRootInputDataInformationEventToProto(RootInputDataInformationEvent event) {
+      convertRootInputDataInformationEventToProto(InputDataInformationEvent event) {
     EventProtos.RootInputDataInformationEventProto.Builder builder =
         EventProtos.RootInputDataInformationEventProto.newBuilder();
     builder.setSourceIndex(event.getSourceIndex());
@@ -79,14 +98,34 @@ public class ProtoConverters {
     return builder.build();
   }
 
-  public static RootInputDataInformationEvent
+  public static InputDataInformationEvent
       convertRootInputDataInformationEventFromProto(
       EventProtos.RootInputDataInformationEventProto proto) {
-    RootInputDataInformationEvent diEvent = new RootInputDataInformationEvent(
-        proto.getSourceIndex(), proto.getUserPayload() != null ? proto.getUserPayload()
-            .toByteArray() : null);
+    InputDataInformationEvent diEvent = InputDataInformationEvent.createWithSerializedPayload(
+        proto.getSourceIndex(),
+        proto.hasUserPayload() ? proto.getUserPayload().asReadOnlyByteBuffer() : null);
     diEvent.setTargetIndex(proto.getTargetIndex());
     return diEvent;
+  }
+
+  public static EventProtos.RootInputInitializerEventProto convertRootInputInitializerEventToProto(
+      InputInitializerEvent event) {
+    EventProtos.RootInputInitializerEventProto.Builder builder =
+        EventProtos.RootInputInitializerEventProto.newBuilder();
+    builder.setTargetVertexName(event.getTargetVertexName());
+    builder.setTargetInputName(event.getTargetInputName());
+    if (event.getUserPayload() != null) {
+      builder.setUserPayload(ByteString.copyFrom(event.getUserPayload()));
+    }
+    return builder.build();
+  }
+
+  public static InputInitializerEvent convertRootInputInitializerEventFromProto(
+      EventProtos.RootInputInitializerEventProto proto) {
+    InputInitializerEvent event =
+        InputInitializerEvent.create(proto.getTargetVertexName(), proto.getTargetInputName(),
+            (proto.hasUserPayload() ? proto.getUserPayload().asReadOnlyByteBuffer() : null));
+    return event;
   }
 
 }

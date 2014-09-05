@@ -31,8 +31,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.service.AbstractService;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerState;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.api.records.NodeReport;
@@ -41,7 +41,7 @@ import org.apache.hadoop.yarn.event.Event;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezUncheckedException;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.dag.api.client.DAGClientServer;
 import org.apache.tez.dag.api.oldrecords.TaskAttemptState;
 import org.apache.tez.dag.app.AppContext;
@@ -270,9 +270,9 @@ public class TaskSchedulerEventHandler extends AbstractService
             event);
         return;
       } else {
-        hosts = (locationHint.getDataLocalHosts() != null) ? locationHint
-            .getDataLocalHosts().toArray(
-                new String[locationHint.getDataLocalHosts().size()]) : null;
+        hosts = (locationHint.getHosts() != null) ? locationHint
+            .getHosts().toArray(
+                new String[locationHint.getHosts().size()]) : null;
         racks = (locationHint.getRacks() != null) ? locationHint.getRacks()
             .toArray(new String[locationHint.getRacks().size()]) : null;
       }
@@ -393,7 +393,19 @@ public class TaskSchedulerEventHandler extends AbstractService
     // Inform the Containers about completion.
     AMContainer amContainer = appContext.getAllContainers().get(containerStatus.getContainerId());
     if (amContainer != null) {
-      sendEvent(new AMContainerEventCompleted(containerStatus));
+      String message = null;
+      int exitStatus = containerStatus.getExitStatus();
+      if (exitStatus == ContainerExitStatus.PREEMPTED) {
+        message = "Container preempted externally. ";
+      } else if (exitStatus == ContainerExitStatus.DISKS_FAILED) {
+        message = "Container disk failed. ";
+      } else {
+        message = "Container failed. ";
+      }
+      if (containerStatus.getDiagnostics() != null) {
+        message += containerStatus.getDiagnostics();
+      }
+      sendEvent(new AMContainerEventCompleted(amContainer.getContainerId(), exitStatus, message));
     }
   }
 
@@ -509,8 +521,8 @@ public class TaskSchedulerEventHandler extends AbstractService
   public void preemptContainer(ContainerId containerId) {
     taskScheduler.deallocateContainer(containerId);
     // Inform the Containers about completion.
-    sendEvent(new AMContainerEventCompleted(ContainerStatus.newInstance(
-        containerId, ContainerState.COMPLETE, "Container Preempted Internally", -1), true));
+    sendEvent(new AMContainerEventCompleted(containerId,
+        ContainerExitStatus.PREEMPTED, "Container preempted internally"));
   }
 
   public void setShouldUnregisterFlag() {
@@ -521,4 +533,7 @@ public class TaskSchedulerEventHandler extends AbstractService
     }
   }
 
+  public boolean hasUnregistered() {
+    return this.taskScheduler.hasUnregistered();
+  }
 }

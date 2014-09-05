@@ -19,7 +19,9 @@
 package org.apache.tez.runtime.api.impl;
 
 import com.google.common.base.Preconditions;
+
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -28,42 +30,39 @@ import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nullable;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tez.common.TezUserPayload;
 import org.apache.tez.common.counters.TezCounters;
-import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.ProcessorDescriptor;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.InputReadyTracker;
 import org.apache.tez.runtime.RuntimeTask;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.Input;
-import org.apache.tez.runtime.api.TezProcessorContext;
+import org.apache.tez.runtime.api.ObjectRegistry;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.api.impl.EventMetaData.EventProducerConsumerType;
 import org.apache.tez.runtime.common.resources.MemoryDistributor;
 
-public class TezProcessorContextImpl extends TezTaskContextImpl implements TezProcessorContext {
+public class TezProcessorContextImpl extends TezTaskContextImpl implements ProcessorContext {
 
-  private static final Log LOG = LogFactory.getLog(TezProcessorContextImpl.class);
-  
-  private final TezUserPayload userPayload;
+  private final UserPayload userPayload;
   private final EventMetaData sourceInfo;
   private final InputReadyTracker inputReadyTracker;
 
   public TezProcessorContextImpl(Configuration conf, String[] workDirs, int appAttemptNumber,
       TezUmbilical tezUmbilical, String dagName, String vertexName,
-      TezTaskAttemptID taskAttemptID, TezCounters counters,
-      @Nullable byte[] userPayload, RuntimeTask runtimeTask,
+      int vertexParallelism, TezTaskAttemptID taskAttemptID, TezCounters counters,
+      @Nullable UserPayload userPayload, RuntimeTask runtimeTask,
       Map<String, ByteBuffer> serviceConsumerMetadata,
       Map<String, String> auxServiceEnv, MemoryDistributor memDist,
-      ProcessorDescriptor processorDescriptor, InputReadyTracker inputReadyTracker) {
-    super(conf, workDirs, appAttemptNumber, dagName, vertexName, taskAttemptID,
+      ProcessorDescriptor processorDescriptor, InputReadyTracker inputReadyTracker, ObjectRegistry objectRegistry) {
+    super(conf, workDirs, appAttemptNumber, dagName, vertexName, vertexParallelism, taskAttemptID,
         counters, runtimeTask, tezUmbilical, serviceConsumerMetadata,
-        auxServiceEnv, memDist, processorDescriptor);
+        auxServiceEnv, memDist, processorDescriptor, objectRegistry);
     checkNotNull(inputReadyTracker, "inputReadyTracker is null");
-    this.userPayload = DagTypeConverters.convertToTezUserPayload(userPayload);
+    this.userPayload = userPayload == null ? UserPayload.create(null) : userPayload;
     this.sourceInfo = new EventMetaData(EventProducerConsumerType.PROCESSOR,
         taskVertexName, "", taskAttemptID);
     this.inputReadyTracker = inputReadyTracker;
@@ -80,10 +79,9 @@ public class TezProcessorContextImpl extends TezTaskContextImpl implements TezPr
     tezUmbilical.addEvents(tezEvents);
   }
 
-  @Nullable
   @Override
-  public byte[] getUserPayload() {
-    return userPayload.getPayload();
+  public UserPayload getUserPayload() {
+    return userPayload;
   }
 
   @Override

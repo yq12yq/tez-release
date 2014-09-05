@@ -24,14 +24,14 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tez.common.TezJobConfig;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.ProcessorDescriptor;
+import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.runtime.api.MemoryUpdateCallback;
-import org.apache.tez.runtime.api.TezInputContext;
-import org.apache.tez.runtime.api.TezOutputContext;
-import org.apache.tez.runtime.api.TezProcessorContext;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,8 +41,8 @@ public class TestMemoryDistributor {
   
   @Before
   public void setup() {
-    conf.setBoolean(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ENABLED, true);
-    conf.set(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ALLOCATOR_CLASS,
+    conf.setBoolean(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ENABLED, true);
+    conf.set(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ALLOCATOR_CLASS,
         ScalingAllocator.class.getName());
   }
   
@@ -54,19 +54,19 @@ public class TestMemoryDistributor {
 
     // First request
     MemoryUpdateCallbackForTest e1Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e1InputContext1 = createTestInputContext();
+    InputContext e1InputContext1 = createTestInputContext();
     InputDescriptor e1InDesc1 = createTestInputDescriptor();
     dist.requestMemory(10000, e1Callback, e1InputContext1, e1InDesc1);
     
     // Second request
     MemoryUpdateCallbackForTest e2Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e2InputContext2 = createTestInputContext();
+    InputContext e2InputContext2 = createTestInputContext();
     InputDescriptor e2InDesc2 = createTestInputDescriptor();
     dist.requestMemory(10000, e2Callback, e2InputContext2, e2InDesc2);
     
     // Third request - output
     MemoryUpdateCallbackForTest e3Callback = new MemoryUpdateCallbackForTest();
-    TezOutputContext e3OutputContext1 = createTestOutputContext();
+    OutputContext e3OutputContext1 = createTestOutputContext();
     OutputDescriptor e3OutDesc2 = createTestOutputDescriptor();
     dist.requestMemory(5000, e3Callback, e3OutputContext1, e3OutDesc2);
     
@@ -89,13 +89,13 @@ public class TestMemoryDistributor {
 
     // First request
     MemoryUpdateCallbackForTest e1Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e1InputContext1 = createTestInputContext();
+    InputContext e1InputContext1 = createTestInputContext();
     InputDescriptor e1InDesc1 = createTestInputDescriptor();
     dist.requestMemory(104857600l, e1Callback, e1InputContext1, e1InDesc1);
     
     // Second request
     MemoryUpdateCallbackForTest e2Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e2InputContext2 = createTestInputContext();
+    InputContext e2InputContext2 = createTestInputContext();
     InputDescriptor e2InDesc2 = createTestInputDescriptor();
     dist.requestMemory(157286400l, e2Callback, e2InputContext2, e2InDesc2);
     
@@ -113,25 +113,25 @@ public class TestMemoryDistributor {
 
     // First request
     MemoryUpdateCallbackForTest e1Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e1InputContext1 = createTestInputContext();
+    InputContext e1InputContext1 = createTestInputContext();
     InputDescriptor e1InDesc1 = createTestInputDescriptor();
     dist.requestMemory(10000, e1Callback, e1InputContext1, e1InDesc1);
     
     // Second request
     MemoryUpdateCallbackForTest e2Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e2InputContext2 = createTestInputContext();
+    InputContext e2InputContext2 = createTestInputContext();
     InputDescriptor e2InDesc2 = createTestInputDescriptor();
     dist.requestMemory(10000, e2Callback, e2InputContext2, e2InDesc2);
     
     // Third request - output
     MemoryUpdateCallbackForTest e3Callback = new MemoryUpdateCallbackForTest();
-    TezOutputContext e3OutputContext1 = createTestOutputContext();
+    OutputContext e3OutputContext1 = createTestOutputContext();
     OutputDescriptor e3OutDesc1 = createTestOutputDescriptor();
     dist.requestMemory(5000, e3Callback, e3OutputContext1, e3OutDesc1);
     
     // Fourth request - processor
     MemoryUpdateCallbackForTest e4Callback = new MemoryUpdateCallbackForTest();
-    TezProcessorContext e4ProcessorContext1 = createTestProcessortContext();
+    ProcessorContext e4ProcessorContext1 = createTestProcessortContext();
     ProcessorDescriptor e4ProcessorDesc1 = createTestProcessorDescriptor();
     dist.requestMemory(5000, e4Callback, e4ProcessorContext1, e4ProcessorDesc1);
     
@@ -151,20 +151,20 @@ public class TestMemoryDistributor {
   public void testScalingDisabled() {
     // Real world values
     Configuration conf = new Configuration(this.conf);
-    conf.setBoolean(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_ENABLED, false);
+    conf.setBoolean(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_ENABLED, false);
     MemoryDistributor dist = new MemoryDistributor(2, 0, conf);
     
     dist.setJvmMemory(207093760l);
 
     // First request
     MemoryUpdateCallbackForTest e1Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e1InputContext1 = createTestInputContext();
+    InputContext e1InputContext1 = createTestInputContext();
     InputDescriptor e1InDesc1 = createTestInputDescriptor();
     dist.requestMemory(104857600l, e1Callback, e1InputContext1, e1InDesc1);
     
     // Second request
     MemoryUpdateCallbackForTest e2Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e2InputContext2 = createTestInputContext();
+    InputContext e2InputContext2 = createTestInputContext();
     InputDescriptor e2InDesc2 = createTestInputDescriptor();
     dist.requestMemory(144965632l, e2Callback, e2InputContext2, e2InDesc2);
     
@@ -177,26 +177,26 @@ public class TestMemoryDistributor {
   @Test(timeout = 5000)
   public void testReserveFractionConfigured() {
     Configuration conf = new Configuration(this.conf);
-    conf.setDouble(TezJobConfig.TEZ_RUNTIME_SCALE_TASK_MEMORY_RESERVE_FRACTION, 0.5d);
+    conf.setDouble(TezConfiguration.TEZ_TASK_SCALE_TASK_MEMORY_RESERVE_FRACTION, 0.5d);
     MemoryDistributor dist = new MemoryDistributor(2, 1, conf);
     
     dist.setJvmMemory(10000l);
 
     // First request
     MemoryUpdateCallbackForTest e1Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e1InputContext1 = createTestInputContext();
+    InputContext e1InputContext1 = createTestInputContext();
     InputDescriptor e1InDesc1 = createTestInputDescriptor();
     dist.requestMemory(10000, e1Callback, e1InputContext1, e1InDesc1);
     
     // Second request
     MemoryUpdateCallbackForTest e2Callback = new MemoryUpdateCallbackForTest();
-    TezInputContext e2InputContext2 = createTestInputContext();
+    InputContext e2InputContext2 = createTestInputContext();
     InputDescriptor e2InDesc2 = createTestInputDescriptor();
     dist.requestMemory(10000, e2Callback, e2InputContext2, e2InDesc2);
     
     // Third request - output
     MemoryUpdateCallbackForTest e3Callback = new MemoryUpdateCallbackForTest();
-    TezOutputContext e3OutputContext1 = createTestOutputContext();
+    OutputContext e3OutputContext1 = createTestOutputContext();
     OutputDescriptor e3OutDesc2 = createTestOutputDescriptor();
     dist.requestMemory(5000, e3Callback, e3OutputContext1, e3OutDesc2);
     
@@ -211,7 +211,7 @@ public class TestMemoryDistributor {
   }
   
   
-  private static class MemoryUpdateCallbackForTest implements MemoryUpdateCallback {
+  private static class MemoryUpdateCallbackForTest extends MemoryUpdateCallback {
 
     long assigned = -1000;
 
@@ -239,22 +239,22 @@ public class TestMemoryDistributor {
     return desc;
   }
 
-  protected TezInputContext createTestInputContext() {
-    TezInputContext context = mock(TezInputContext.class);
+  protected InputContext createTestInputContext() {
+    InputContext context = mock(InputContext.class);
     doReturn("input").when(context).getSourceVertexName();
     doReturn("task").when(context).getTaskVertexName();
     return context;
   }
   
-  protected TezOutputContext createTestOutputContext() {
-    TezOutputContext context = mock(TezOutputContext.class);
+  protected OutputContext createTestOutputContext() {
+    OutputContext context = mock(OutputContext.class);
     doReturn("output").when(context).getDestinationVertexName();
     doReturn("task").when(context).getTaskVertexName();
     return context;
   }
   
-  protected TezProcessorContext createTestProcessortContext() {
-    TezProcessorContext context = mock(TezProcessorContext.class);
+  protected ProcessorContext createTestProcessortContext() {
+    ProcessorContext context = mock(ProcessorContext.class);
     doReturn("task").when(context).getTaskVertexName();
     return context;
   }

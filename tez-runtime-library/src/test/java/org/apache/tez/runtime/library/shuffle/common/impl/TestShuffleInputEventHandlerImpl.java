@@ -27,9 +27,11 @@ import java.util.BitSet;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.tez.common.TezUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.tez.common.TezCommonUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezInputContext;
+import org.apache.tez.runtime.api.InputContext;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.shuffle.common.FetchedInputAllocator;
@@ -46,7 +48,7 @@ public class TestShuffleInputEventHandlerImpl {
 
   @Test
   public void testSimple() throws IOException {
-    TezInputContext inputContext = mock(TezInputContext.class);
+    InputContext inputContext = mock(InputContext.class);
     ShuffleManager shuffleManager = mock(ShuffleManager.class);
     FetchedInputAllocator inputAllocator = mock(FetchedInputAllocator.class);
 
@@ -68,7 +70,7 @@ public class TestShuffleInputEventHandlerImpl {
 
   @Test
   public void testCurrentPartitionEmpty() throws IOException {
-    TezInputContext inputContext = mock(TezInputContext.class);
+    InputContext inputContext = mock(InputContext.class);
     ShuffleManager shuffleManager = mock(ShuffleManager.class);
     FetchedInputAllocator inputAllocator = mock(FetchedInputAllocator.class);
 
@@ -89,7 +91,7 @@ public class TestShuffleInputEventHandlerImpl {
 
   @Test
   public void testOtherPartitionEmpty() throws IOException {
-    TezInputContext inputContext = mock(TezInputContext.class);
+    InputContext inputContext = mock(InputContext.class);
     ShuffleManager shuffleManager = mock(ShuffleManager.class);
     FetchedInputAllocator inputAllocator = mock(FetchedInputAllocator.class);
 
@@ -109,7 +111,7 @@ public class TestShuffleInputEventHandlerImpl {
 
   @Test
   public void testMultipleEvents1() throws IOException {
-    TezInputContext inputContext = mock(TezInputContext.class);
+    InputContext inputContext = mock(InputContext.class);
     ShuffleManager shuffleManager = mock(ShuffleManager.class);
     FetchedInputAllocator inputAllocator = mock(FetchedInputAllocator.class);
 
@@ -142,7 +144,8 @@ public class TestShuffleInputEventHandlerImpl {
     if (emptyPartitionByteString != null) {
       builder.setEmptyPartitions(emptyPartitionByteString);
     }
-    Event dme = new DataMovementEvent(srcIndex, targetIndex, 0, builder.build().toByteArray());
+    Event dme = DataMovementEvent
+        .create(srcIndex, targetIndex, 0, builder.build().toByteString().asReadOnlyByteBuffer());
     return dme;
   }
 
@@ -151,7 +154,8 @@ public class TestShuffleInputEventHandlerImpl {
     for (int i : emptyPartitions) {
       bitSet.set(i);
     }
-    ByteString emptyPartitionsBytesString = TezUtils.compressByteArrayToByteString(TezUtils
+    ByteString emptyPartitionsBytesString = TezCommonUtils.compressByteArrayToByteString(
+        TezUtilsInternal
         .toByteArray(bitSet));
     return emptyPartitionsBytesString;
   }

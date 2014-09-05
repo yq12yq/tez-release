@@ -21,11 +21,9 @@ package org.apache.tez.client;
 import java.util.Map;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.dag.api.TezConfiguration;
 
 import com.google.common.collect.Maps;
@@ -33,18 +31,18 @@ import com.google.common.collect.Maps;
 @Private
 class AMConfiguration {
 
-  private Map<String, LocalResource> localResources;
+  private Map<String, LocalResource> amLocalResources = Maps.newHashMap();
   private TezConfiguration tezConf;
   private Credentials credentials;
   private YarnConfiguration yarnConfig;
   private Map<String, String> env;
+  private LocalResource binaryConfLRsrc;
 
   AMConfiguration(TezConfiguration tezConf, Map<String, LocalResource> localResources,
       Credentials credentials) {
-    this.localResources = Maps.newHashMap();
     this.tezConf = tezConf;
     if (localResources != null) {
-      addLocalResources(localResources);
+      addAMLocalResources(localResources);
     }
     if (credentials != null) {
       setCredentials(credentials);
@@ -52,12 +50,12 @@ class AMConfiguration {
 
   }
 
-  void addLocalResources(Map<String, LocalResource> localResources) {
-    this.localResources.putAll(localResources);
+  void addAMLocalResources(Map<String, LocalResource> localResources) {
+    this.amLocalResources.putAll(localResources);
   }
   
-  void clearLocalResources() {
-    this.localResources.clear();
+  void clearAMLocalResources() {
+    this.amLocalResources.clear();
   }
   
   void setCredentials(Credentials credentials) {
@@ -76,8 +74,8 @@ class AMConfiguration {
     return this.tezConf.get(TezConfiguration.TEZ_QUEUE_NAME);
   }
 
-  Map<String, LocalResource> getLocalResources() {
-    return localResources;
+  Map<String, LocalResource> getAMLocalResources() {
+    return amLocalResources;
   }
 
   TezConfiguration getTezConfiguration() {
@@ -95,4 +93,13 @@ class AMConfiguration {
   Map<String, String> getEnv() {
     return env;
   }
+  
+  void setBinaryConfLR(LocalResource binaryConfLRsrc) {
+    this.binaryConfLRsrc = binaryConfLRsrc;
+  }
+  
+  LocalResource getBinaryConfLR() {
+    return binaryConfLRsrc;
+  }
+
 }

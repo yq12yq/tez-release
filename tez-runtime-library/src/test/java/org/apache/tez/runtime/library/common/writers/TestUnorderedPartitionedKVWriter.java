@@ -41,6 +41,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configurable;
@@ -57,16 +58,17 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.util.DiskChecker.DiskErrorException;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.tez.common.TezJobConfig;
+import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezOutputContext;
+import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.events.CompositeDataMovementEvent;
 import org.apache.tez.runtime.library.api.Partitioner;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
 import org.apache.tez.runtime.library.common.sort.impl.TezIndexRecord;
 import org.apache.tez.runtime.library.common.sort.impl.TezSpillRecord;
@@ -130,7 +132,7 @@ public class TestUnorderedPartitionedKVWriter {
     ApplicationId appId = ApplicationId.newInstance(10000, 1);
     TezCounters counters = new TezCounters();
     String uniqueId = UUID.randomUUID().toString();
-    TezOutputContext outputContext = createMockOutputContext(counters, appId, uniqueId);
+    OutputContext outputContext = createMockOutputContext(counters, appId, uniqueId);
 
     int maxSingleBufferSizeBytes = 2047;
     Configuration conf = createConfiguration(outputContext, IntWritable.class, LongWritable.class,
@@ -220,7 +222,7 @@ public class TestUnorderedPartitionedKVWriter {
     ApplicationId appId = ApplicationId.newInstance(10000, 1);
     TezCounters counters = new TezCounters();
     String uniqueId = UUID.randomUUID().toString();
-    TezOutputContext outputContext = createMockOutputContext(counters, appId, uniqueId);
+    OutputContext outputContext = createMockOutputContext(counters, appId, uniqueId);
     Random random = new Random();
 
     Configuration conf = createConfiguration(outputContext, Text.class, Text.class, shouldCompress,
@@ -309,16 +311,17 @@ public class TestUnorderedPartitionedKVWriter {
     assertTrue(events.get(0) instanceof CompositeDataMovementEvent);
     CompositeDataMovementEvent cdme = (CompositeDataMovementEvent) events.get(0);
     assertEquals(0, cdme.getSourceIndexStart());
-    assertEquals(numPartitions, cdme.getSourceIndexEnd());
-    DataMovementEventPayloadProto eventProto = DataMovementEventPayloadProto.parseFrom(cdme
-        .getUserPayload());
+    assertEquals(numPartitions, cdme.getCount());
+    DataMovementEventPayloadProto eventProto = DataMovementEventPayloadProto.parseFrom(
+        ByteString.copyFrom(cdme
+            .getUserPayload()));
     assertFalse(eventProto.hasData());
     BitSet emptyPartitionBits = null;
     if (partitionsWithData.cardinality() != numPartitions) {
       assertTrue(eventProto.hasEmptyPartitions());
-      byte[] emptyPartitions = TezUtils.decompressByteStringToByteArray(eventProto
+      byte[] emptyPartitions = TezCommonUtils.decompressByteStringToByteArray(eventProto
           .getEmptyPartitions());
-      emptyPartitionBits = TezUtils.fromByteArray(emptyPartitions);
+      emptyPartitionBits = TezUtilsInternal.fromByteArray(emptyPartitions);
       assertEquals(numPartitions - partitionsWithData.cardinality(),
           emptyPartitionBits.cardinality());
     } else {
@@ -392,7 +395,7 @@ public class TestUnorderedPartitionedKVWriter {
     ApplicationId appId = ApplicationId.newInstance(10000, 1);
     TezCounters counters = new TezCounters();
     String uniqueId = UUID.randomUUID().toString();
-    TezOutputContext outputContext = createMockOutputContext(counters, appId, uniqueId);
+    OutputContext outputContext = createMockOutputContext(counters, appId, uniqueId);
 
     Configuration conf = createConfiguration(outputContext, IntWritable.class, LongWritable.class,
         shouldCompress, -1);
@@ -496,18 +499,19 @@ public class TestUnorderedPartitionedKVWriter {
     assertTrue(events.get(0) instanceof CompositeDataMovementEvent);
     CompositeDataMovementEvent cdme = (CompositeDataMovementEvent) events.get(0);
     assertEquals(0, cdme.getSourceIndexStart());
-    assertEquals(numOutputs, cdme.getSourceIndexEnd());
-    DataMovementEventPayloadProto eventProto = DataMovementEventPayloadProto.parseFrom(cdme
-        .getUserPayload());
+    assertEquals(numOutputs, cdme.getCount());
+    DataMovementEventPayloadProto eventProto =
+        DataMovementEventPayloadProto.parseFrom(ByteString.copyFrom(
+            cdme.getUserPayload()));
     assertFalse(eventProto.hasData());
     if (skippedPartitions == null && numRecordsWritten > 0) {
       assertFalse(eventProto.hasEmptyPartitions());
       emptyPartitionBits = new BitSet(numPartitions);
     } else {
       assertTrue(eventProto.hasEmptyPartitions());
-      byte[] emptyPartitions = TezUtils.decompressByteStringToByteArray(eventProto
+      byte[] emptyPartitions = TezCommonUtils.decompressByteStringToByteArray(eventProto
           .getEmptyPartitions());
-      emptyPartitionBits = TezUtils.fromByteArray(emptyPartitions);
+      emptyPartitionBits = TezUtilsInternal.fromByteArray(emptyPartitions);
       if (numRecordsWritten == 0) {
         assertEquals(numPartitions, emptyPartitionBits.cardinality());
       } else {
@@ -593,9 +597,9 @@ public class TestUnorderedPartitionedKVWriter {
     return sb.toString();
   }
 
-  private TezOutputContext createMockOutputContext(TezCounters counters, ApplicationId appId,
+  private OutputContext createMockOutputContext(TezCounters counters, ApplicationId appId,
       String uniqueId) {
-    TezOutputContext outputContext = mock(TezOutputContext.class);
+    OutputContext outputContext = mock(OutputContext.class);
     doReturn(counters).when(outputContext).getCounters();
     doReturn(appId).when(outputContext).getApplicationId();
     doReturn(1).when(outputContext).getDAGAttemptNumber();
@@ -619,29 +623,29 @@ public class TestUnorderedPartitionedKVWriter {
     return outputContext;
   }
 
-  private Configuration createConfiguration(TezOutputContext outputContext,
+  private Configuration createConfiguration(OutputContext outputContext,
       Class<? extends Writable> keyClass, Class<? extends Writable> valClass,
       boolean shouldCompress, int maxSingleBufferSizeBytes) {
     return createConfiguration(outputContext, keyClass, valClass, shouldCompress,
         maxSingleBufferSizeBytes, PartitionerForTest.class);
   }
 
-  private Configuration createConfiguration(TezOutputContext outputContext,
+  private Configuration createConfiguration(OutputContext outputContext,
       Class<? extends Writable> keyClass, Class<? extends Writable> valClass,
       boolean shouldCompress, int maxSingleBufferSizeBytes,
       Class<? extends Partitioner> partitionerClass) {
     Configuration conf = new Configuration(false);
     conf.setStrings(TezRuntimeFrameworkConfigs.LOCAL_DIRS, outputContext.getWorkDirs());
-    conf.set(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_KEY_CLASS, keyClass.getName());
-    conf.set(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_VALUE_CLASS, valClass.getName());
-    conf.set(TezJobConfig.TEZ_RUNTIME_PARTITIONER_CLASS, partitionerClass.getName());
+    conf.set(TezRuntimeConfiguration.TEZ_RUNTIME_KEY_CLASS, keyClass.getName());
+    conf.set(TezRuntimeConfiguration.TEZ_RUNTIME_VALUE_CLASS, valClass.getName());
+    conf.set(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS, partitionerClass.getName());
     if (maxSingleBufferSizeBytes >= 0) {
-      conf.setInt(TezJobConfig.TEZ_RUNTIME_UNORDERED_OUTPUT_MAX_PER_BUFFER_SIZE_BYTES,
+      conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_UNORDERED_OUTPUT_MAX_PER_BUFFER_SIZE_BYTES,
           maxSingleBufferSizeBytes);
     }
-    conf.setBoolean(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_SHOULD_COMPRESS, shouldCompress);
+    conf.setBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS, shouldCompress);
     if (shouldCompress) {
-      conf.set(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_COMPRESS_CODEC,
+      conf.set(TezRuntimeConfiguration.TEZ_RUNTIME_COMPRESS_CODEC,
           DefaultCodec.class.getName());
     }
     return conf;
@@ -661,7 +665,7 @@ public class TestUnorderedPartitionedKVWriter {
 
   private static class UnorderedPartitionedKVWriterForTest extends UnorderedPartitionedKVWriter {
 
-    public UnorderedPartitionedKVWriterForTest(TezOutputContext outputContext, Configuration conf,
+    public UnorderedPartitionedKVWriterForTest(OutputContext outputContext, Configuration conf,
         int numOutputs, long availableMemoryBytes) throws IOException {
       super(outputContext, conf, numOutputs, availableMemoryBytes);
     }

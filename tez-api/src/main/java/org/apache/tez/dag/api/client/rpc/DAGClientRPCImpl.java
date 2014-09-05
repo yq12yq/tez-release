@@ -22,28 +22,26 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.ipc.RPC;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.api.YarnClient;
-import org.apache.hadoop.yarn.client.api.impl.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.tez.client.FrameworkClient;
 import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
-import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
 import org.apache.tez.dag.api.client.Progress;
@@ -58,34 +56,42 @@ import org.apache.tez.dag.api.records.DAGProtos.DAGStatusStateProto;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ServiceException;
 
-public class DAGClientRPCImpl implements DAGClient {
+@Private
+public class DAGClientRPCImpl extends DAGClient {
   private static final Log LOG = LogFactory.getLog(DAGClientRPCImpl.class);
 
   private static final long SLEEP_FOR_COMPLETION = 500;
+  private static final long PRINT_STATUS_INTERVAL_MILLIS = 5000;
   private final DecimalFormat formatter = new DecimalFormat("###.##%");
   private final ApplicationId appId;
   private final String dagId;
   private final TezConfiguration conf;
+  private long lastPrintStatusTimeMillis;
   @VisibleForTesting
   ApplicationReport appReport;
-  private YarnClient yarnClient;
+  private final FrameworkClient frameworkClient;
   @VisibleForTesting
   DAGClientAMProtocolBlockingPB proxy = null;
 
   public DAGClientRPCImpl(ApplicationId appId, String dagId,
-      TezConfiguration conf) {
+      TezConfiguration conf, @Nullable FrameworkClient frameworkClient) {
     this.appId = appId;
     this.dagId = dagId;
     this.conf = conf;
-    yarnClient = new YarnClientImpl();
-    yarnClient.init(new YarnConfiguration(conf));
-    yarnClient.start();
+    if (frameworkClient != null &&
+        conf.getBoolean(TezConfiguration.TEZ_LOCAL_MODE, TezConfiguration.TEZ_LOCAL_MODE_DEFAULT)) {
+      this.frameworkClient = frameworkClient;
+    } else {
+      this.frameworkClient = FrameworkClient.createFrameworkClient(conf);
+      this.frameworkClient.init(conf, new YarnConfiguration(conf));
+      this.frameworkClient.start();
+    }
     appReport = null;
   }
 
   @Override
-  public ApplicationId getApplicationId() {
-    return appId;
+  public String getExecutionContext() {
+    return new String("Executing on YARN cluster with App id " + appId);
   }
 
   @Override
@@ -142,13 +148,13 @@ public class DAGClientRPCImpl implements DAGClient {
     if (this.proxy != null) {
       RPC.stopProxy(this.proxy);
     }
-    if(yarnClient != null) {
-      yarnClient.stop();
+    if(frameworkClient != null) {
+      frameworkClient.stop();
     }
   }
 
   @Override
-  public ApplicationReport getApplicationReport() {
+  protected ApplicationReport getApplicationReportInternal() {
     return appReport;
   }
 
@@ -190,7 +196,7 @@ public class DAGClientRPCImpl implements DAGClient {
     }
     ApplicationReport appReport;
     try {
-      appReport = yarnClient.getApplicationReport(appId);
+      appReport = frameworkClient.getApplicationReport(appId);
     } catch (YarnException e) {
       throw new TezException(e);
     }
@@ -279,7 +285,7 @@ public class DAGClientRPCImpl implements DAGClient {
 
   ApplicationReport getAppReport() throws IOException, TezException {
     try {
-      ApplicationReport appReport = yarnClient.getApplicationReport(appId);
+      ApplicationReport appReport = frameworkClient.getApplicationReport(appId);
       if (LOG.isDebugEnabled()) {
         LOG.debug("App: " + appId + " in state: "
             + appReport.getYarnApplicationState());
@@ -319,33 +325,21 @@ public class DAGClientRPCImpl implements DAGClient {
   }
 
   @Override
-  public DAGStatus waitForCompletion() throws IOException, TezException {
-    return waitForCompletionWithStatusUpdates(null, EnumSet.noneOf(StatusGetOpts.class));
+  public DAGStatus waitForCompletion() throws IOException, TezException, InterruptedException {
+    return _waitForCompletionWithStatusUpdates(false, EnumSet.noneOf(StatusGetOpts.class));
   }
 
   @Override
-  public DAGStatus waitForCompletionWithAllStatusUpdates(@Nullable Set<StatusGetOpts> statusGetOpts)
-      throws IOException, TezException {
-    Set<String> vertexSet = getDAGStatus(statusGetOpts).getVertexProgress().keySet();
-    return _waitForCompletionWithStatusUpdates(vertexSet, statusGetOpts);
+  public DAGStatus waitForCompletionWithStatusUpdates(@Nullable Set<StatusGetOpts> statusGetOpts)
+      throws IOException, TezException, InterruptedException {
+    return _waitForCompletionWithStatusUpdates(true, statusGetOpts);
   }
 
-  @Override
-  public DAGStatus waitForCompletionWithStatusUpdates(@Nullable Set<Vertex> vertices,
-      @Nullable Set<StatusGetOpts> statusGetOpts) throws IOException, TezException {
-    Set<String> vertexNames = new HashSet<String>();
-    if (vertices != null) {
-      for (Vertex vertex : vertices) {
-        vertexNames.add(vertex.getVertexName());
-      }
-    }
-    return _waitForCompletionWithStatusUpdates(vertexNames, statusGetOpts);
-  }
-
-  private DAGStatus _waitForCompletionWithStatusUpdates(@Nullable Set<String> vertexNames,
-      @Nullable Set<StatusGetOpts> statusGetOpts) throws IOException, TezException {
+  private DAGStatus _waitForCompletionWithStatusUpdates(boolean vertexUpdates,
+      @Nullable Set<StatusGetOpts> statusGetOpts) throws IOException, TezException, InterruptedException {
     DAGStatus dagStatus;
     boolean initPrinted = false;
+    boolean runningPrinted = false;
     double dagProgress = -1.0; // Print the first one
     // monitoring
     while (true) {
@@ -362,41 +356,48 @@ public class DAGClientRPCImpl implements DAGClient {
           || dagStatus.getState() == DAGStatus.State.ERROR) {
         break;
       }
-      try {
-        Thread.sleep(SLEEP_FOR_COMPLETION);
-      } catch (InterruptedException e) {
-        // continue;
-      }
+      Thread.sleep(SLEEP_FOR_COMPLETION);
     }// End of while(true)
-    while (dagStatus.getState() == DAGStatus.State.RUNNING) {
-      if (vertexNames != null) {
-        dagProgress = monitorProgress(vertexNames, dagProgress, null, dagStatus);
+
+    Set<String> vertexNames = Collections.emptySet();
+    while (!dagStatus.isCompleted()) {
+      if (!runningPrinted) {
+        log("DAG initialized: CurrentState=Running");
+        runningPrinted = true;
       }
-      try {
-        Thread.sleep(SLEEP_FOR_COMPLETION);
-      } catch (InterruptedException e) {
+      if (vertexUpdates && vertexNames.isEmpty()) {
+        vertexNames = getDAGStatus(statusGetOpts).getVertexProgress().keySet();
       }
+      dagProgress = monitorProgress(vertexNames, dagProgress, null, dagStatus);
+      Thread.sleep(SLEEP_FOR_COMPLETION);
       dagStatus = getDAGStatus(statusGetOpts);
     }// end of while
-    if (vertexNames != null) {
-      // Always print the last status irrespective of progress change
-      monitorProgress(vertexNames, -1.0, statusGetOpts, dagStatus);
-    }
+    // Always print the last status irrespective of progress change
+    monitorProgress(vertexNames, -1.0, statusGetOpts, dagStatus);
     log("DAG completed. " + "FinalState=" + dagStatus.getState());
     return dagStatus;
   }
 
-  private double monitorProgress(Set<String> vertexNamess, double prevDagProgress,
+  private double monitorProgress(Set<String> vertexNames, double prevDagProgress,
       Set<StatusGetOpts> opts, DAGStatus dagStatus) throws IOException, TezException {
     Progress progress = dagStatus.getDAGProgress();
-    double dagProgress = 0.0;
-    if (progress != null && (dagProgress = getProgress(progress)) > prevDagProgress) {
-      printDAGStatus(vertexNamess, opts, dagStatus, progress);
+    double dagProgress = prevDagProgress;
+    if (progress != null) {
+      dagProgress = getProgress(progress);
+      boolean progressChanged = dagProgress > prevDagProgress;
+      long currentTimeMillis = System.currentTimeMillis();
+      long timeSinceLastPrintStatus =  currentTimeMillis - lastPrintStatusTimeMillis;
+      boolean printIntervalExpired = timeSinceLastPrintStatus > PRINT_STATUS_INTERVAL_MILLIS;
+      if (progressChanged || printIntervalExpired) {
+        lastPrintStatusTimeMillis = currentTimeMillis;
+        printDAGStatus(vertexNames, opts, dagStatus, progress);
+      }
     }
+
     return dagProgress;
   }
 
-  private void printDAGStatus(Set<String> vertexNamess, Set<StatusGetOpts> opts,
+  private void printDAGStatus(Set<String> vertexNames, Set<StatusGetOpts> opts,
       DAGStatus dagStatus, Progress dagProgress) throws IOException, TezException {
     double vProgressFloat = 0.0f;
     log("DAG: State: " + dagStatus.getState() + " Progress: "
@@ -408,7 +409,7 @@ public class DAGClientRPCImpl implements DAGClient {
         log("DAG Counters:\n" + counters);
       }
     }
-    for (String vertex : vertexNamess) {
+    for (String vertex : vertexNames) {
       VertexStatus vStatus = getVertexStatus(vertex, opts);
       if (vStatus == null) {
         log("Could not retrieve status for vertex: " + vertex);
@@ -422,7 +423,7 @@ public class DAGClientRPCImpl implements DAGClient {
         } else if (vProgress.getTotalTaskCount() > 0) {
           vProgressFloat = getProgress(vProgress);
         }
-        log("VertexStatus:" + " VertexName: " + vertex + " Progress: "
+        log("\tVertexStatus:" + " VertexName: " + vertex + " Progress: "
             + formatter.format(vProgressFloat) + " " + vProgress);
       }
       if (displayCounter) {

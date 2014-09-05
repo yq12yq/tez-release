@@ -22,15 +22,30 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.api.LogicalOutput;
+import org.apache.tez.runtime.api.Processor;
+import org.apache.tez.runtime.api.ProcessorContext;
 import org.apache.tez.runtime.library.processor.SimpleProcessor;
 
 import com.google.common.collect.Lists;
 
+/**
+ * A {@link SimpleProcessor} that provides Map Reduce specific post
+ * processing by calling commit (if needed) on all {@link MROutput}s 
+ * connected to this {@link Processor}. 
+ */
+@Public
+@Evolving
 public abstract class SimpleMRProcessor extends SimpleProcessor {
   private static final Log LOG = LogFactory.getLog(SimpleMRProcessor.class);
-  
+
+  public SimpleMRProcessor(ProcessorContext context) {
+    super(context);
+  }
+
   @Override
   protected void postOp() throws Exception {
     if (getOutputs() == null) {
@@ -38,11 +53,20 @@ public abstract class SimpleMRProcessor extends SimpleProcessor {
     }
     List<MROutput> mrOuts = Lists.newLinkedList();
     for (LogicalOutput output : getOutputs().values()) {
-      if ((output instanceof MROutput) && (((MROutput) output).isCommitRequired())) {
-        mrOuts.add((MROutput) output);
+      if (output instanceof MROutput) {
+        MROutput mrOutput = (MROutput) output;
+        mrOutput.flush();
+        if (mrOutput.isCommitRequired()) {
+          mrOuts.add((MROutput) output);
+        }
       }
     }
     if (mrOuts.size() > 0) {
+      // This will loop till the AM asks for the task to be killed. As
+      // against, the AM sending a signal to the task to kill itself
+      // gracefully. The AM waits for the current committer to successfully
+      // complete and then kills us. Until then we wait in case the
+      // current committer fails and we get chosen to commit.
       while (!getContext().canCommit()) {
         Thread.sleep(100);
       }

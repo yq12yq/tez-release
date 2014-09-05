@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.tez.common;
 
 import java.io.File;
@@ -9,10 +27,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.tez.client.TestTezClientUtils;
 import org.apache.tez.dag.api.TezConfiguration;
-import org.apache.tez.common.TezCommonUtils;
+import org.apache.tez.dag.api.TezConstants;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -110,7 +127,7 @@ public class TestTezCommonUtils {
     Path confStageDir = TezCommonUtils.getTezConfStagingPath(stageDir);
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.TEZ_PB_BINARY_CONF_NAME;
+        + TezConstants.TEZ_PB_BINARY_CONF_NAME;
     Assert.assertEquals(confStageDir.toString(), expectedDir);
   }
 
@@ -119,10 +136,10 @@ public class TestTezCommonUtils {
   public void testTezSessionJarStagingPath() throws Exception {
     String strAppId = "testAppId";
     Path stageDir = TezCommonUtils.getTezSystemStagingPath(conf, strAppId);
-    Path confStageDir = TezCommonUtils.getTezSessionJarStagingPath(stageDir);
+    Path confStageDir = TezCommonUtils.getTezAMJarStagingPath(stageDir);
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.TEZ_SESSION_LOCAL_RESOURCES_PB_FILE_NAME;
+        + TezConstants.TEZ_AM_LOCAL_RESOURCES_PB_FILE_NAME;
     Assert.assertEquals(confStageDir.toString(), expectedDir);
   }
 
@@ -134,7 +151,7 @@ public class TestTezCommonUtils {
     Path confStageDir = TezCommonUtils.getTezBinPlanStagingPath(stageDir);
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.TEZ_PB_PLAN_BINARY_NAME;
+        + TezConstants.TEZ_PB_PLAN_BINARY_NAME;
     Assert.assertEquals(confStageDir.toString(), expectedDir);
   }
 
@@ -146,7 +163,7 @@ public class TestTezCommonUtils {
     Path confStageDir = TezCommonUtils.getTezTextPlanStagingPath(stageDir);
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.TEZ_PB_PLAN_TEXT_NAME;
+        + TezConstants.TEZ_PB_PLAN_TEXT_NAME;
     Assert.assertEquals(confStageDir.toString(), expectedDir);
   }
 
@@ -158,7 +175,7 @@ public class TestTezCommonUtils {
     Path confStageDir = TezCommonUtils.getRecoveryPath(stageDir, conf);
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.DAG_RECOVERY_DATA_DIR_NAME;
+        + TezConstants.DAG_RECOVERY_DATA_DIR_NAME;
     Assert.assertEquals(confStageDir.toString(), expectedDir);
   }
 
@@ -172,7 +189,7 @@ public class TestTezCommonUtils {
 
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.DAG_RECOVERY_DATA_DIR_NAME + File.separator + "2";
+        + TezConstants.DAG_RECOVERY_DATA_DIR_NAME + File.separator + "2";
     Assert.assertEquals(recoveryStageDir.toString(), expectedDir);
   }
 
@@ -188,8 +205,8 @@ public class TestTezCommonUtils {
 
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.DAG_RECOVERY_DATA_DIR_NAME + File.separator + "2" + File.separator
-        + "dag_123" + TezConfiguration.DAG_RECOVERY_RECOVER_FILE_SUFFIX;
+        + TezConstants.DAG_RECOVERY_DATA_DIR_NAME + File.separator + "2" + File.separator
+        + "dag_123" + TezConstants.DAG_RECOVERY_RECOVER_FILE_SUFFIX;
     Assert.assertEquals(dagRecoveryPathj.toString(), expectedDir);
   }
 
@@ -204,8 +221,24 @@ public class TestTezCommonUtils {
 
     String expectedDir = RESOLVED_STAGE_DIR + File.separatorChar
         + TezCommonUtils.TEZ_SYSTEM_SUB_DIR + File.separatorChar + strAppId + File.separator
-        + TezConfiguration.DAG_RECOVERY_DATA_DIR_NAME + File.separator + "2" + File.separator
-        + TezConfiguration.DAG_RECOVERY_SUMMARY_FILE_SUFFIX;
+        + TezConstants.DAG_RECOVERY_DATA_DIR_NAME + File.separator + "2" + File.separator
+        + TezConstants.DAG_RECOVERY_SUMMARY_FILE_SUFFIX;
     Assert.assertEquals(summaryRecoveryPathj.toString(), expectedDir);
   }
+
+  // This test is running here to leverage existing mini cluster
+  @Test
+  public void testLocalResourceVisibility() throws Exception {
+    TestTezClientUtils.testLocalResourceVisibility(dfsCluster.getFileSystem(), conf);
+  }
+
+  @Test
+  public void testStringTokenize() {
+    String s = "foo:bar:xyz::too";
+    String[] expectedTokens = { "foo", "bar" , "xyz" , "too"};
+    String[] tokens = new String[4];
+    TezCommonUtils.tokenizeString(s, ":").toArray(tokens);
+    Assert.assertArrayEquals(expectedTokens, tokens);
+  }
+
 }

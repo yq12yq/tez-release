@@ -35,17 +35,19 @@ import org.apache.commons.collections4.bidimap.DualLinkedHashBidiMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.tez.common.impl.LogUtils;
+import org.apache.tez.common.security.DAGAccessControls;
+import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
 import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
 import org.apache.tez.dag.api.EdgeProperty.SchedulingType;
 import org.apache.tez.dag.api.VertexGroup.GroupInfo;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.dag.api.records.DAGProtos.ConfigurationProto;
 import org.apache.tez.dag.api.records.DAGProtos.DAGPlan;
 import org.apache.tez.dag.api.records.DAGProtos.EdgePlan;
@@ -58,33 +60,69 @@ import org.apache.tez.dag.api.records.DAGProtos.PlanVertexGroupInfo;
 import org.apache.tez.dag.api.records.DAGProtos.PlanVertexType;
 import org.apache.tez.dag.api.records.DAGProtos.VertexPlan;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+/**
+ * Top level entity that defines the DAG (Directed Acyclic Graph) representing 
+ * the data flow graph. Consists of a set of Vertices and Edges connecting the 
+ * vertices. Vertices represent transformations of data and edges represent 
+ * movement of data between vertices.
+ */
+@Public
 public class DAG {
   
   private static final Log LOG = LogFactory.getLog(DAG.class);
   
-  final BidiMap<String, Vertex> vertices = 
+  final BidiMap<String, Vertex> vertices =
       new DualLinkedHashBidiMap<String, Vertex>();
   final Set<Edge> edges = Sets.newHashSet();
   final String name;
   final Collection<URI> urisForCredentials = new HashSet<URI>();
-  Credentials credentials;
+  Credentials credentials = new Credentials();
   Set<VertexGroup> vertexGroups = Sets.newHashSet();
   Set<GroupInputEdge> groupInputEdges = Sets.newHashSet();
+  private DAGAccessControls dagAccessControls;
+  Map<String, LocalResource> commonTaskLocalFiles = Maps.newHashMap();
+  
+  private Stack<String> topologicalVertexStack = new Stack<String>();
 
-  public DAG(String name) {
+  private DAG(String name) {
     this.name = name;
   }
 
+  /**
+   * Create a DAG with the specified name.
+   * @param name the name of the DAG
+   * @return this {@link DAG}
+   */
+  public static DAG create(String name) {
+    return new DAG(name);
+  }
+
+  /**
+   * Set the files etc that must be provided to the tasks of this DAG
+   * @param localFiles
+   *          files that must be available locally for each task. These files
+   *          may be regular files, archives etc. as specified by the value
+   *          elements of the map.
+   * @return {@link DAG}
+   */
+  public DAG addTaskLocalFiles(Map<String, LocalResource> localFiles) {
+    Preconditions.checkNotNull(localFiles);
+    TezCommonUtils.addAdditionalLocalResources(localFiles, commonTaskLocalFiles);
+    return this;
+  }
+  
   public synchronized DAG addVertex(Vertex vertex) {
-    if (vertices.containsKey(vertex.getVertexName())) {
+    if (vertices.containsKey(vertex.getName())) {
       throw new IllegalStateException(
-        "Vertex " + vertex.getVertexName() + " already defined!");
+        "Vertex " + vertex.getName() + " already defined!");
     }
-    vertices.put(vertex.getVertexName(), vertex);
+    vertices.put(vertex.getName(), vertex);
     return this;
   }
 
@@ -104,13 +142,20 @@ public class DAG {
    * credentials.
    * 
    * @param credentials Credentials for the DAG
-   * @return this
+   * @return {@link DAG}
    */
   public synchronized DAG setCredentials(Credentials credentials) {
     this.credentials = credentials;
     return this;
   }
   
+  /**
+   * Create a group of vertices that share a common output. This can be used to implement 
+   * unions efficiently.
+   * @param name Name of the group.
+   * @param members {@link Vertex} members of the group
+   * @return {@link DAG}
+   */
   public synchronized VertexGroup createVertexGroup(String name, Vertex... members) {
     VertexGroup uv = new VertexGroup(name, members);
     vertexGroups.add(uv);
@@ -120,6 +165,20 @@ public class DAG {
   @Private
   public synchronized Credentials getCredentials() {
     return this.credentials;
+  }
+
+
+  /**
+   * Set Access controls for the DAG. Which user/groups can view the DAG progess/history and
+   * who can modify the DAG i.e. kill the DAG.
+   * The owner of the Tez Session and the user submitting the DAG are super-users and have access
+   * to all operations on the DAG.
+   * @param accessControls Access Controls
+   * @return {@link DAG}
+   */
+  public synchronized DAG setAccessControls(DAGAccessControls accessControls) {
+    this.dagAccessControls = accessControls;
+    return this;
   }
 
   /**
@@ -133,12 +192,13 @@ public class DAG {
    * need to be obtained so that the job can run. An incremental list of URIs
    * can be provided by making multiple calls to the method.
    * 
-   * Currently, credentials can only be fetched for HDFS and other
-   * {@link org.apache.hadoop.fs.FileSystem} implementations.
+   * Currently, @{link credentials} can only be fetched for HDFS and other
+   * {@link org.apache.hadoop.fs.FileSystem} implementations that support
+   * credentials.
    * 
    * @param uris
    *          a list of {@link URI}s
-   * @return the DAG instance being used
+   * @return {@link DAG}
    */
   public synchronized DAG addURIsForCredentials(Collection<URI> uris) {
     Preconditions.checkNotNull(uris, "URIs cannot be null");
@@ -161,6 +221,11 @@ public class DAG {
     return Collections.unmodifiableSet(this.vertices.values());
   }
 
+  /**
+   * Add an {@link Edge} connecting vertices in the DAG
+   * @param edge The edge to be added
+   * @return {@link DAG}
+   */
   public synchronized DAG addEdge(Edge edge) {
     // Sanity checks
     if (!vertices.containsValue(edge.getInputVertex())) {
@@ -184,6 +249,11 @@ public class DAG {
     return this;
   }
   
+  /**
+   * Add a {@link GroupInputEdge} to the DAG.
+   * @param edge {@link GroupInputEdge}
+   * @return {@link DAG}
+   */
   public synchronized DAG addEdge(GroupInputEdge edge) {
     // Sanity checks
     if (!vertexGroups.contains(edge.getInputVertexGroup())) {
@@ -202,39 +272,29 @@ public class DAG {
     VertexGroup av = edge.getInputVertexGroup();
     av.addOutputVertex(edge.getOutputVertex(), edge);
     groupInputEdges.add(edge);
-    return this;
-  }
-  
-  public String getName() {
-    return this.name;
-  }
-  
-  private void processEdgesAndGroups() throws IllegalStateException {
-    // process all VertexGroups by transferring outgoing connections to the members
     
-    // add edges between VertexGroup members and destination vertices
+    // add new edge between members of VertexGroup and destVertex of the GroupInputEdge
     List<Edge> newEdges = Lists.newLinkedList();
-    for (GroupInputEdge e : groupInputEdges) {
-      Vertex  dstVertex = e.getOutputVertex();
-      VertexGroup uv = e.getInputVertexGroup();
-      for (Vertex member : uv.getMembers()) {
-        newEdges.add(new Edge(member, dstVertex, e.getEdgeProperty()));
-      }
-      dstVertex.addGroupInput(uv.getGroupName(), uv.getGroupInfo());
+    Vertex dstVertex = edge.getOutputVertex();
+    VertexGroup uv = edge.getInputVertexGroup();
+    for (Vertex member : uv.getMembers()) {
+      newEdges.add(Edge.create(member, dstVertex, edge.getEdgeProperty()));
     }
+    dstVertex.addGroupInput(uv.getGroupName(), uv.getGroupInfo());
     
     for (Edge e : newEdges) {
       addEdge(e);
     }
     
-    // add outputs to VertexGroup members
-    for(VertexGroup av : vertexGroups) {
-      for (RootInputLeafOutput<OutputDescriptor> output : av.getOutputs()) {
-        for (Vertex member : av.getMembers()) {
-          member.addAdditionalOutput(output);
-        }
-      }
-    }
+    return this;
+  }
+  
+  /**
+   * Get the DAG name
+   * @return DAG name
+   */
+  public String getName() {
+    return this.name;
   }
   
   void checkAndInferOneToOneParallelism() {
@@ -260,8 +320,8 @@ public class DAG {
             Vertex outVertex = e.getOutputVertex();
             if (outVertex.getParallelism() == -1) {
               LOG.info("Inferring parallelism for vertex: "
-                  + outVertex.getVertexName() + " to be " + v.getParallelism()
-                  + " from 1-1 connection with vertex " + v.getVertexName());
+                  + outVertex.getName() + " to be " + v.getParallelism()
+                  + " from 1-1 connection with vertex " + v.getName());
               outVertex.setParallelism(v.getParallelism());
               newKnownTasksVertices.add(outVertex);
             }
@@ -281,8 +341,8 @@ public class DAG {
           if (outputVertex.getParallelism() != -1) {
             throw new TezUncheckedException(
                 "1-1 Edge. Destination vertex parallelism must match source vertex. "
-                + "Vertex: " + inputVertex.getVertexName() + " does not match vertex: " 
-                + outputVertex.getVertexName());
+                + "Vertex: " + inputVertex.getName() + " does not match vertex: " 
+                + outputVertex.getName());
           }
         }
       }
@@ -324,16 +384,16 @@ public class DAG {
   //   In short term, the supported DAGs are limited. Call with restricted=true for these verifications.
   //   Illegal:
   //     - any vertex with more than one input or output edge. (n-ary input, n-ary merge)
-  public void verify() throws IllegalStateException {
+  @VisibleForTesting
+  void verify() throws IllegalStateException {
     verify(true);
   }
 
-  public void verify(boolean restricted) throws IllegalStateException {
+  @VisibleForTesting
+  void verify(boolean restricted) throws IllegalStateException {
     if (vertices.isEmpty()) {
       throw new IllegalStateException("Invalid dag containing 0 vertices");
     }
-
-    processEdgesAndGroups();
     
     // check for valid vertices, duplicate vertex names,
     // and prepare for cycle detection
@@ -341,11 +401,11 @@ public class DAG {
     Map<Vertex, Set<String>> inboundVertexMap = new HashMap<Vertex, Set<String>>();
     Map<Vertex, Set<String>> outboundVertexMap = new HashMap<Vertex, Set<String>>();
     for (Vertex v : vertices.values()) {
-      if (vertexMap.containsKey(v.getVertexName())) {
+      if (vertexMap.containsKey(v.getName())) {
         throw new IllegalStateException("DAG contains multiple vertices"
-          + " with name: " + v.getVertexName());
+          + " with name: " + v.getName());
       }
-      vertexMap.put(v.getVertexName(), new AnnotatedVertex(v));
+      vertexMap.put(v.getName(), new AnnotatedVertex(v));
     }
 
     Map<Vertex, List<Edge>> edgeMap = new HashMap<Vertex, List<Edge>>();
@@ -366,7 +426,7 @@ public class DAG {
         inboundSet = new HashSet<String>();
         inboundVertexMap.put(outputVertex, inboundSet);
       }
-      inboundSet.add(inputVertex.getVertexName());
+      inboundSet.add(inputVertex.getName());
       
       // Construct map for Output name verification
       Set<String> outboundSet = outboundVertexMap.get(inputVertex);
@@ -374,23 +434,25 @@ public class DAG {
         outboundSet = new HashSet<String>();
         outboundVertexMap.put(inputVertex, outboundSet);
       }
-      outboundSet.add(outputVertex.getVertexName());
+      outboundSet.add(outputVertex.getName());
     }
 
     // check input and output names don't collide with vertex names
     for (Vertex vertex : vertices.values()) {
-      for (RootInputLeafOutput<InputDescriptor> input : vertex.getInputs()) {
+      for (RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor> 
+           input : vertex.getInputs()) {
         if (vertexMap.containsKey(input.getName())) {
           throw new IllegalStateException("Vertex: "
-              + vertex.getVertexName()
+              + vertex.getName()
               + " contains an Input with the same name as vertex: "
               + input.getName());
         }
       }
-      for (RootInputLeafOutput<OutputDescriptor> output : vertex.getOutputs()) {
+      for (RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor> 
+            output : vertex.getOutputs()) {
         if (vertexMap.containsKey(output.getName())) {
           throw new IllegalStateException("Vertex: "
-              + vertex.getVertexName()
+              + vertex.getName()
               + " contains an Output with the same name as vertex: "
               + output.getName());
         }
@@ -400,10 +462,11 @@ public class DAG {
     // Check for valid InputNames
     for (Entry<Vertex, Set<String>> entry : inboundVertexMap.entrySet()) {
       Vertex vertex = entry.getKey();
-      for (RootInputLeafOutput<InputDescriptor> input : vertex.getInputs()) {
+      for (RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor> 
+           input : vertex.getInputs()) {
         if (entry.getValue().contains(input.getName())) {
           throw new IllegalStateException("Vertex: "
-              + vertex.getVertexName()
+              + vertex.getName()
               + " contains an incoming vertex and Input with the same name: "
               + input.getName());
         }
@@ -413,10 +476,11 @@ public class DAG {
     // Check for valid OutputNames
     for (Entry<Vertex, Set<String>> entry : outboundVertexMap.entrySet()) {
       Vertex vertex = entry.getKey();
-      for (RootInputLeafOutput<OutputDescriptor> output : vertex.getOutputs()) {
+      for (RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor> 
+            output : vertex.getOutputs()) {
         if (entry.getValue().contains(output.getName())) {
           throw new IllegalStateException("Vertex: "
-              + vertex.getVertexName()
+              + vertex.getName()
               + " contains an outgoing vertex and Output with the same name: "
               + output.getName());
         }
@@ -479,7 +543,7 @@ public class DAG {
     List<Edge> edges = edgeMap.get(av.v);
     if (edges != null) {
       for (Edge e : edgeMap.get(av.v)) {
-        AnnotatedVertex outVertex = vertexMap.get(e.getOutputVertex().getVertexName());
+        AnnotatedVertex outVertex = vertexMap.get(e.getOutputVertex().getName());
         if (outVertex.index == -1) {
           strongConnect(outVertex, vertexMap, edgeMap, stack, nextIndex);
           av.lowlink = Math.min(av.lowlink, outVertex.lowlink);
@@ -498,14 +562,15 @@ public class DAG {
         // there was something on the stack other than this "av".
         // this indicates there is a scc/cycle. It comprises all nodes from top of stack to "av"
         StringBuilder message = new StringBuilder();
-        message.append(av.v.getVertexName()).append(" <- ");
+        message.append(av.v.getName()).append(" <- ");
         for (; pop != av; pop = stack.pop()) {
-          message.append(pop.v.getVertexName()).append(" <- ");
+          message.append(pop.v.getName()).append(" <- ");
           pop.onstack = false;
         }
-        message.append(av.v.getVertexName());
+        message.append(av.v.getName());
         throw new IllegalStateException("DAG contains a cycle: " + message);
       }
+      topologicalVertexStack.push(av.v.getName());
     }
   }
 
@@ -525,7 +590,7 @@ public class DAG {
         PlanVertexGroupInfo.Builder groupBuilder = PlanVertexGroupInfo.newBuilder();
         groupBuilder.setGroupName(groupInfo.getGroupName());
         for (Vertex v : groupInfo.getMembers()) {
-          groupBuilder.addGroupMembers(v.getVertexName());
+          groupBuilder.addGroupMembers(v.getName());
         }
         groupBuilder.addAllOutputs(groupInfo.outputs);
         for (Map.Entry<String, InputDescriptor> entry : 
@@ -538,19 +603,57 @@ public class DAG {
       }
     }
 
-    for (Vertex vertex : vertices.values()) {
+    Preconditions.checkArgument(topologicalVertexStack.size() == vertices.size(),
+        "size of topologicalVertexStack is:" + topologicalVertexStack.size() +
+        " while size of vertices is:" + vertices.size() +
+        ", make sure they are the same in order to sort the vertices");
+    while(!topologicalVertexStack.isEmpty()) {
+      Vertex vertex = vertices.get(topologicalVertexStack.pop());
+      // infer credentials, resources and parallelism from data source
+      if (vertex.getTaskResource() == null) {
+        vertex.setTaskResource(Resource.newInstance(dagConf.getInt(
+            TezConfiguration.TEZ_TASK_RESOURCE_MEMORY_MB,
+            TezConfiguration.TEZ_TASK_RESOURCE_MEMORY_MB_DEFAULT), dagConf.getInt(
+            TezConfiguration.TEZ_TASK_RESOURCE_CPU_VCORES,
+            TezConfiguration.TEZ_TASK_RESOURCE_CPU_VCORES_DEFAULT)));
+      }
+      List<DataSourceDescriptor> dataSources = vertex.getDataSources();
+      for (DataSourceDescriptor dataSource : dataSources) {
+        if (dataSource.getCredentials() != null) {
+          credentials.addAll(dataSource.getCredentials());
+        }
+        vertex.addTaskLocalFiles(dataSource.getAdditionalLocalFiles());
+      }
+      if (dataSources.size() == 1) {
+        DataSourceDescriptor dataSource = dataSources.get(0);
+        if (vertex.getParallelism() == -1 && dataSource.getNumberOfShards() > -1) {
+          vertex.setParallelism(dataSource.getNumberOfShards());
+        }
+        if (vertex.getLocationHint() == null && dataSource.getLocationHint() != null) {
+          vertex.setLocationHint(dataSource.getLocationHint());
+        }
+      }
+      for (DataSinkDescriptor dataSink : vertex.getDataSinks()) {
+        if (dataSink.getCredentials() != null) {
+          credentials.addAll(dataSink.getCredentials());
+        }
+      }
+      
+      // add common task files for this DAG
+      vertex.addTaskLocalFiles(commonTaskLocalFiles);
+        
       VertexPlan.Builder vertexBuilder = VertexPlan.newBuilder();
-      vertexBuilder.setName(vertex.getVertexName());
+      vertexBuilder.setName(vertex.getName());
       vertexBuilder.setType(PlanVertexType.NORMAL); // vertex type is implicitly NORMAL until  TEZ-46.
       vertexBuilder.setProcessorDescriptor(DagTypeConverters
         .convertToDAGPlan(vertex.getProcessorDescriptor()));
       if (vertex.getInputs().size() > 0) {
-        for (RootInputLeafOutput<InputDescriptor> input : vertex.getInputs()) {
+        for (RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor> input : vertex.getInputs()) {
           vertexBuilder.addInputs(DagTypeConverters.convertToDAGPlan(input));
         }
       }
       if (vertex.getOutputs().size() > 0) {
-        for (RootInputLeafOutput<OutputDescriptor> output : vertex.getOutputs()) {
+        for (RootInputLeafOutput<OutputDescriptor, OutputCommitterDescriptor> output : vertex.getOutputs()) {
           vertexBuilder.addOutputs(DagTypeConverters.convertToDAGPlan(output));
         }
       }
@@ -561,13 +664,13 @@ public class DAG {
       taskConfigBuilder.setNumTasks(vertex.getParallelism());
       taskConfigBuilder.setMemoryMb(resource.getMemory());
       taskConfigBuilder.setVirtualCores(resource.getVirtualCores());
-      taskConfigBuilder.setJavaOpts(vertex.getJavaOpts());
+      taskConfigBuilder.setJavaOpts(vertex.getTaskLaunchCmdOpts());
 
-      taskConfigBuilder.setTaskModule(vertex.getVertexName());
+      taskConfigBuilder.setTaskModule(vertex.getName());
       PlanLocalResource.Builder localResourcesBuilder = PlanLocalResource.newBuilder();
       localResourcesBuilder.clear();
       for (Entry<String, LocalResource> entry :
-             vertex.getTaskLocalResources().entrySet()) {
+             vertex.getTaskLocalFiles().entrySet()) {
         String key = entry.getKey();
         LocalResource lr = entry.getValue();
         localResourcesBuilder.setName(key);
@@ -596,17 +699,17 @@ public class DAG {
         taskConfigBuilder.addEnvironmentSetting(envSettingBuilder);
       }
 
-      if (vertex.getTaskLocationsHint() != null) {
-        if (vertex.getTaskLocationsHint().getTaskLocationHints() != null) {
-          for (TaskLocationHint hint : vertex.getTaskLocationsHint().getTaskLocationHints()) {
+      if (vertex.getLocationHint() != null) {
+        if (vertex.getLocationHint().getTaskLocationHints() != null) {
+          for (TaskLocationHint hint : vertex.getLocationHint().getTaskLocationHints()) {
             PlanTaskLocationHint.Builder taskLocationHintBuilder = PlanTaskLocationHint.newBuilder();
 
             if (hint.getAffinitizedContainer() != null) {
               throw new TezUncheckedException(
                   "Container affinity may not be specified via the DAG API");
             }
-            if (hint.getDataLocalHosts() != null) {
-              taskLocationHintBuilder.addAllHost(hint.getDataLocalHosts());
+            if (hint.getHosts() != null) {
+              taskLocationHintBuilder.addAllHost(hint.getHosts());
             }
             if (hint.getRacks() != null) {
               taskLocationHintBuilder.addAllRack(hint.getRacks());
@@ -637,8 +740,8 @@ public class DAG {
     for (Edge edge : edges) {
       EdgePlan.Builder edgeBuilder = EdgePlan.newBuilder();
       edgeBuilder.setId(edge.getId());
-      edgeBuilder.setInputVertexName(edge.getInputVertex().getVertexName());
-      edgeBuilder.setOutputVertexName(edge.getOutputVertex().getVertexName());
+      edgeBuilder.setInputVertexName(edge.getInputVertex().getName());
+      edgeBuilder.setOutputVertexName(edge.getOutputVertex().getName());
       edgeBuilder.setDataMovementType(DagTypeConverters.convertToDAGPlan(edge.getEdgeProperty().getDataMovementType()));
       edgeBuilder.setDataSourceType(DagTypeConverters.convertToDAGPlan(edge.getEdgeProperty().getDataSourceType()));
       edgeBuilder.setSchedulingType(DagTypeConverters.convertToDAGPlan(edge.getEdgeProperty().getSchedulingType()));
@@ -652,10 +755,11 @@ public class DAG {
       dagBuilder.addEdge(edgeBuilder);
     }
 
+
+    ConfigurationProto.Builder confProtoBuilder =
+        ConfigurationProto.newBuilder();
     if (dagConf != null) {
       Iterator<Entry<String, String>> iter = dagConf.iterator();
-      ConfigurationProto.Builder confProtoBuilder =
-        ConfigurationProto.newBuilder();
       while (iter.hasNext()) {
         Entry<String, String> entry = iter.next();
         PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
@@ -663,11 +767,25 @@ public class DAG {
         kvp.setValue(entry.getValue());
         confProtoBuilder.addConfKeyValues(kvp);
       }
-      dagBuilder.setDagKeyValues(confProtoBuilder);
     }
+    if (dagAccessControls != null) {
+      Configuration aclConf = new Configuration(false);
+      dagAccessControls.serializeToConfiguration(aclConf);
+      Iterator<Entry<String, String>> aclConfIter = aclConf.iterator();
+      while (aclConfIter.hasNext()) {
+        Entry<String, String> entry = aclConfIter.next();
+        PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
+        kvp.setKey(entry.getKey());
+        kvp.setValue(entry.getValue());
+        confProtoBuilder.addConfKeyValues(kvp);
+      }
+    }
+    dagBuilder.setDagKeyValues(confProtoBuilder); // This does not seem to be used anywhere
+    // should this replace BINARY_PB_CONF???
+
     if (credentials != null) {
       dagBuilder.setCredentialsBinary(DagTypeConverters.convertCredentialsToProto(credentials));
-      LogUtils.logCredentials(LOG, credentials, "dag");
+      TezCommonUtils.logCredentials(LOG, credentials, "dag");
     }
     return dagBuilder.build();
   }

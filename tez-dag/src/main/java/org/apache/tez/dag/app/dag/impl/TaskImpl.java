@@ -29,10 +29,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.event.EventHandler;
@@ -66,7 +66,6 @@ import org.apache.tez.dag.app.dag.event.TaskAttemptEvent;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventKillRequest;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventType;
 import org.apache.tez.dag.app.dag.event.TaskEvent;
-import org.apache.tez.dag.app.dag.event.TaskEventAddTezEvent;
 import org.apache.tez.dag.app.dag.event.TaskEventRecoverTask;
 import org.apache.tez.dag.app.dag.event.TaskEventTAUpdate;
 import org.apache.tez.dag.app.dag.event.TaskEventTermination;
@@ -119,7 +118,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   private final ContainerContext containerContext;
   private long scheduledTime;
 
-  private List<TezEvent> tezEventsForTaskAttempts = new ArrayList<TezEvent>();
+  private final List<TezEvent> tezEventsForTaskAttempts = new ArrayList<TezEvent>();
   private static final List<TezEvent> EMPTY_TASK_ATTEMPT_TEZ_EVENTS =
       new ArrayList(0);
 
@@ -133,8 +132,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
      ATTEMPT_KILLED_TRANSITION = new AttemptKilledTransition();
   private static final SingleArcTransition<TaskImpl, TaskEvent>
      KILL_TRANSITION = new KillTransition();
-  private static final SingleArcTransition<TaskImpl, TaskEvent>
-     ADD_TEZ_EVENT_TRANSITION = new AddTezEventTransition();
 
   // Recovery related flags
   boolean recoveryStartEventSeen = false;
@@ -153,8 +150,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
     .addTransition(TaskStateInternal.NEW, TaskStateInternal.KILLED,
         TaskEventType.T_TERMINATE,
         new KillNewTransition())
-    .addTransition(TaskStateInternal.NEW, TaskStateInternal.NEW,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
 
     // Recover transition
     .addTransition(TaskStateInternal.NEW,
@@ -177,8 +172,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         EnumSet.of(TaskStateInternal.SCHEDULED, TaskStateInternal.FAILED),
         TaskEventType.T_ATTEMPT_FAILED,
         new AttemptFailedTransition())
-    .addTransition(TaskStateInternal.SCHEDULED, TaskStateInternal.SCHEDULED,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
 
     // When current attempt fails/killed and new attempt launched then
     // TODO Task should go back to SCHEDULED state TEZ-495
@@ -205,8 +198,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         TaskEventType.T_TERMINATE,
         KILL_TRANSITION)
     .addTransition(TaskStateInternal.RUNNING, TaskStateInternal.RUNNING,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
-    .addTransition(TaskStateInternal.RUNNING, TaskStateInternal.RUNNING,
         TaskEventType.T_SCHEDULE)
 
     // Transitions from KILL_WAIT state
@@ -222,8 +213,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         EnumSet.of(TaskStateInternal.KILL_WAIT, TaskStateInternal.KILLED),
         TaskEventType.T_ATTEMPT_SUCCEEDED,
         new KillWaitAttemptCompletedTransition())
-    .addTransition(TaskStateInternal.KILL_WAIT, TaskStateInternal.KILL_WAIT,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
     // Ignore-able transitions.
     .addTransition(
         TaskStateInternal.KILL_WAIT,
@@ -243,8 +232,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
     .addTransition(TaskStateInternal.SUCCEEDED, //only possible for map tasks
         EnumSet.of(TaskStateInternal.SCHEDULED, TaskStateInternal.SUCCEEDED),
         TaskEventType.T_ATTEMPT_KILLED, new TaskRetroactiveKilledTransition())
-    .addTransition(TaskStateInternal.SUCCEEDED, TaskStateInternal.SUCCEEDED,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
     // Ignore-able transitions.
     .addTransition(
         TaskStateInternal.SUCCEEDED, TaskStateInternal.SUCCEEDED,
@@ -257,15 +244,11 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
 
     // Transitions from FAILED state
     .addTransition(TaskStateInternal.FAILED, TaskStateInternal.FAILED,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
-    .addTransition(TaskStateInternal.FAILED, TaskStateInternal.FAILED,
         EnumSet.of(
             TaskEventType.T_TERMINATE,
             TaskEventType.T_ADD_SPEC_ATTEMPT))
 
     // Transitions from KILLED state
-    .addTransition(TaskStateInternal.KILLED, TaskStateInternal.KILLED,
-        TaskEventType.T_ADD_TEZ_EVENT, ADD_TEZ_EVENT_TRANSITION)
     .addTransition(TaskStateInternal.KILLED, TaskStateInternal.KILLED,
         EnumSet.of(
             TaskEventType.T_TERMINATE,
@@ -309,7 +292,8 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
 
   private TezTaskAttemptID successfulAttempt;
 
-  private int failedAttempts;
+  @VisibleForTesting
+  int failedAttempts;
   private int finishedAttempts;//finish are total of success, failed and killed
 
   private final boolean leafVertex;
@@ -591,6 +575,8 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         if (taskAttemptState.equals(TaskAttemptState.SUCCEEDED)) {
           recoveredState = TaskState.SUCCEEDED;
           successfulAttempt = taskAttempt.getID();
+        } else if (taskAttemptState.equals(TaskAttemptState.FAILED)){
+          failedAttempts++;
         }
         return recoveredState;
       }
@@ -854,7 +840,8 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   }
 
   protected void internalError(TaskEventType type) {
-    LOG.error("Invalid event " + type + " on Task " + this.taskId);
+    LOG.error("Invalid event " + type + " on Task " + this.taskId + " in state:"
+        + getInternalState());
     eventHandler.handle(new DAGEventDiagnosticsUpdate(
         this.taskId.getVertexID().getDAGId(), "Invalid event " + type +
         " on Task " + this.taskId));
@@ -955,7 +942,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
     TaskFinishedEvent finishEvt = new TaskFinishedEvent(taskId,
         getVertex().getName(), getLaunchTime(), clock.getTime(), null,
         finalState, 
-        StringUtils.join(LINE_SEPARATOR, getDiagnostics()),
+        StringUtils.join(getDiagnostics(), LINE_SEPARATOR),
         getCounters());
     this.appContext.getHistoryHandler().handle(
         new DAGHistoryEvent(taskId.getVertexID().getDAGId(), finishEvt));
@@ -1188,7 +1175,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
           }
 
           if (endState != TaskStateInternal.SUCCEEDED &&
-              task.attempts.size() >= task.maxFailedAttempts) {
+              task.failedAttempts >= task.maxFailedAttempts) {
             // Exceeded max attempts
             task.finished(TaskStateInternal.FAILED);
             endState = TaskStateInternal.FAILED;
@@ -1443,12 +1430,13 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
     }
   }
 
-  private static class AddTezEventTransition
-      implements SingleArcTransition<TaskImpl, TaskEvent> {
-    @Override
-    public void transition(TaskImpl task, TaskEvent event) {
-      TaskEventAddTezEvent addEvent = (TaskEventAddTezEvent) event;
-      task.tezEventsForTaskAttempts.add(addEvent.getTezEvent());
+  @Override
+  public void registerTezEvent(TezEvent tezEvent) {
+    this.writeLock.lock();
+    try {
+      this.tezEventsForTaskAttempts.add(tezEvent);
+    } finally {
+      this.writeLock.unlock();
     }
   }
 

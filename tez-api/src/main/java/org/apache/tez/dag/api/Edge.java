@@ -18,31 +18,68 @@
 package org.apache.tez.dag.api;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 
+/**
+ * Edge defines the connection between a producer and consumer vertex in the DAG.
+ * @link {@link EdgeProperty} defines the relationship between them. The producer
+ * vertex provides input to the edge and the consumer vertex reads output from the 
+ * edge.
+ * 
+ */
+@Public
 public class Edge {
 
   private final Vertex inputVertex;
   private final Vertex outputVertex;
   private final EdgeProperty edgeProperty;
 
-  // InputVertex(EdgeInput) ----- Edge ----- OutputVertex(EdgeOutput)]
-  public Edge(Vertex inputVertex, 
-               Vertex outputVertex, 
+  private Edge(Vertex inputVertex,
+               Vertex outputVertex,
                EdgeProperty edgeProperty) {
     this.inputVertex = inputVertex;
     this.outputVertex = outputVertex;
     this.edgeProperty = edgeProperty;
   }
-  
-  // RENAME to source and destination
+
+
+
+  /**
+   * Creates an edge between the specified vertices.
+   *
+   * InputVertex(EdgeInput) ----- Edge ----- OutputVertex(EdgeOutput)]
+   *
+   * @param inputVertex the vertex which generates data to the edge.
+   * @param outputVertex the vertex which consumes data from the edge
+   * @param edgeProperty {@link org.apache.tez.dag.api.EdgeProperty} associated with this edge
+   * @return the {@link org.apache.tez.dag.api.Edge}
+   */
+  public static Edge create(Vertex inputVertex,
+                            Vertex outputVertex,
+                            EdgeProperty edgeProperty) {
+    return new Edge(inputVertex, outputVertex, edgeProperty);
+  }
+
+  /**
+   * The @link {@link Vertex} that provides input to the edge
+   * @return  {@link Vertex}
+   */
   public Vertex getInputVertex() {
     return inputVertex;
   }
 
+  /**
+   * The @link {@link Vertex} that reads output from the edge
+   * @return {@link Vertex} 
+   */
   public Vertex getOutputVertex() {
     return outputVertex;
   }
 
+  /**
+   * The @link {@link EdgeProperty} for this edge
+   * @return {@link EdgeProperty}
+   */
   public EdgeProperty getEdgeProperty() {
     return edgeProperty;
   }

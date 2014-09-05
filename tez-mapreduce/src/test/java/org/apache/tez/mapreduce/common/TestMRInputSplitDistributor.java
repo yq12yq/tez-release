@@ -18,6 +18,9 @@
 
 package org.apache.tez.mapreduce.common;
 
+import org.apache.tez.common.TezUtils;
+import org.apache.tez.dag.api.UserPayload;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -33,16 +36,16 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.tez.mapreduce.hadoop.MRHelpers;
+import org.apache.tez.mapreduce.hadoop.MRInputHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.mapreduce.lib.MRInputUtils;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRInputUserPayloadProto;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitProto;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitsProto;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezRootInputInitializerContext;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
-import org.apache.tez.runtime.api.events.RootInputUpdatePayloadEvent;
+import org.apache.tez.runtime.api.InputInitializerContext;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
+import org.apache.tez.runtime.api.events.InputUpdatePayloadEvent;
 import org.junit.Test;
 
 import com.google.protobuf.ByteString;
@@ -54,31 +57,32 @@ public class TestMRInputSplitDistributor {
 
     Configuration conf = new Configuration(false);
     conf.setBoolean(MRJobConfig.MR_TEZ_INPUT_INITIALIZER_SERIALIZE_EVENT_PAYLOAD, true);
-    ByteString confByteString = MRHelpers.createByteStringFromConf(conf);
+    ByteString confByteString = TezUtils.createByteStringFromConf(conf);
     InputSplit split1 = new InputSplitForTest(1);
     InputSplit split2 = new InputSplitForTest(2);
-    MRSplitProto proto1 = MRHelpers.createSplitProto(split1);
-    MRSplitProto proto2 = MRHelpers.createSplitProto(split2);
+    MRSplitProto proto1 = MRInputHelpers.createSplitProto(split1);
+    MRSplitProto proto2 = MRInputHelpers.createSplitProto(split2);
     MRSplitsProto.Builder splitsProtoBuilder = MRSplitsProto.newBuilder();
     splitsProtoBuilder.addSplits(proto1);
     splitsProtoBuilder.addSplits(proto2);
     MRInputUserPayloadProto.Builder payloadProto = MRInputUserPayloadProto.newBuilder();
     payloadProto.setSplits(splitsProtoBuilder.build());
     payloadProto.setConfigurationBytes(confByteString);
-    byte[] userPayload = payloadProto.build().toByteArray();
+    UserPayload userPayload =
+        UserPayload.create(payloadProto.build().toByteString().asReadOnlyByteBuffer());
 
-    TezRootInputInitializerContext context = new TezRootInputInitializerContextForTest(userPayload);
-    MRInputSplitDistributor splitDist = new MRInputSplitDistributor();
+    InputInitializerContext context = new TezRootInputInitializerContextForTest(userPayload);
+    MRInputSplitDistributor splitDist = new MRInputSplitDistributor(context);
 
-    List<Event> events = splitDist.initialize(context);
+    List<Event> events = splitDist.initialize();
 
     assertEquals(3, events.size());
-    assertTrue(events.get(0) instanceof RootInputUpdatePayloadEvent);
-    assertTrue(events.get(1) instanceof RootInputDataInformationEvent);
-    assertTrue(events.get(2) instanceof RootInputDataInformationEvent);
+    assertTrue(events.get(0) instanceof InputUpdatePayloadEvent);
+    assertTrue(events.get(1) instanceof InputDataInformationEvent);
+    assertTrue(events.get(2) instanceof InputDataInformationEvent);
 
-    RootInputDataInformationEvent diEvent1 = (RootInputDataInformationEvent) (events.get(1));
-    RootInputDataInformationEvent diEvent2 = (RootInputDataInformationEvent) (events.get(2));
+    InputDataInformationEvent diEvent1 = (InputDataInformationEvent) (events.get(1));
+    InputDataInformationEvent diEvent2 = (InputDataInformationEvent) (events.get(2));
 
     assertNull(diEvent1.getDeserializedUserPayload());
     assertNull(diEvent2.getDeserializedUserPayload());
@@ -86,12 +90,12 @@ public class TestMRInputSplitDistributor {
     assertNotNull(diEvent1.getUserPayload());
     assertNotNull(diEvent2.getUserPayload());
 
-    MRSplitProto event1Proto = MRSplitProto.parseFrom(diEvent1.getUserPayload());
+    MRSplitProto event1Proto = MRSplitProto.parseFrom(ByteString.copyFrom(diEvent1.getUserPayload()));
     InputSplit is1 = MRInputUtils.getOldSplitDetailsFromEvent(event1Proto, new Configuration());
     assertTrue(is1 instanceof InputSplitForTest);
     assertEquals(1, ((InputSplitForTest) is1).identifier);
 
-    MRSplitProto event2Proto = MRSplitProto.parseFrom(diEvent2.getUserPayload());
+    MRSplitProto event2Proto = MRSplitProto.parseFrom(ByteString.copyFrom(diEvent2.getUserPayload()));
     InputSplit is2 = MRInputUtils.getOldSplitDetailsFromEvent(event2Proto, new Configuration());
     assertTrue(is2 instanceof InputSplitForTest);
     assertEquals(2, ((InputSplitForTest) is2).identifier);
@@ -102,31 +106,32 @@ public class TestMRInputSplitDistributor {
 
     Configuration conf = new Configuration(false);
     conf.setBoolean(MRJobConfig.MR_TEZ_INPUT_INITIALIZER_SERIALIZE_EVENT_PAYLOAD, false);
-    ByteString confByteString = MRHelpers.createByteStringFromConf(conf);
+    ByteString confByteString = TezUtils.createByteStringFromConf(conf);
     InputSplit split1 = new InputSplitForTest(1);
     InputSplit split2 = new InputSplitForTest(2);
-    MRSplitProto proto1 = MRHelpers.createSplitProto(split1);
-    MRSplitProto proto2 = MRHelpers.createSplitProto(split2);
+    MRSplitProto proto1 = MRInputHelpers.createSplitProto(split1);
+    MRSplitProto proto2 = MRInputHelpers.createSplitProto(split2);
     MRSplitsProto.Builder splitsProtoBuilder = MRSplitsProto.newBuilder();
     splitsProtoBuilder.addSplits(proto1);
     splitsProtoBuilder.addSplits(proto2);
     MRInputUserPayloadProto.Builder payloadProto = MRInputUserPayloadProto.newBuilder();
     payloadProto.setSplits(splitsProtoBuilder.build());
     payloadProto.setConfigurationBytes(confByteString);
-    byte[] userPayload = payloadProto.build().toByteArray();
+    UserPayload userPayload =
+        UserPayload.create(payloadProto.build().toByteString().asReadOnlyByteBuffer());
 
-    TezRootInputInitializerContext context = new TezRootInputInitializerContextForTest(userPayload);
-    MRInputSplitDistributor splitDist = new MRInputSplitDistributor();
+    InputInitializerContext context = new TezRootInputInitializerContextForTest(userPayload);
+    MRInputSplitDistributor splitDist = new MRInputSplitDistributor(context);
 
-    List<Event> events = splitDist.initialize(context);
+    List<Event> events = splitDist.initialize();
 
     assertEquals(3, events.size());
-    assertTrue(events.get(0) instanceof RootInputUpdatePayloadEvent);
-    assertTrue(events.get(1) instanceof RootInputDataInformationEvent);
-    assertTrue(events.get(2) instanceof RootInputDataInformationEvent);
+    assertTrue(events.get(0) instanceof InputUpdatePayloadEvent);
+    assertTrue(events.get(1) instanceof InputDataInformationEvent);
+    assertTrue(events.get(2) instanceof InputDataInformationEvent);
 
-    RootInputDataInformationEvent diEvent1 = (RootInputDataInformationEvent) (events.get(1));
-    RootInputDataInformationEvent diEvent2 = (RootInputDataInformationEvent) (events.get(2));
+    InputDataInformationEvent diEvent1 = (InputDataInformationEvent) (events.get(1));
+    InputDataInformationEvent diEvent2 = (InputDataInformationEvent) (events.get(2));
 
     assertNull(diEvent1.getUserPayload());
     assertNull(diEvent2.getUserPayload());
@@ -142,14 +147,14 @@ public class TestMRInputSplitDistributor {
   }
 
   private static class TezRootInputInitializerContextForTest implements
-      TezRootInputInitializerContext {
+      InputInitializerContext {
 
     private final ApplicationId appId;
-    private final byte[] payload;
+    private final UserPayload payload;
 
-    TezRootInputInitializerContextForTest(byte[] payload) throws IOException {
+    TezRootInputInitializerContextForTest(UserPayload payload) throws IOException {
       appId = ApplicationId.newInstance(1000, 200);
-      this.payload = payload;
+      this.payload = payload == null ? UserPayload.create(null) : payload;
     }
 
     @Override
@@ -168,7 +173,7 @@ public class TestMRInputSplitDistributor {
     }
 
     @Override
-    public byte[] getUserPayload() {
+    public UserPayload getInputUserPayload() {
       return payload;
     }
 
@@ -195,6 +200,16 @@ public class TestMRInputSplitDistributor {
     @Override
     public int getDAGAttemptNumber() {
       return 1;
+    }
+
+    @Override
+    public int getVertexNumTasks(String vertexName) {
+      throw new UnsupportedOperationException("getVertexNumTasks not implemented in this mock");
+    }
+
+    @Override
+    public UserPayload getUserPayload() {
+      throw new UnsupportedOperationException("getUserPayload not implemented in this mock");
     }
 
   }

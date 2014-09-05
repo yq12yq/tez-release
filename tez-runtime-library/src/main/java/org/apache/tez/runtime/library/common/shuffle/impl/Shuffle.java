@@ -40,14 +40,15 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.tez.common.TezJobConfig;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
-import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.TezConstants;
+import org.apache.tez.dag.api.TezException;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezInputContext;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.TezRuntimeUtils;
 import org.apache.tez.runtime.library.common.combine.Combiner;
@@ -78,7 +79,7 @@ public class Shuffle implements ExceptionReporter {
   private static final int PROGRESS_FREQUENCY = 2000;
   
   private final Configuration conf;
-  private final TezInputContext inputContext;
+  private final InputContext inputContext;
   
   private final ShuffleClientMetrics metrics;
 
@@ -91,6 +92,7 @@ public class Shuffle implements ExceptionReporter {
   private final boolean ifileReadAhead;
   private final int ifileReadAheadLength;
   private final int numFetchers;
+  private final boolean localDiskFetchEnabled;
   
   private Throwable throwable = null;
   private String throwingThreadName = null;
@@ -109,7 +111,7 @@ public class Shuffle implements ExceptionReporter {
   private AtomicBoolean schedulerClosed = new AtomicBoolean(false);
   private AtomicBoolean mergerClosed = new AtomicBoolean(false);
 
-  public Shuffle(TezInputContext inputContext, Configuration conf, int numInputs,
+  public Shuffle(InputContext inputContext, Configuration conf, int numInputs,
       long initialMemoryAvailable) throws IOException {
     this.inputContext = inputContext;
     this.conf = conf;
@@ -119,11 +121,11 @@ public class Shuffle implements ExceptionReporter {
         inputContext.getTaskVertexName(), inputContext.getTaskIndex(),
         this.conf, UserGroupInformation.getCurrentUser().getShortUserName());
     
-    this.srcNameTrimmed = TezUtils.cleanVertexName(inputContext.getSourceVertexName());
+    this.srcNameTrimmed = TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName());
     
     this.jobTokenSecret = ShuffleUtils
         .getJobTokenSecretFromTokenBytes(inputContext
-            .getServiceConsumerMetaData(TezConfiguration.TEZ_SHUFFLE_HANDLER_SERVICE_ID));
+            .getServiceConsumerMetaData(TezConstants.TEZ_SHUFFLE_HANDLER_SERVICE_ID));
     
     if (ConfigUtils.isIntermediateInputCompressed(conf)) {
       Class<? extends CompressionCodec> codecClass =
@@ -133,12 +135,12 @@ public class Shuffle implements ExceptionReporter {
       codec = null;
     }
     this.ifileReadAhead = conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD,
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD,
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
     if (this.ifileReadAhead) {
       this.ifileReadAheadLength = conf.getInt(
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
     } else {
       this.ifileReadAheadLength = 0;
     }
@@ -166,6 +168,8 @@ public class Shuffle implements ExceptionReporter {
         inputContext.getCounters().findCounter(TaskCounter.MERGED_MAP_OUTPUTS);
     TezCounter bytesShuffedToDisk = inputContext.getCounters().findCounter(
         TaskCounter.SHUFFLE_BYTES_TO_DISK);
+    TezCounter bytesShuffedToDiskDirect = inputContext.getCounters().findCounter(
+        TaskCounter.SHUFFLE_BYTES_DISK_DIRECT);
     TezCounter bytesShuffedToMem = inputContext.getCounters().findCounter(
         TaskCounter.SHUFFLE_BYTES_TO_MEM);
     
@@ -173,8 +177,8 @@ public class Shuffle implements ExceptionReporter {
         + (codec == null ? "None" : codec.getClass().getName()) + 
         "ifileReadAhead: " + ifileReadAhead);
 
-    boolean sslShuffle = conf.getBoolean(TezJobConfig.TEZ_RUNTIME_SHUFFLE_ENABLE_SSL,
-      TezJobConfig.TEZ_RUNTIME_SHUFFLE_ENABLE_SSL_DEFAULT);
+    boolean sslShuffle = conf.getBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_ENABLE_SSL,
+      TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_ENABLE_SSL_DEFAULT);
     scheduler = new ShuffleScheduler(
           this.inputContext,
           this.conf,
@@ -185,11 +189,9 @@ public class Shuffle implements ExceptionReporter {
           reduceDataSizeDecompressed,
           failedShuffleCounter,
           bytesShuffedToDisk,
+          bytesShuffedToDiskDirect,
           bytesShuffedToMem);
-    eventHandler= new ShuffleInputEventHandler(
-      inputContext,
-      scheduler,
-      sslShuffle);
+
     merger = new MergeManager(
           this.conf,
           localFS,
@@ -204,23 +206,30 @@ public class Shuffle implements ExceptionReporter {
           codec,
           ifileReadAhead,
           ifileReadAheadLength);
+
+    eventHandler= new ShuffleInputEventHandler(
+        inputContext,
+        scheduler,
+        sslShuffle);
     
     ExecutorService rawExecutor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
         .setDaemon(true).setNameFormat("ShuffleAndMergeRunner [" + srcNameTrimmed + "]").build());
 
     int configuredNumFetchers = 
         conf.getInt(
-            TezJobConfig.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES, 
-            TezJobConfig.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES_DEFAULT);
+            TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES, 
+            TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES_DEFAULT);
     numFetchers = Math.min(configuredNumFetchers, numInputs);
     LOG.info("Num fetchers being started: " + numFetchers);
     fetchers = Lists.newArrayListWithCapacity(numFetchers);
-    
+    localDiskFetchEnabled = conf.getBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_OPTIMIZE_LOCAL_FETCH,
+        TezRuntimeConfiguration.TEZ_RUNTIME_OPTIMIZE_LOCAL_FETCH_DEFAULT);
+
     executor = MoreExecutors.listeningDecorator(rawExecutor);
     runShuffleCallable = new RunShuffleCallable();
   }
 
-  public void handleEvents(List<Event> events) {
+  public void handleEvents(List<Event> events) throws IOException {
     if (!isShutDown.get()) {
       eventHandler.handleEvents(events);
     } else {
@@ -237,7 +246,7 @@ public class Shuffle implements ExceptionReporter {
    * @throws InputAlreadyClosedException 
    */
   // ZZZ Deal with these methods.
-  public boolean isInputReady() throws IOException, InterruptedException {
+  public boolean isInputReady() throws IOException, InterruptedException, TezException {
     if (isShutDown.get()) {
       throw new InputAlreadyClosedException();
     }
@@ -269,7 +278,8 @@ public class Shuffle implements ExceptionReporter {
    * @throws InterruptedException
    */
   // ZZZ Deal with these methods.
-  public TezRawKeyValueIterator waitForInput() throws IOException, InterruptedException {
+  public TezRawKeyValueIterator waitForInput() throws IOException, InterruptedException,
+      TezException {
     Preconditions.checkState(runShuffleFuture != null,
         "waitForInput can only be called after run");
     TezRawKeyValueIterator kvIter = null;
@@ -312,7 +322,7 @@ public class Shuffle implements ExceptionReporter {
         for (int i = 0; i < numFetchers; ++i) {
           Fetcher fetcher = new Fetcher(httpConnectionParams, scheduler, merger,
             metrics, Shuffle.this, jobTokenSecret, ifileReadAhead, ifileReadAheadLength,
-            codec, inputContext);
+            codec, inputContext, conf, localDiskFetchEnabled);
           fetchers.add(fetcher);
           fetcher.start();
         }

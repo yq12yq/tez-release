@@ -18,6 +18,11 @@
 
 package org.apache.tez.mapreduce;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,25 +72,34 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.client.TezAppMasterStatus;
-import org.apache.tez.common.RuntimeUtils;
+import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.counters.FileSystemCounter;
+import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.dag.api.DAG;
+import org.apache.tez.dag.api.DataSourceDescriptor;
 import org.apache.tez.dag.api.Edge;
 import org.apache.tez.dag.api.EdgeProperty;
 import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
 import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
 import org.apache.tez.dag.api.EdgeProperty.SchedulingType;
 import org.apache.tez.dag.api.InputDescriptor;
+import org.apache.tez.dag.api.InputInitializerDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
+import org.apache.tez.dag.api.client.StatusGetOpts;
 import org.apache.tez.dag.api.client.DAGStatus.State;
+import org.apache.tez.dag.history.logging.impl.SimpleHistoryLoggingService;
 import org.apache.tez.mapreduce.common.MRInputAMSplitGenerator;
 import org.apache.tez.mapreduce.examples.BroadcastAndOneToOneExample;
+import org.apache.tez.mapreduce.examples.ExampleDriver;
 import org.apache.tez.mapreduce.examples.MRRSleepJob;
 import org.apache.tez.mapreduce.examples.MRRSleepJob.ISleepReducer;
 import org.apache.tez.mapreduce.examples.MRRSleepJob.MRRSleepJobPartitioner;
@@ -93,18 +107,21 @@ import org.apache.tez.mapreduce.examples.MRRSleepJob.SleepInputFormat;
 import org.apache.tez.mapreduce.examples.MRRSleepJob.SleepMapper;
 import org.apache.tez.mapreduce.examples.MRRSleepJob.SleepReducer;
 import org.apache.tez.mapreduce.examples.UnionExample;
-import org.apache.tez.mapreduce.hadoop.InputSplitInfo;
 import org.apache.tez.mapreduce.hadoop.MRHelpers;
+import org.apache.tez.mapreduce.hadoop.MRInputHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
-import org.apache.tez.mapreduce.hadoop.MultiStageMRConfToTezTranslator;
+import org.apache.tez.mapreduce.input.MRInputLegacy;
+import org.apache.tez.mapreduce.output.MROutputLegacy;
 import org.apache.tez.mapreduce.processor.map.MapProcessor;
 import org.apache.tez.mapreduce.processor.reduce.ReduceProcessor;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRInputUserPayloadProto;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezRootInputInitializer;
-import org.apache.tez.runtime.api.TezRootInputInitializerContext;
-import org.apache.tez.runtime.library.input.ShuffledMergedInputLegacy;
-import org.apache.tez.runtime.library.output.OnFileSortedOutput;
+import org.apache.tez.runtime.api.InputInitializer;
+import org.apache.tez.runtime.api.InputInitializerContext;
+import org.apache.tez.runtime.library.input.OrderedGroupedInputLegacy;
+import org.apache.tez.runtime.library.output.OrderedPartitionedKVOutput;
+import org.apache.tez.runtime.library.processor.SleepProcessor;
+import org.apache.tez.runtime.library.processor.SleepProcessor.SleepProcessorConfig;
 import org.apache.tez.test.MiniTezCluster;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -112,6 +129,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 
 public class TestMRRJobsDAGApi {
 
@@ -161,6 +179,190 @@ public class TestMRRJobsDAGApi {
       dfsCluster = null;
     }
     // TODO Add cleanup code.
+  }
+  
+  @Test(timeout = 60000)
+  public void testSleepJob() throws TezException, IOException, InterruptedException {
+    SleepProcessorConfig spConf = new SleepProcessorConfig(1);
+
+    DAG dag = DAG.create("TezSleepProcessor");
+    Vertex vertex = Vertex.create("SleepVertex", ProcessorDescriptor.create(
+            SleepProcessor.class.getName()).setUserPayload(spConf.toUserPayload()), 1,
+        Resource.newInstance(1024, 1));
+    dag.addVertex(vertex);
+
+    TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
+    Path remoteStagingDir = remoteFs.makeQualified(new Path("/tmp", String.valueOf(random
+        .nextInt(100000))));
+    remoteFs.mkdirs(remoteStagingDir);
+    tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR, remoteStagingDir.toString());
+
+    TezClient tezSession = TezClient.create("TezSleepProcessor", tezConf, false);
+    tezSession.start();
+
+    DAGClient dagClient = tezSession.submitDAG(dag);
+
+    DAGStatus dagStatus = dagClient.getDAGStatus(null);
+    while (!dagStatus.isCompleted()) {
+      LOG.info("Waiting for job to complete. Sleeping for 500ms." + " Current state: "
+          + dagStatus.getState());
+      Thread.sleep(500l);
+      dagStatus = dagClient.getDAGStatus(null);
+    }
+    dagStatus = dagClient.getDAGStatus(Sets.newHashSet(StatusGetOpts.GET_COUNTERS));
+
+    assertEquals(DAGStatus.State.SUCCEEDED, dagStatus.getState());
+    assertNotNull(dagStatus.getDAGCounters());
+    assertNotNull(dagStatus.getDAGCounters().getGroup(FileSystemCounter.class.getName()));
+    assertNotNull(dagStatus.getDAGCounters().findCounter(TaskCounter.GC_TIME_MILLIS));
+    ExampleDriver.printDAGStatus(dagClient, new String[] { "SleepVertex" }, true, true);
+    tezSession.stop();
+  }
+
+  @Test(timeout = 100000)
+  public void testMultipleDAGsWithDuplicateName() throws TezException, IOException,
+      InterruptedException {
+    TezClient tezSession = null;
+    try {
+      TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
+      Path remoteStagingDir = remoteFs.makeQualified(new Path("/tmp", String.valueOf(random
+          .nextInt(100000))));
+      remoteFs.mkdirs(remoteStagingDir);
+      tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR, remoteStagingDir.toString());
+      tezSession = TezClient.create("OrderedWordCountSession", tezConf, true);
+      tezSession.start();
+
+      SleepProcessorConfig spConf = new SleepProcessorConfig(1);
+      for (int dagIndex = 1; dagIndex <= 2; dagIndex++) {
+        DAG dag = DAG.create("TezSleepProcessor");
+        Vertex vertex = Vertex.create("SleepVertex", ProcessorDescriptor.create(
+                SleepProcessor.class.getName()).setUserPayload(spConf.toUserPayload()), 1,
+            Resource.newInstance(1024, 1));
+        dag.addVertex(vertex);
+
+        DAGClient dagClient = null;
+        try {
+          dagClient = tezSession.submitDAG(dag);
+          if (dagIndex > 1) {
+            fail("Should fail due to duplicate dag name for dagIndex: " + dagIndex);
+          }
+        } catch (TezException tex) {
+          if (dagIndex > 1) {
+            assertTrue(tex.getMessage().contains("Duplicate dag name "));
+            continue;
+          }
+          fail("DuplicateDAGName exception thrown for 1st DAG submission");
+        }
+        DAGStatus dagStatus = dagClient.getDAGStatus(null);
+        while (!dagStatus.isCompleted()) {
+          LOG.debug("Waiting for job to complete. Sleeping for 500ms." + " Current state: "
+              + dagStatus.getState());
+          Thread.sleep(500l);
+          dagStatus = dagClient.getDAGStatus(null);
+        }
+      }
+    } finally {
+      if (tezSession != null) {
+        tezSession.stop();
+      }
+    }
+  }
+  
+  
+  @Test
+  public void testNonDefaultFSStagingDir() throws Exception {
+    SleepProcessorConfig spConf = new SleepProcessorConfig(1);
+
+    DAG dag = DAG.create("TezSleepProcessor");
+    Vertex vertex = Vertex.create("SleepVertex", ProcessorDescriptor.create(
+            SleepProcessor.class.getName()).setUserPayload(spConf.toUserPayload()), 1,
+        Resource.newInstance(1024, 1));
+    dag.addVertex(vertex);
+
+    TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
+    Path stagingDir = new Path(TEST_ROOT_DIR, "testNonDefaultFSStagingDir"
+        + String.valueOf(random.nextInt(100000)));
+    FileSystem localFs = FileSystem.getLocal(tezConf);
+    stagingDir = localFs.makeQualified(stagingDir);
+    localFs.mkdirs(stagingDir);
+    tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR, stagingDir.toString());
+
+    TezClient tezSession = TezClient.create("TezSleepProcessor", tezConf, false);
+    tezSession.start();
+
+    DAGClient dagClient = tezSession.submitDAG(dag);
+
+    DAGStatus dagStatus = dagClient.getDAGStatus(null);
+    while (!dagStatus.isCompleted()) {
+      LOG.info("Waiting for job to complete. Sleeping for 500ms." + " Current state: "
+          + dagStatus.getState());
+      Thread.sleep(500l);
+      dagStatus = dagClient.getDAGStatus(null);
+    }
+    dagStatus = dagClient.getDAGStatus(Sets.newHashSet(StatusGetOpts.GET_COUNTERS));
+
+    assertEquals(DAGStatus.State.SUCCEEDED, dagStatus.getState());
+    assertNotNull(dagStatus.getDAGCounters());
+    assertNotNull(dagStatus.getDAGCounters().getGroup(FileSystemCounter.class.getName()));
+    assertNotNull(dagStatus.getDAGCounters().findCounter(TaskCounter.GC_TIME_MILLIS));
+    ExampleDriver.printDAGStatus(dagClient, new String[] { "SleepVertex" }, true, true);
+    tezSession.stop();
+  }
+
+  // Submits a simple 5 stage sleep job using tez session. Then kills it.
+  @Test(timeout = 60000)
+  public void testHistoryLogging() throws IOException,
+      InterruptedException, TezException, ClassNotFoundException, YarnException {
+    SleepProcessorConfig spConf = new SleepProcessorConfig(1);
+
+    DAG dag = DAG.create("TezSleepProcessorHistoryLogging");
+    Vertex vertex = Vertex.create("SleepVertex", ProcessorDescriptor.create(
+            SleepProcessor.class.getName()).setUserPayload(spConf.toUserPayload()), 2,
+        Resource.newInstance(1024, 1));
+    dag.addVertex(vertex);
+
+    TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
+    Path remoteStagingDir = remoteFs.makeQualified(new Path("/tmp", String.valueOf(random
+        .nextInt(100000))));
+    remoteFs.mkdirs(remoteStagingDir);
+    tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR, remoteStagingDir.toString());
+
+    FileSystem localFs = FileSystem.getLocal(tezConf);
+    Path historyLogDir = new Path(TEST_ROOT_DIR, "testHistoryLogging");
+    localFs.mkdirs(historyLogDir);
+
+    tezConf.set(TezConfiguration.TEZ_SIMPLE_HISTORY_LOGGING_DIR,
+        localFs.makeQualified(historyLogDir).toString());
+
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, false);
+    TezClient tezSession = TezClient.create("TezSleepProcessorHistoryLogging", tezConf);
+    tezSession.start();
+
+    DAGClient dagClient = tezSession.submitDAG(dag);
+
+    DAGStatus dagStatus = dagClient.getDAGStatus(null);
+    while (!dagStatus.isCompleted()) {
+      LOG.info("Waiting for job to complete. Sleeping for 500ms." + " Current state: "
+          + dagStatus.getState());
+      Thread.sleep(500l);
+      dagStatus = dagClient.getDAGStatus(null);
+    }
+    assertEquals(DAGStatus.State.SUCCEEDED, dagStatus.getState());
+
+    FileStatus historyLogFileStatus = null;
+    for (FileStatus fileStatus : localFs.listStatus(historyLogDir)) {
+      if (fileStatus.isDirectory()) {
+        continue;
+      }
+      Path p = fileStatus.getPath();
+      if (p.getName().startsWith(SimpleHistoryLoggingService.LOG_FILE_NAME_PREFIX)) {
+        historyLogFileStatus = fileStatus;
+        break;
+      }
+    }
+    Assert.assertNotNull(historyLogFileStatus);
+    Assert.assertTrue(historyLogFileStatus.getLen() > 0);
+    tezSession.stop();
   }
 
   // Submits a simple 5 stage sleep job using the DAG submit API instead of job
@@ -318,7 +520,7 @@ public class TestMRRJobsDAGApi {
     TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
     tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR, remoteStagingDir.toString());
 
-    TezClient tezSession = new TezClient("testrelocalizationsession", tezConf, true);
+    TezClient tezSession = TezClient.create("testrelocalizationsession", tezConf, true);
     tezSession.start();
     Assert.assertEquals(TezAppMasterStatus.INITIALIZING, tezSession.getAppMasterStatus());
     return tezSession;
@@ -336,7 +538,7 @@ public class TestMRRJobsDAGApi {
     tezConf.set(TezConfiguration.TEZ_AM_STAGING_DIR,
         remoteStagingDir.toString());
 
-    TezClient tezSession = new TezClient("testsession", tezConf, true);
+    TezClient tezSession = TezClient.create("testsession", tezConf, true);
     tezSession.start();
     Assert.assertEquals(TezAppMasterStatus.INITIALIZING,
         tezSession.getAppMasterStatus());
@@ -396,7 +598,7 @@ public class TestMRRJobsDAGApi {
       boolean closeSessionBeforeSubmit,
       TezClient reUseTezSession,
       boolean genSplitsInAM,
-      Class<? extends TezRootInputInitializer> initializerClass,
+      Class<? extends InputInitializer> initializerClass,
       Map<String, LocalResource> additionalLocalResources) throws IOException,
       InterruptedException, TezException, ClassNotFoundException,
       YarnException {
@@ -431,9 +633,6 @@ public class TestMRRJobsDAGApi {
     stage2Conf.set(MRJobConfig.PARTITIONER_CLASS_ATTR,
         MRRSleepJobPartitioner.class.getName());
 
-    JobConf stage22Conf = new JobConf(stage2Conf);
-    stage22Conf.setInt(MRJobConfig.NUM_REDUCES, 2);
-
     stage3Conf.setLong(MRRSleepJob.REDUCE_SLEEP_TIME, 1);
     stage3Conf.setInt(MRRSleepJob.REDUCE_SLEEP_COUNT, 1);
     stage3Conf.setInt(MRJobConfig.NUM_REDUCES, 1);
@@ -442,86 +641,77 @@ public class TestMRRJobsDAGApi {
         IntWritable.class.getName());
     stage3Conf.set(MRJobConfig.MAP_OUTPUT_VALUE_CLASS,
         IntWritable.class.getName());
-    stage3Conf.set(MRJobConfig.OUTPUT_FORMAT_CLASS_ATTR,
-        NullOutputFormat.class.getName());
 
-    MultiStageMRConfToTezTranslator.translateVertexConfToTez(stage1Conf, null);
-    MultiStageMRConfToTezTranslator.translateVertexConfToTez(stage2Conf,
-        stage1Conf);
-    MultiStageMRConfToTezTranslator.translateVertexConfToTez(stage22Conf,
-        stage1Conf);
-    MultiStageMRConfToTezTranslator.translateVertexConfToTez(stage3Conf,
-        stage2Conf); // this also works stage22 as it sets up keys etc
-
-    MRHelpers.doJobClientMagic(stage1Conf);
-    MRHelpers.doJobClientMagic(stage2Conf);
-    MRHelpers.doJobClientMagic(stage22Conf);
-    MRHelpers.doJobClientMagic(stage3Conf);
+    MRHelpers.translateMRConfToTez(stage1Conf);
+    MRHelpers.translateMRConfToTez(stage2Conf);
+    MRHelpers.translateMRConfToTez(stage3Conf);
+    MRHelpers.configureMRApiUsage(stage1Conf);
+    MRHelpers.configureMRApiUsage(stage2Conf);
+    MRHelpers.configureMRApiUsage(stage3Conf);
 
     Path remoteStagingDir = remoteFs.makeQualified(new Path("/tmp", String
         .valueOf(new Random().nextInt(100000))));
     TezClientUtils.ensureStagingDirExists(conf, remoteStagingDir);
-    InputSplitInfo inputSplitInfo = null;
-    if (!genSplitsInAM) {
-      inputSplitInfo = MRHelpers.generateInputSplits(stage1Conf,
-        remoteStagingDir);
-    }
 
-    byte[] stage1Payload = MRHelpers.createUserPayloadFromConf(stage1Conf);
-    byte[] stage1InputPayload = MRHelpers.createMRInputPayload(stage1Payload, null);
-    byte[] stage3Payload = MRHelpers.createUserPayloadFromConf(stage3Conf);
+    UserPayload stage1Payload = TezUtils.createUserPayloadFromConf(stage1Conf);
+    UserPayload stage2Payload = TezUtils.createUserPayloadFromConf(stage2Conf);
+    UserPayload stage3Payload = TezUtils.createUserPayloadFromConf(stage3Conf);
     
-    DAG dag = new DAG("testMRRSleepJobDagSubmit-" + random.nextInt(1000));
-    int stage1NumTasks = genSplitsInAM ? -1 : inputSplitInfo.getNumTasks();
-    Class<? extends TezRootInputInitializer> inputInitializerClazz =
-        genSplitsInAM ? (initializerClass == null ? MRInputAMSplitGenerator.class : initializerClass)
-        : null;
+    DAG dag = DAG.create("testMRRSleepJobDagSubmit-" + random.nextInt(1000));
+
+    Class<? extends InputInitializer> inputInitializerClazz =
+        genSplitsInAM ?
+            (initializerClass == null ? MRInputAMSplitGenerator.class : initializerClass)
+            : null;
     LOG.info("Using initializer class: " + initializerClass);
-    Vertex stage1Vertex = new Vertex("map", new ProcessorDescriptor(
-        MapProcessor.class.getName()).setUserPayload(stage1Payload),
-        stage1NumTasks, Resource.newInstance(256, 1));
-    MRHelpers.addMRInput(stage1Vertex, stage1InputPayload, inputInitializerClazz);
-    Vertex stage2Vertex = new Vertex("ireduce", new ProcessorDescriptor(
-        ReduceProcessor.class.getName()).setUserPayload(
-        MRHelpers.createUserPayloadFromConf(stage2Conf)),
-        1, Resource.newInstance(256, 1));
-    Vertex stage3Vertex = new Vertex("reduce", new ProcessorDescriptor(
-        ReduceProcessor.class.getName()).setUserPayload(stage3Payload),
-        1, Resource.newInstance(256, 1));
-    MRHelpers.addMROutputLegacy(stage3Vertex, stage3Payload);
 
+
+    DataSourceDescriptor dsd;
     if (!genSplitsInAM) {
-      // TODO Use utility method post TEZ-205.
-      Map<String, LocalResource> stage1LocalResources = new HashMap<String, LocalResource>();
-      stage1LocalResources.put(
-          inputSplitInfo.getSplitsFile().getName(),
-          createLocalResource(remoteFs, inputSplitInfo.getSplitsFile(),
-              LocalResourceType.FILE, LocalResourceVisibility.APPLICATION));
-      stage1LocalResources.put(
-          inputSplitInfo.getSplitsMetaInfoFile().getName(),
-          createLocalResource(remoteFs, inputSplitInfo.getSplitsMetaInfoFile(),
-              LocalResourceType.FILE, LocalResourceVisibility.APPLICATION));
-
-      stage1Vertex.setTaskLocalResources(stage1LocalResources);
-      stage1Vertex.setTaskLocationsHint(inputSplitInfo.getTaskLocationHints());
+      dsd = MRInputHelpers
+          .configureMRInputWithLegacySplitGeneration(stage1Conf, remoteStagingDir, true);
+    } else {
+      if (initializerClass == null) {
+        dsd = MRInputLegacy.createConfigBuilder(stage1Conf, SleepInputFormat.class).build();
+      } else {
+        InputInitializerDescriptor iid =
+            InputInitializerDescriptor.create(inputInitializerClazz.getName());
+        dsd = MRInputLegacy.createConfigBuilder(stage1Conf, SleepInputFormat.class)
+            .setCustomInitializerDescriptor(iid).build();
+      }
     }
-    
+
+    Vertex stage1Vertex = Vertex.create("map", ProcessorDescriptor.create(
+            MapProcessor.class.getName()).setUserPayload(stage1Payload),
+        dsd.getNumberOfShards(), Resource.newInstance(256, 1));
+    stage1Vertex.addDataSource("MRInput", dsd);
+    Vertex stage2Vertex = Vertex.create("ireduce", ProcessorDescriptor.create(
+            ReduceProcessor.class.getName()).setUserPayload(stage2Payload),
+        1, Resource.newInstance(256, 1));
+    Vertex stage3Vertex = Vertex.create("reduce", ProcessorDescriptor.create(
+            ReduceProcessor.class.getName()).setUserPayload(stage3Payload),
+        1, Resource.newInstance(256, 1));
+    stage3Vertex.addDataSink("MROutput",
+        MROutputLegacy.createConfigBuilder(stage3Conf, NullOutputFormat.class).build());
+
     // TODO env, resources
 
     dag.addVertex(stage1Vertex);
     dag.addVertex(stage2Vertex);
     dag.addVertex(stage3Vertex);
 
-    Edge edge1 = new Edge(stage1Vertex, stage2Vertex, new EdgeProperty(
+    Edge edge1 = Edge.create(stage1Vertex, stage2Vertex, EdgeProperty.create(
         DataMovementType.SCATTER_GATHER, DataSourceType.PERSISTED,
-        SchedulingType.SEQUENTIAL, new OutputDescriptor(
-        OnFileSortedOutput.class.getName()), new InputDescriptor(
-                ShuffledMergedInputLegacy.class.getName())));
-    Edge edge2 = new Edge(stage2Vertex, stage3Vertex, new EdgeProperty(
+        SchedulingType.SEQUENTIAL, OutputDescriptor.create(
+            OrderedPartitionedKVOutput.class.getName()).setUserPayload(stage2Payload),
+        InputDescriptor.create(
+            OrderedGroupedInputLegacy.class.getName()).setUserPayload(stage2Payload)));
+    Edge edge2 = Edge.create(stage2Vertex, stage3Vertex, EdgeProperty.create(
         DataMovementType.SCATTER_GATHER, DataSourceType.PERSISTED,
-        SchedulingType.SEQUENTIAL, new OutputDescriptor(
-        OnFileSortedOutput.class.getName()), new InputDescriptor(
-                ShuffledMergedInputLegacy.class.getName())));
+        SchedulingType.SEQUENTIAL, OutputDescriptor.create(
+            OrderedPartitionedKVOutput.class.getName()).setUserPayload(stage3Payload),
+        InputDescriptor.create(
+            OrderedGroupedInputLegacy.class.getName()).setUserPayload(stage3Payload)));
 
     dag.addEdge(edge1);
     dag.addEdge(edge2);
@@ -544,7 +734,7 @@ public class TestMRRJobsDAGApi {
       } else {
         tempTezconf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, true);
       }
-      tezSession = new TezClient("testsession", tempTezconf);
+      tezSession = TezClient.create("testsession", tempTezconf);
       tezSession.start();
     } else {
       tezSession = reUseTezSession;
@@ -595,7 +785,7 @@ public class TestMRRJobsDAGApi {
       LOG.info("Submitting dag to tez session with appId=" + tezSession.getAppMasterApplicationId()
           + " and Dag Name=" + dag.getName());
       if (additionalLocalResources != null) {
-        tezSession.addAppMasterLocalResources(additionalLocalResources);
+        tezSession.addAppMasterLocalFiles(additionalLocalResources);
       }
       dagClient = tezSession.submitDAG(dag);
       Assert.assertEquals(TezAppMasterStatus.RUNNING,
@@ -673,14 +863,21 @@ public class TestMRRJobsDAGApi {
   // the path it writes to is not dynamic.
   private static String RELOCALIZATION_TEST_CLASS_NAME = "AMClassloadTestDummyClass";
   public static class MRInputAMSplitGeneratorRelocalizationTest extends MRInputAMSplitGenerator {
-    public List<Event> initialize(TezRootInputInitializerContext rootInputContext)  throws Exception {
-      MRInputUserPayloadProto userPayloadProto = MRHelpers
-          .parseMRInputPayload(rootInputContext.getUserPayload());
-      Configuration conf = MRHelpers.createConfFromByteString(userPayloadProto
+
+    public MRInputAMSplitGeneratorRelocalizationTest(
+        InputInitializerContext initializerContext) {
+      super(initializerContext);
+    }
+
+    @Override
+    public List<Event> initialize()  throws Exception {
+      MRInputUserPayloadProto userPayloadProto = MRInputHelpers
+          .parseMRInputPayload(getContext().getInputUserPayload());
+      Configuration conf = TezUtils.createConfFromByteString(userPayloadProto
           .getConfigurationBytes());
 
       try {
-        RuntimeUtils.getClazz(RELOCALIZATION_TEST_CLASS_NAME);
+        ReflectionUtils.getClazz(RELOCALIZATION_TEST_CLASS_NAME);
         LOG.info("Class found");
         FileSystem fs = FileSystem.get(conf);
         fs.mkdirs(new Path("/tmp/relocalizationfilefound"));
@@ -688,7 +885,7 @@ public class TestMRRJobsDAGApi {
         LOG.info("Class not found");
       }
 
-      return super.initialize(rootInputContext);
+      return super.initialize();
     }
   }
   

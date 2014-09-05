@@ -19,7 +19,17 @@
 package org.apache.tez.common;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -28,10 +38,17 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.apache.tez.dag.api.TezConstants;
 import org.apache.tez.dag.api.TezUncheckedException;
 
+import com.google.protobuf.ByteString;
+
+@Private
 public class TezCommonUtils {
   public static final FsPermission TEZ_AM_DIR_PERMISSION = FsPermission
       .createImmutable((short) 0700); // rwx--------
@@ -138,7 +155,7 @@ public class TezCommonUtils {
    */
   @Private
   public static Path getTezConfStagingPath(Path tezSysStagingPath) {
-    return new Path(tezSysStagingPath, TezConfiguration.TEZ_PB_BINARY_CONF_NAME);
+    return new Path(tezSysStagingPath, TezConstants.TEZ_PB_BINARY_CONF_NAME);
   }
 
   /**
@@ -151,8 +168,8 @@ public class TezCommonUtils {
    * @return path to store the session jars
    */
   @Private
-  public static Path getTezSessionJarStagingPath(Path tezSysStagingPath) {
-    return new Path(tezSysStagingPath, TezConfiguration.TEZ_SESSION_LOCAL_RESOURCES_PB_FILE_NAME);
+  public static Path getTezAMJarStagingPath(Path tezSysStagingPath) {
+    return new Path(tezSysStagingPath, TezConstants.TEZ_AM_LOCAL_RESOURCES_PB_FILE_NAME);
   }
 
   /**
@@ -166,7 +183,7 @@ public class TezCommonUtils {
    */
   @Private
   public static Path getTezBinPlanStagingPath(Path tezSysStagingPath) {
-    return new Path(tezSysStagingPath, TezConfiguration.TEZ_PB_PLAN_BINARY_NAME);
+    return new Path(tezSysStagingPath, TezConstants.TEZ_PB_PLAN_BINARY_NAME);
   }
 
   /**
@@ -180,7 +197,7 @@ public class TezCommonUtils {
    */
   @Private
   public static Path getTezTextPlanStagingPath(Path tezSysStagingPath) {
-    return new Path(tezSysStagingPath, TezConfiguration.TEZ_PB_PLAN_TEXT_NAME);
+    return new Path(tezSysStagingPath, TezConstants.TEZ_PB_PLAN_TEXT_NAME);
   }
 
   /**
@@ -199,7 +216,7 @@ public class TezCommonUtils {
   public static Path getRecoveryPath(Path tezSysStagingPath, Configuration conf)
       throws IOException {
     Path baseReecoveryPath = new Path(tezSysStagingPath,
-        TezConfiguration.DAG_RECOVERY_DATA_DIR_NAME);
+        TezConstants.DAG_RECOVERY_DATA_DIR_NAME);
     FileSystem recoveryFS = baseReecoveryPath.getFileSystem(conf);
     return recoveryFS.makeQualified(baseReecoveryPath);
   }
@@ -211,8 +228,6 @@ public class TezCommonUtils {
    * 
    * @param recoveryPath
    *          TEZ recovery directory used for Tez internals
-   * @param conf
-   *          Tez configuration
    * @param attemptID
    *          Application Attempt Id
    * @return App attempt specific recovery path
@@ -235,7 +250,7 @@ public class TezCommonUtils {
    */
   @Private
   public static Path getDAGRecoveryPath(Path attemptRecoverPath, String dagID) {
-    return new Path(attemptRecoverPath, dagID + TezConfiguration.DAG_RECOVERY_RECOVER_FILE_SUFFIX);
+    return new Path(attemptRecoverPath, dagID + TezConstants.DAG_RECOVERY_RECOVER_FILE_SUFFIX);
   }
 
   /**
@@ -249,7 +264,7 @@ public class TezCommonUtils {
    */
   @Private
   public static Path getSummaryRecoveryPath(Path attemptRecoverPath) {
-    return new Path(attemptRecoverPath, TezConfiguration.DAG_RECOVERY_SUMMARY_FILE_SUFFIX);
+    return new Path(attemptRecoverPath, TezConstants.DAG_RECOVERY_SUMMARY_FILE_SUFFIX);
   }
 
   /**
@@ -282,5 +297,74 @@ public class TezCommonUtils {
    */
   public static FSDataOutputStream createFileForAM(FileSystem fs, Path filePath) throws IOException {
     return FileSystem.create(fs, filePath, new FsPermission(TEZ_AM_FILE_PERMISSION));
+  }
+  
+  public static void addAdditionalLocalResources(Map<String, LocalResource> additionalLrs,
+      Map<String, LocalResource> originalLRs) {
+    if (additionalLrs != null && !additionalLrs.isEmpty()) {
+      for (Map.Entry<String, LocalResource> lr : additionalLrs.entrySet()) {
+        if (originalLRs.containsKey(lr.getKey())) {
+          throw new TezUncheckedException("Attempting to add duplicate resource: " + lr.getKey());
+        } else {
+          originalLRs.put(lr.getKey(), lr.getValue());
+        }
+      }
+    }
+  }
+
+  @Private
+  public static ByteString compressByteArrayToByteString(byte[] inBytes) throws IOException {
+    ByteString.Output os = ByteString.newOutput();
+    DeflaterOutputStream compressOs = new DeflaterOutputStream(os, new Deflater(
+        Deflater.BEST_COMPRESSION));
+    compressOs.write(inBytes);
+    compressOs.finish();
+    ByteString byteString = os.toByteString();
+    return byteString;
+  }
+
+  @Private
+  public static byte[] decompressByteStringToByteArray(ByteString byteString) throws IOException {
+    InflaterInputStream in = new InflaterInputStream(byteString.newInput());
+    byte[] bytes = IOUtils.toByteArray(in);
+    return bytes;
+  }
+
+  public static void logCredentials(Log log, Credentials credentials, String identifier) {
+    if (log.isDebugEnabled()) {
+      StringBuilder sb = new StringBuilder();
+      sb.append("#" + identifier + "Tokens=").append(credentials.numberOfTokens());
+      if (credentials.numberOfTokens() > 0) {
+        sb.append(", Services: ");
+        for (Token<?> t : credentials.getAllTokens()) {
+          sb.append(t.getService()).append(",");
+        }
+      }
+      log.debug(sb.toString());
+    }
+  }
+
+  public static Collection<String> tokenizeString(String str, String delim) {
+    List<String> values = new ArrayList<String>();
+    if (str == null || str.isEmpty())
+      return values;
+    StringTokenizer tokenizer = new StringTokenizer(str, delim);
+    while (tokenizer.hasMoreTokens()) {
+      values.add(tokenizer.nextToken());
+    }
+    return values;
+  }
+
+  /**
+   * Splits a comma separated value <code>String</code>, trimming leading and trailing whitespace on each value.
+   * @param str a comma separated <String> with values
+   * @return an array of <code>String</code> values
+   */
+  public static String[] getTrimmedStrings(String str) {
+    if (null == str || (str = str.trim()).isEmpty()) {
+      return ArrayUtils.EMPTY_STRING_ARRAY;
+    }
+
+    return str.split("\\s*,\\s*");
   }
 }

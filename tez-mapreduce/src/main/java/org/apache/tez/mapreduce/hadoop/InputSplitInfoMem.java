@@ -25,7 +25,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.security.Credentials;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitsProto;
 
 import com.google.common.base.Preconditions;
@@ -125,11 +125,13 @@ public class InputSplitInfoMem implements InputSplitInfo {
   public Credentials getCredentials() {
     return this.credentials;
   }
-  
+
+  @Override
   public boolean holdsNewFormatSplits() {
     return this.isNewSplit;  
   }
 
+  @Override
   public org.apache.hadoop.mapreduce.InputSplit[] getNewFormatSplits() {
     Preconditions
         .checkState(
@@ -138,6 +140,7 @@ public class InputSplitInfoMem implements InputSplitInfo {
     return newFormatSplits;
   }
 
+  @Override
   public org.apache.hadoop.mapred.InputSplit[] getOldFormatSplits() {
     Preconditions
         .checkState(
@@ -153,7 +156,7 @@ public class InputSplitInfoMem implements InputSplitInfo {
     MRSplitsProto.Builder splitsBuilder = MRSplitsProto.newBuilder();
 
     for (org.apache.hadoop.mapreduce.InputSplit newSplit : newSplits) {
-      splitsBuilder.addSplits(MRHelpers.createSplitProto(newSplit, serializationFactory));
+      splitsBuilder.addSplits(MRInputHelpers.createSplitProto(newSplit, serializationFactory));
     }
     return splitsBuilder.build();
   }
@@ -162,7 +165,7 @@ public class InputSplitInfoMem implements InputSplitInfo {
       org.apache.hadoop.mapred.InputSplit[] oldSplits) throws IOException {
     MRSplitsProto.Builder splitsBuilder = MRSplitsProto.newBuilder();
     for (org.apache.hadoop.mapred.InputSplit oldSplit : oldSplits) {
-      splitsBuilder.addSplits(MRHelpers.createSplitProto(oldSplit));
+      splitsBuilder.addSplits(MRInputHelpers.createSplitProto(oldSplit));
     }
     return splitsBuilder.build();
   }

@@ -18,7 +18,10 @@
 
 package org.apache.tez.runtime.api.events;
 
+import java.nio.ByteBuffer;
+
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.tez.runtime.api.Event;
 
 /**
@@ -27,6 +30,7 @@ import org.apache.tez.runtime.api.Event;
  * ( such as URI for file-based output data, port info in case of
  * streaming-based data transfers ) to the Input on the destination vertex.
  */
+@Public
 public final class DataMovementEvent extends Event {
 
   /**
@@ -44,12 +48,34 @@ public final class DataMovementEvent extends Event {
   /**
    * User Payload for this Event
    */
-  private final byte[] userPayload;
+  private final ByteBuffer userPayload;
 
   /**
    * Version number to indicate what attempt generated this Event
    */
   private int version;
+
+
+  private DataMovementEvent(int sourceIndex,
+                            ByteBuffer userPayload) {
+    this.userPayload = userPayload;
+    this.sourceIndex = sourceIndex;
+  }
+
+  @Private
+  private DataMovementEvent(int sourceIndex,
+                            int targetIndex,
+                            int version,
+                            ByteBuffer userPayload) {
+    this.userPayload = userPayload;
+    this.sourceIndex = sourceIndex;
+    this.version = version;
+    this.targetIndex = targetIndex;
+  }
+
+  private DataMovementEvent(ByteBuffer userPayload) {
+    this(-1, userPayload);
+  }
 
   /**
    * User Event constructor
@@ -57,33 +83,29 @@ public final class DataMovementEvent extends Event {
    * that generated the event
    * @param userPayload User Payload of the User Event
    */
-  public DataMovementEvent(int sourceIndex,
-      byte[] userPayload) {
-    this.userPayload = userPayload;
-    this.sourceIndex = sourceIndex;
-  }
-
-  @Private
-  public DataMovementEvent(int sourceIndex,
-      int targetIndex,
-      int version,
-      byte[] userPayload) {
-    this.userPayload = userPayload;
-    this.sourceIndex = sourceIndex;
-    this.version = version;
-    this.targetIndex = targetIndex;
+  public static DataMovementEvent create(int sourceIndex,
+                                         ByteBuffer userPayload) {
+    return new DataMovementEvent(sourceIndex, userPayload);
   }
 
   /**
    * Constructor for Processor-generated User Events
    * @param userPayload
    */
-  public DataMovementEvent(byte[] userPayload) {
-    this(-1, userPayload);
+  public static DataMovementEvent create(ByteBuffer userPayload) {
+    return new DataMovementEvent(userPayload);
   }
 
-  public byte[] getUserPayload() {
-    return userPayload;
+  @Private
+  public static DataMovementEvent create(int sourceIndex,
+                                         int targetIndex,
+                                         int version,
+                                         ByteBuffer userPayload) {
+    return new DataMovementEvent(sourceIndex, targetIndex, version, userPayload);
+  }
+
+  public ByteBuffer getUserPayload() {
+    return userPayload == null ? null : userPayload.asReadOnlyBuffer();
   }
 
   public int getSourceIndex() {

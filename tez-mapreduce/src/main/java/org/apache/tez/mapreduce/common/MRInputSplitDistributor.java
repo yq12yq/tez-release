@@ -23,48 +23,64 @@ import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+import org.apache.hadoop.classification.InterfaceStability.Evolving;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.tez.mapreduce.hadoop.MRHelpers;
+import org.apache.tez.common.TezUtils;
+import org.apache.tez.dag.api.Vertex;
+import org.apache.tez.mapreduce.hadoop.MRInputHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.mapreduce.lib.MRInputUtils;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRInputUserPayloadProto;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitProto;
 import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRSplitsProto;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezRootInputInitializer;
-import org.apache.tez.runtime.api.TezRootInputInitializerContext;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
-import org.apache.tez.runtime.api.events.RootInputUpdatePayloadEvent;
+import org.apache.tez.runtime.api.InputInitializer;
+import org.apache.tez.runtime.api.InputInitializerContext;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
+import org.apache.tez.runtime.api.events.InputInitializerEvent;
+import org.apache.tez.runtime.api.events.InputUpdatePayloadEvent;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
-public class MRInputSplitDistributor implements TezRootInputInitializer {
+/**
+ * Implements an {@link InputInitializer} that distributes Map Reduce 
+ * splits created by the client to tasks in the {@link Vertex}
+ * This can be used when certain reasons (e.g. security) prevent splits
+ * from being produced in the App Master via {@link MRInputAMSplitGenerator}
+ * and splits must be produced at the client. They can still be distributed
+ * intelligently among tasks at runtime using this.
+ */
+@Public
+@Evolving
+public class MRInputSplitDistributor extends InputInitializer {
 
   private static final Log LOG = LogFactory.getLog(MRInputSplitDistributor.class);
   
   private boolean sendSerializedEvents;
 
-  public MRInputSplitDistributor() {
-  }
-
   private MRSplitsProto splitsProto;
 
+  public MRInputSplitDistributor(InputInitializerContext initializerContext) {
+    super(initializerContext);
+  }
+
   @Override
-  public List<Event> initialize(TezRootInputInitializerContext rootInputContext)
-      throws IOException {
+  public List<Event> initialize() throws IOException {
     Stopwatch sw = null;
     if (LOG.isDebugEnabled()) {
       sw = new Stopwatch().start();
     }
-    MRInputUserPayloadProto userPayloadProto = MRHelpers.parseMRInputPayload(rootInputContext.getUserPayload());
+    MRInputUserPayloadProto userPayloadProto = MRInputHelpers
+        .parseMRInputPayload(getContext().getInputUserPayload());
     if (LOG.isDebugEnabled()) {
       sw.stop();
       LOG.debug("Time to parse MRInput payload into prot: "
           + sw.elapsedMillis());  
     }
-    Configuration conf = MRHelpers.createConfFromByteString(userPayloadProto
+    Configuration conf = TezUtils.createConfFromByteString(userPayloadProto
         .getConfigurationBytes());
     JobConf jobConf = new JobConf(conf);
     boolean useNewApi = jobConf.getUseNewMapper();
@@ -79,34 +95,40 @@ public class MRInputSplitDistributor implements TezRootInputInitializer {
     updatedPayloadBuilder.clearSplits();
 
     List<Event> events = Lists.newArrayListWithCapacity(this.splitsProto.getSplitsCount() + 1);
-    RootInputUpdatePayloadEvent updatePayloadEvent = new RootInputUpdatePayloadEvent(
-        updatedPayloadBuilder.build().toByteArray());
+    InputUpdatePayloadEvent updatePayloadEvent = InputUpdatePayloadEvent.create(
+        updatedPayloadBuilder.build().toByteString().asReadOnlyByteBuffer());
 
     events.add(updatePayloadEvent);
     int count = 0;
 
     for (MRSplitProto mrSplit : this.splitsProto.getSplitsList()) {
 
-      RootInputDataInformationEvent diEvent;
+      InputDataInformationEvent diEvent;
 
       if (sendSerializedEvents) {
         // Unnecessary array copy, can be avoided by using ByteBuffer instead of
         // a raw array.
-        diEvent = new RootInputDataInformationEvent(count++, mrSplit.toByteArray());
+        diEvent = InputDataInformationEvent.createWithSerializedPayload(count++,
+            mrSplit.toByteString().asReadOnlyByteBuffer());
       } else {
         if (useNewApi) {
           org.apache.hadoop.mapreduce.InputSplit newInputSplit = MRInputUtils
               .getNewSplitDetailsFromEvent(mrSplit, conf);
-          diEvent = new RootInputDataInformationEvent(count++, newInputSplit);
+          diEvent = InputDataInformationEvent.createWithObjectPayload(count++, newInputSplit);
         } else {
           org.apache.hadoop.mapred.InputSplit oldInputSplit = MRInputUtils
               .getOldSplitDetailsFromEvent(mrSplit, conf);
-          diEvent = new RootInputDataInformationEvent(count++, oldInputSplit);
+          diEvent = InputDataInformationEvent.createWithObjectPayload(count++, oldInputSplit);
         }
       }
       events.add(diEvent);
     }
 
     return events;
+  }
+
+  @Override
+  public void handleInputInitializerEvent(List<InputInitializerEvent> events) throws Exception {
+    throw new UnsupportedOperationException("Not expecting to handle any events");
   }
 }

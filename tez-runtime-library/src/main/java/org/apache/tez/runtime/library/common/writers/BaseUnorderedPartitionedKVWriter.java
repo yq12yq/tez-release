@@ -19,6 +19,7 @@
 package org.apache.tez.runtime.library.common.writers;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -29,23 +30,23 @@ import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.io.serializer.SerializationFactory;
 import org.apache.hadoop.io.serializer.Serializer;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.apache.tez.common.TezJobConfig;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezOutputContext;
-import org.apache.tez.runtime.library.api.KeyValueWriter;
+import org.apache.tez.runtime.api.OutputContext;
+import org.apache.tez.runtime.library.api.KeyValuesWriter;
 import org.apache.tez.runtime.library.api.Partitioner;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.common.ConfigUtils;
 import org.apache.tez.runtime.library.common.TezRuntimeUtils;
 import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutput;
 
 @SuppressWarnings("rawtypes")
-public abstract class BaseUnorderedPartitionedKVWriter implements KeyValueWriter {
+public abstract class BaseUnorderedPartitionedKVWriter extends KeyValuesWriter {
 
   private static final Log LOG = LogFactory.getLog(BaseUnorderedPartitionedKVWriter.class);
   
-  protected final TezOutputContext outputContext;
+  protected final OutputContext outputContext;
   protected final Configuration conf;
   protected final Partitioner partitioner;
   protected final Class keyClass;
@@ -101,7 +102,7 @@ public abstract class BaseUnorderedPartitionedKVWriter implements KeyValueWriter
   protected final TezCounter numAdditionalSpillsCounter;
 
   @SuppressWarnings("unchecked")
-  public BaseUnorderedPartitionedKVWriter(TezOutputContext outputContext, Configuration conf, int numOutputs) {
+  public BaseUnorderedPartitionedKVWriter(OutputContext outputContext, Configuration conf, int numOutputs) {
     this.outputContext = outputContext;
     this.conf = conf;
     this.numPartitions = numOutputs;
@@ -132,19 +133,19 @@ public abstract class BaseUnorderedPartitionedKVWriter implements KeyValueWriter
     }
     
     this.ifileReadAhead = this.conf.getBoolean(
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD,
-        TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD,
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_DEFAULT);
     if (this.ifileReadAhead) {
       this.ifileReadAheadLength = conf.getInt(
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
-          TezJobConfig.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES,
+          TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_READAHEAD_BYTES_DEFAULT);
     } else {
       this.ifileReadAheadLength = 0;
     }
     this.ifileBufferSize = conf.getInt("io.file.buffer.size",
-        TezJobConfig.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
+        TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
     
-    LOG.info("Instantiating Partitioner: [" + conf.get(TezJobConfig.TEZ_RUNTIME_PARTITIONER_CLASS) + "]");
+    LOG.info("Instantiating Partitioner: [" + conf.get(TezRuntimeConfiguration.TEZ_RUNTIME_PARTITIONER_CLASS) + "]");
     try {
       this.partitioner = TezRuntimeUtils.instantiatePartitioner(this.conf);
     } catch (IOException e) {
@@ -155,7 +156,16 @@ public abstract class BaseUnorderedPartitionedKVWriter implements KeyValueWriter
 
   @Override
   public abstract void write(Object key, Object value) throws IOException;
-  
+
+  @Override
+  public void write(Object key, Iterable<Object> values) throws IOException {
+    //TODO: UnorderedPartitionedKVWriter should override this method later.
+    Iterator<Object> it = values.iterator();
+    while(it.hasNext()) {
+      write(key, it.next());
+    }
+  }
+
   public abstract List<Event> close() throws IOException, InterruptedException;
 
 }

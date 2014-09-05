@@ -29,8 +29,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import com.google.common.collect.Maps;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
@@ -77,33 +80,42 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.tez.client.TezClient;
+import org.apache.tez.client.MRTezClient;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.DAG;
+import org.apache.tez.dag.api.DataSinkDescriptor;
+import org.apache.tez.dag.api.DataSourceDescriptor;
 import org.apache.tez.dag.api.Edge;
-import org.apache.tez.dag.api.EdgeProperty;
-import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
-import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
-import org.apache.tez.dag.api.EdgeProperty.SchedulingType;
 import org.apache.tez.dag.api.InputDescriptor;
+import org.apache.tez.dag.api.OutputCommitterDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
+import org.apache.tez.dag.api.TezUncheckedException;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
-import org.apache.tez.dag.api.VertexManagerPluginDescriptor;
-import org.apache.tez.dag.api.client.DAGClient;
+import org.apache.tez.dag.api.VertexLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.dag.api.client.DAGStatus;
+import org.apache.tez.dag.api.client.MRDAGClient;
 import org.apache.tez.dag.library.vertexmanager.ShuffleVertexManager;
+import org.apache.tez.mapreduce.committer.MROutputCommitter;
 import org.apache.tez.mapreduce.hadoop.DeprecatedKeys;
 import org.apache.tez.mapreduce.hadoop.MRHelpers;
+import org.apache.tez.mapreduce.hadoop.MRInputHelpers;
 import org.apache.tez.mapreduce.hadoop.MRJobConfig;
 import org.apache.tez.mapreduce.hadoop.MultiStageMRConfToTezTranslator;
 import org.apache.tez.mapreduce.hadoop.MultiStageMRConfigUtil;
+import org.apache.tez.mapreduce.input.MRInput;
+import org.apache.tez.mapreduce.input.MRInputLegacy;
+import org.apache.tez.mapreduce.output.MROutputLegacy;
+import org.apache.tez.mapreduce.partition.MRPartitioner;
 import org.apache.tez.mapreduce.processor.map.MapProcessor;
 import org.apache.tez.mapreduce.processor.reduce.ReduceProcessor;
-import org.apache.tez.runtime.library.input.ShuffledMergedInputLegacy;
-import org.apache.tez.runtime.library.output.OnFileSortedOutput;
+import org.apache.tez.mapreduce.protos.MRRuntimeProtos;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
+import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfig;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -111,6 +123,7 @@ import com.google.common.annotations.VisibleForTesting;
  * This class enables the current JobClient (0.22 hadoop) to run on YARN-TEZ.
  */
 @SuppressWarnings({ "unchecked" })
+@LimitedPrivate("Mapreduce")
 public class YARNRunner implements ClientProtocol {
 
   private static final Log LOG = LogFactory.getLog(YARNRunner.class);
@@ -125,8 +138,8 @@ public class YARNRunner implements ClientProtocol {
   final public static int UTF8_CHUNK_SIZE = 16 * 1024;
 
   private final TezConfiguration tezConf;
-  private TezClient tezSession;
-  private DAGClient dagClient;
+  private MRTezClient tezClient;
+  private MRDAGClient dagClient;
 
   /**
    * Yarn runner incapsulates the client interface of
@@ -333,9 +346,10 @@ public class YARNRunner implements ClientProtocol {
         new ArrayList<TaskLocationHint>(splitsCount);
     for (int i = 0; i < splitsCount; ++i) {
       TaskLocationHint locationHint =
-          new TaskLocationHint(
+          TaskLocationHint.createTaskLocationHint(
               new HashSet<String>(
-                  Arrays.asList(splitsInfo[i].getLocations())), null);
+                  Arrays.asList(splitsInfo[i].getLocations())), null
+          );
       locationHints.add(locationHint);
     }
     return locationHints;
@@ -368,7 +382,7 @@ public class YARNRunner implements ClientProtocol {
           MRJobConfig.MAPRED_ADMIN_USER_ENV);
     }
 
-    MRHelpers.updateEnvironmentForMRTasks(jobConf, environment, isMap);
+    MRHelpers.updateEnvBasedOnMRTaskEnv(jobConf, environment, isMap);
   }
 
   private Vertex createVertexForStage(Configuration stageConf,
@@ -397,22 +411,25 @@ public class YARNRunner implements ClientProtocol {
       }
     }
 
-    Resource taskResource = isMap ? MRHelpers.getMapResource(stageConf)
-        : MRHelpers.getReduceResource(stageConf);
+    Resource taskResource = isMap ? MRHelpers.getResourceForMRMapper(stageConf)
+        : MRHelpers.getResourceForMRReducer(stageConf);
     
     stageConf.set(MRJobConfig.MROUTPUT_FILE_NAME_PREFIX, "part");
     
-    byte[] vertexUserPayload = MRHelpers.createUserPayloadFromConf(stageConf);
-    Vertex vertex = new Vertex(vertexName, new ProcessorDescriptor(processorName).
-        setUserPayload(vertexUserPayload),
+    UserPayload vertexUserPayload = TezUtils.createUserPayloadFromConf(stageConf);
+    Vertex vertex = Vertex.create(vertexName,
+        ProcessorDescriptor.create(processorName).setUserPayload(vertexUserPayload),
         numTasks, taskResource);
     if (isMap) {
-      byte[] mapInputPayload = MRHelpers.createMRInputPayload(vertexUserPayload, null);
-      MRHelpers.addMRInput(vertex, mapInputPayload, null);
+      vertex.addDataSource("MRInput",
+          configureMRInputWithLegacySplitsGenerated(stageConf, true));
     }
     // Map only jobs.
     if (stageNum == totalStages -1) {
-      MRHelpers.addMROutputLegacy(vertex, vertexUserPayload);
+      OutputDescriptor od = OutputDescriptor.create(MROutputLegacy.class.getName())
+          .setUserPayload(vertexUserPayload);
+      vertex.addDataSink("MROutput", new DataSinkDescriptor(od,
+          OutputCommitterDescriptor.create(MROutputCommitter.class.getName()), null));
     }
 
     Map<String, String> taskEnv = new HashMap<String, String>();
@@ -424,24 +441,23 @@ public class YARNRunner implements ClientProtocol {
     // here
     taskLocalResources.putAll(jobLocalResources);
 
-    String taskJavaOpts = isMap ? MRHelpers.getMapJavaOpts(stageConf)
-        : MRHelpers.getReduceJavaOpts(stageConf);
+    String taskJavaOpts = isMap ? MRHelpers.getJavaOptsForMRMapper(stageConf)
+        : MRHelpers.getJavaOptsForMRReducer(stageConf);
 
     vertex.setTaskEnvironment(taskEnv)
-        .setTaskLocalResources(taskLocalResources)
-        .setTaskLocationsHint(locations)
-        .setJavaOpts(taskJavaOpts);
+        .addTaskLocalFiles(taskLocalResources)
+        .setLocationHint(VertexLocationHint.create(locations))
+        .setTaskLaunchCmdOpts(taskJavaOpts);
     
     if (!isMap) {
-      vertex.setVertexManagerPlugin(new VertexManagerPluginDescriptor(
-          ShuffleVertexManager.class.getName()));
+      vertex.setVertexManagerPlugin((ShuffleVertexManager.createConfigBuilder(stageConf).build()));
     }
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("Adding vertex to DAG" + ", vertexName="
-          + vertex.getVertexName() + ", processor="
+          + vertex.getName() + ", processor="
           + vertex.getProcessorDescriptor().getClassName() + ", parallelism="
-          + vertex.getParallelism() + ", javaOpts=" + vertex.getJavaOpts()
+          + vertex.getParallelism() + ", javaOpts=" + vertex.getTaskLaunchCmdOpts()
           + ", resources=" + vertex.getTaskResource()
       // TODO Add localResources and Environment
       );
@@ -456,7 +472,7 @@ public class YARNRunner implements ClientProtocol {
 
     String jobName = stageConfs[0].get(MRJobConfig.JOB_NAME,
         YarnConfiguration.DEFAULT_APPLICATION_NAME);
-    DAG dag = new DAG(jobName);
+    DAG dag = DAG.create(jobName);
 
     LOG.info("Number of stages: " + stageConfs.length);
 
@@ -475,14 +491,23 @@ public class YARNRunner implements ClientProtocol {
     for (int i = 0; i < vertices.length; i++) {
       dag.addVertex(vertices[i]);
       if (i > 0) {
-        EdgeProperty edgeProperty = new EdgeProperty(
-            DataMovementType.SCATTER_GATHER, DataSourceType.PERSISTED,
-            SchedulingType.SEQUENTIAL, 
-            new OutputDescriptor(OnFileSortedOutput.class.getName()),
-            new InputDescriptor(ShuffledMergedInputLegacy.class.getName()));
-
-        Edge edge = null;
-        edge = new Edge(vertices[i - 1], vertices[i], edgeProperty);
+        // Set edge conf based on Input conf (compression etc properties for MapReduce are
+        // w.r.t Outputs - MAP_OUTPUT_COMPRESS for example)
+        Map<String, String> partitionerConf = null;
+        if (stageConfs[i-1] != null) {
+          partitionerConf = Maps.newHashMap();
+          for (Map.Entry<String, String> entry : stageConfs[i - 1]) {
+            partitionerConf.put(entry.getKey(), entry.getValue());
+          }
+        }
+        OrderedPartitionedKVEdgeConfig edgeConf =
+            OrderedPartitionedKVEdgeConfig.newBuilder(stageConfs[i - 1].get(
+                    TezRuntimeConfiguration.TEZ_RUNTIME_KEY_CLASS),
+                stageConfs[i - 1].get(TezRuntimeConfiguration.TEZ_RUNTIME_VALUE_CLASS),
+                MRPartitioner.class.getName(), partitionerConf)
+                .configureInput().useLegacyInput().done()
+                .setFromConfiguration(stageConfs[i - 1]).build();
+        Edge edge = Edge.create(vertices[i - 1], vertices[i], edgeConf.createDefaultEdgeProperty());
         dag.addEdge(edge);
       }
 
@@ -535,15 +560,11 @@ public class YARNRunner implements ClientProtocol {
     JobConf jobConf = new JobConf(new TezConfiguration(conf));
 
     // Extract individual raw MR configs.
-    Configuration[] stageConfs = MultiStageMRConfToTezTranslator
-        .getStageConfs(jobConf);
+    Configuration[] stageConfs = MultiStageMRConfToTezTranslator.getStageConfs(jobConf);
 
     // Transform all confs to use Tez keys
-    MultiStageMRConfToTezTranslator.translateVertexConfToTez(stageConfs[0],
-        null);
-    for (int i = 1; i < stageConfs.length; i++) {
-      MultiStageMRConfToTezTranslator.translateVertexConfToTez(stageConfs[i],
-          stageConfs[i - 1]);
+    for (int i = 0; i < stageConfs.length; i++) {
+      MRHelpers.translateMRConfToTez(stageConfs[i]);
     }
 
     // create inputs to tezClient.submit()
@@ -582,7 +603,7 @@ public class YARNRunner implements ClientProtocol {
     Map<String, String> environment = new HashMap<String, String>();
 
     // Setup the environment variables for AM
-    MRHelpers.updateEnvironmentForMRAM(conf, environment);
+    MRHelpers.updateEnvBasedOnMRAMEnv(conf, environment);
     StringBuilder envStrBuilder = new StringBuilder();
     boolean first = true;
     for (Entry<String, String> entry : environment.entrySet()) {
@@ -622,10 +643,10 @@ public class YARNRunner implements ClientProtocol {
       dagAMConf.setInt(TezConfiguration.TEZ_AM_MAX_APP_ATTEMPTS, 
           jobConf.getInt(MRJobConfig.MR_AM_MAX_ATTEMPTS, MRJobConfig.DEFAULT_MR_AM_MAX_ATTEMPTS));
       
-      tezSession = new TezClient("MapReduce", dagAMConf, false, jobLocalResources, ts);
-      tezSession.start();
-      tezSession.submitDAGApplication(appId, dag);
-      tezSession.stop();
+      tezClient = new MRTezClient("MapReduce", dagAMConf, false, jobLocalResources, ts);
+      tezClient.start();
+      tezClient.submitDAGApplication(appId, dag);
+      tezClient.stop();
     } catch (TezException e) {
       throw new IOException(e);
     }
@@ -683,7 +704,7 @@ public class YARNRunner implements ClientProtocol {
     DAGStatus dagStatus;
     try {
       if(dagClient == null) {
-        dagClient = TezClient.getDAGClient(TypeConverter.toYarn(jobID).getAppId(), tezConf);
+        dagClient = MRTezClient.getDAGClient(TypeConverter.toYarn(jobID).getAppId(), tezConf, null);
       }
       dagStatus = dagClient.getDAGStatus(null);
       return new DAGJobStatus(dagClient.getApplicationReport(), dagStatus, jobFile);
@@ -768,6 +789,32 @@ public class YARNRunner implements ClientProtocol {
                "are used. These values should be set as part of the " +
                "LD_LIBRARY_PATH in the " + component + " JVM env using " +
                envConf + " config settings.");
+    }
+  }
+
+  @Private
+  private static DataSourceDescriptor configureMRInputWithLegacySplitsGenerated(Configuration conf,
+                                                                                boolean useLegacyInput) {
+    InputDescriptor inputDescriptor;
+
+    try {
+      inputDescriptor = InputDescriptor.create(useLegacyInput ? MRInputLegacy.class
+          .getName() : MRInput.class.getName())
+          .setUserPayload(MRInputHelpersInternal.createMRInputPayload(conf, null));
+    } catch (IOException e) {
+      throw new TezUncheckedException(e);
+    }
+
+    DataSourceDescriptor dsd = DataSourceDescriptor.create(inputDescriptor, null, null);
+    return dsd;
+  }
+
+  private static class MRInputHelpersInternal extends MRInputHelpers {
+
+    protected static UserPayload createMRInputPayload(Configuration conf,
+                                                 MRRuntimeProtos.MRSplitsProto mrSplitsProto) throws
+        IOException {
+      return MRInputHelpers.createMRInputPayload(conf, mrSplitsProto);
     }
   }
 

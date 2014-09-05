@@ -27,19 +27,49 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.LimitedPrivate;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceStability.Unstable;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.RecordReader;
-import org.apache.tez.runtime.api.events.RootInputDataInformationEvent;
+import org.apache.tez.runtime.api.InputContext;
+import org.apache.tez.runtime.api.events.InputDataInformationEvent;
 
 @LimitedPrivate("Hive")
 public class MRInputLegacy extends MRInput {
 
   private static final Log LOG = LogFactory.getLog(MRInputLegacy.class);
   
-  private RootInputDataInformationEvent initEvent;
+  private InputDataInformationEvent initEvent;
   private volatile boolean inited = false;
   private ReentrantLock eventLock = new ReentrantLock();
   private Condition eventCondition = eventLock.newCondition();
+
+  
+  /**
+   * Create an {@link org.apache.tez.mapreduce.input.MRInput.MRInputConfigBuilder}
+   * @param conf Configuration for the {@link MRInputLegacy}
+   * @param inputFormat InputFormat derived class
+   * @return {@link org.apache.tez.mapreduce.input.MRInput.MRInputConfigBuilder}
+   */
+  public static MRInputConfigBuilder createConfigBuilder(Configuration conf, Class<?> inputFormat) {
+    return MRInput.createConfigBuilder(conf, inputFormat).setInputClassName(MRInputLegacy.class.getName());
+  }
+
+  /**
+   * Create an {@link org.apache.tez.mapreduce.input.MRInput.MRInputConfigBuilder} for a FileInputFormat
+   * @param conf Configuration for the {@link MRInputLegacy}
+   * @param inputFormat FileInputFormat derived class
+   * @param inputPaths Comma separated input paths
+   * @return {@link org.apache.tez.mapreduce.input.MRInput.MRInputConfigBuilder}
+   */
+  public static MRInputConfigBuilder createConfigBuilder(Configuration conf, Class<?> inputFormat,
+                                                         String inputPaths) {
+    return MRInput.createConfigBuilder(conf, inputFormat, inputPaths).setInputClassName(
+        MRInputLegacy.class.getName());
+  }
+  
+  public MRInputLegacy(InputContext inputContext, int numPhysicalInputs) {
+    super(inputContext, numPhysicalInputs);
+  }
 
   @Private
   protected void initializeInternal() throws IOException {
@@ -80,7 +110,7 @@ public class MRInputLegacy extends MRInput {
   }
   
   @Override
-  void processSplitEvent(RootInputDataInformationEvent event) {
+  void processSplitEvent(InputDataInformationEvent event) {
     eventLock.lock();
     try {
       initEvent = event;

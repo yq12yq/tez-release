@@ -18,19 +18,16 @@
 
 package org.apache.tez.runtime.api;
 
+import org.apache.hadoop.classification.InterfaceAudience.Public;
+
 /**
  * An @link {@link Output} which handles all outgoing physical connections on an
  * edge. A {@link LogicalIOProcessor} sees a single Logical Output per outgoing
- * edge.
+ * edge. It's expected to hide the details of output partitioning and physical 
+ * outputs from the {@link Processor}
+ * Users are expected to derive from {@link AbstractLogicalOutput}
  */
+@Public
 public interface LogicalOutput extends Output {
-  /**
-   * Sets the number of physical ouputs that this <code>LogicalOutput</code>
-   * will receive. This will be called by the Tez framework before initializing
-   * the <code>LogicalOutput</code>
-   * 
-   * @param numOutputs
-   *          the number of physical outputs
-   */
-  public void setNumPhysicalOutputs(int numOutputs);
+
 }

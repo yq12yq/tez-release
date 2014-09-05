@@ -21,38 +21,32 @@ package org.apache.tez.test;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.tez.dag.api.EdgeManager;
-import org.apache.tez.dag.api.EdgeManagerContext;
+import org.apache.tez.dag.api.EdgeManagerPlugin;
+import org.apache.tez.dag.api.EdgeManagerPluginContext;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.events.InputReadErrorEvent;
 
-public class EdgeManagerForTest extends EdgeManager {
+public class EdgeManagerForTest extends EdgeManagerPlugin {
 
-  private EdgeManagerContext edgeManagerContext = null;
-  private byte[] userPayload;
+  private UserPayload userPayload;
 
-  public static EdgeManagerForTest createInstance() {
-    EdgeManagerForTest e = new EdgeManagerForTest();
-    return e;
+  public EdgeManagerForTest(EdgeManagerPluginContext context) {
+    super(context);
   }
 
-  public EdgeManagerContext getEdgeManagerContext() {
-    return edgeManagerContext;
+  public EdgeManagerPluginContext getEdgeManagerContext() {
+    return getContext();
   }
 
-  
-  public EdgeManagerForTest() {
-  }
-
-  public byte[] getUserPayload() {
+  public UserPayload getUserPayload() {
     return userPayload;
   }
 
   // Overridden methods
   @Override
-  public void initialize(EdgeManagerContext edgeManagerContext) {
-    this.edgeManagerContext = edgeManagerContext;
-    this.userPayload = edgeManagerContext.getUserPayload();
+  public void initialize() {
+    this.userPayload = getContext().getUserPayload();
   }
 
   @Override

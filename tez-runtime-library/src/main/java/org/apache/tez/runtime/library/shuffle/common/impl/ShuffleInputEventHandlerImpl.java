@@ -23,22 +23,19 @@ import java.io.IOException;
 import java.util.BitSet;
 import java.util.List;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezCommonUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezInputContext;
+import org.apache.tez.runtime.api.InputContext;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.events.InputFailedEvent;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
-import org.apache.tez.runtime.library.shuffle.common.DiskFetchedInput;
-import org.apache.tez.runtime.library.shuffle.common.FetchedInput;
-import org.apache.tez.runtime.library.shuffle.common.FetchedInputAllocator;
-import org.apache.tez.runtime.library.shuffle.common.MemoryFetchedInput;
-import org.apache.tez.runtime.library.shuffle.common.ShuffleEventHandler;
-import org.apache.tez.runtime.library.shuffle.common.ShuffleUtils;
+import org.apache.tez.runtime.library.shuffle.common.*;
 import org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads.DataMovementEventPayloadProto;
 import org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads.DataProto;
 
@@ -56,12 +53,11 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
   private final CompressionCodec codec;
   private final boolean ifileReadAhead;
   private final int ifileReadAheadLength;
-  
-  
-  public ShuffleInputEventHandlerImpl(TezInputContext inputContext,
-      ShuffleManager shuffleManager,
-      FetchedInputAllocator inputAllocator, CompressionCodec codec,
-      boolean ifileReadAhead, int ifileReadAheadLength) {
+
+  public ShuffleInputEventHandlerImpl(InputContext inputContext,
+                                      ShuffleManager shuffleManager,
+                                      FetchedInputAllocator inputAllocator, CompressionCodec codec,
+                                      boolean ifileReadAhead, int ifileReadAheadLength) {
     this.shuffleManager = shuffleManager;
     this.inputAllocator = inputAllocator;
     this.codec = codec;
@@ -89,7 +85,8 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
   private void processDataMovementEvent(DataMovementEvent dme) throws IOException {
     DataMovementEventPayloadProto shufflePayload;
     try {
-      shufflePayload = DataMovementEventPayloadProto.parseFrom(dme.getUserPayload());
+      shufflePayload = DataMovementEventPayloadProto.parseFrom(
+          ByteString.copyFrom(dme.getUserPayload()));
     } catch (InvalidProtocolBufferException e) {
       throw new TezUncheckedException("Unable to parse DataMovementEvent payload", e);
     }
@@ -98,12 +95,12 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
     LOG.info("Processing DataMovementEvent with srcIndex: "
         + srcIndex + ", targetIndex: " + dme.getTargetIndex()
         + ", attemptNum: " + dme.getVersion() + ", payload: "
-        + stringify(shufflePayload));
+        + ShuffleUtils.stringify(shufflePayload));
 
     if (shufflePayload.hasEmptyPartitions()) {
-      byte[] emptyPartitions = TezUtils.decompressByteStringToByteArray(shufflePayload
+      byte[] emptyPartitions = TezCommonUtils.decompressByteStringToByteArray(shufflePayload
           .getEmptyPartitions());
-      BitSet emptyPartionsBitSet = TezUtils.fromByteArray(emptyPartitions);
+      BitSet emptyPartionsBitSet = TezUtilsInternal.fromByteArray(emptyPartitions);
       if (emptyPartionsBitSet.get(srcIndex)) {
         InputAttemptIdentifier srcAttemptIdentifier = new InputAttemptIdentifier(dme.getTargetIndex(),
             dme.getVersion());
@@ -123,11 +120,11 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
       shuffleManager.addCompletedInputWithData(srcAttemptIdentifier, fetchedInput);
     } else {
       shuffleManager.addKnownInput(shufflePayload.getHost(), shufflePayload.getPort(),
-          srcAttemptIdentifier, srcIndex);
+              srcAttemptIdentifier, srcIndex);
     }
 
   }
-  
+
   private void moveDataToFetchedInput(DataProto dataProto,
       FetchedInput fetchedInput, String hostIdentifier) throws IOException {
     switch (fetchedInput.getType()) {
@@ -153,17 +150,6 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
     InputAttemptIdentifier srcAttemptIdentifier = new InputAttemptIdentifier(ife.getTargetIndex(), ife.getVersion());
     shuffleManager.obsoleteKnownInput(srcAttemptIdentifier);
   }
-  
-  private String stringify(DataMovementEventPayloadProto dmProto) {
-    StringBuilder sb = new StringBuilder();
-    sb.append("[");
-    sb.append("hasEmptyPartitions: ").append(dmProto.hasEmptyPartitions()).append(", ");
-    sb.append("host: " + dmProto.getHost()).append(", ");
-    sb.append("port: " + dmProto.getPort()).append(", ");
-    sb.append("pathComponent: " + dmProto.getPathComponent()).append(", ");
-    sb.append("runDuration: " + dmProto.getRunDuration()).append(", ");
-    sb.append("hasDataInEvent: " + dmProto.hasData());
-    return sb.toString();
-  }
+
 }
 

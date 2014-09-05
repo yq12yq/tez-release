@@ -21,25 +21,26 @@ package org.apache.tez.dag.api.client;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Set;
+
 import javax.annotation.Nullable;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.tez.dag.api.TezException;
-import org.apache.tez.dag.api.Vertex;
 
-/*
- * Interface class for monitoring the <code>DAG</code> running in a Tez DAG
+/**
+ * Class for monitoring the <code>DAG</code> running in a Tez DAG
  * Application Master.
  */
-public interface DAGClient extends Closeable {
+@Public
+public abstract class DAGClient implements Closeable {
 
   /**
-   * Get the YARN ApplicationId for the app running the DAG
-   * @return <code>ApplicationId</code>
+   * Gets DAG execution context for use with logging
+   * @return summary of DAG execution
    */
-  public ApplicationId getApplicationId();
+  public abstract String getExecutionContext();
 
   @Private
   /**
@@ -48,14 +49,14 @@ public interface DAGClient extends Closeable {
    * may be null.
    * @return <code>ApplicationReport</code> or null
    */
-  public ApplicationReport getApplicationReport();
+  protected abstract ApplicationReport getApplicationReportInternal();
 
   /**
    * Get the status of the specified DAG
    * @param statusOptions Optionally, retrieve additional information based on
-   *                      specified options
+   *                      specified options. To retrieve basic information, this can be null
    */
-  public DAGStatus getDAGStatus(Set<StatusGetOpts> statusOptions)
+  public abstract DAGStatus getDAGStatus(@Nullable Set<StatusGetOpts> statusOptions)
       throws IOException, TezException;
 
   /**
@@ -63,7 +64,7 @@ public interface DAGClient extends Closeable {
    * @param statusOptions Optionally, retrieve additional information based on
    *                      specified options
    */
-  public VertexStatus getVertexStatus(String vertexName,
+  public abstract VertexStatus getVertexStatus(String vertexName,
       Set<StatusGetOpts> statusOptions)
     throws IOException, TezException;
 
@@ -71,7 +72,7 @@ public interface DAGClient extends Closeable {
    * Kill a running DAG
    *
    */
-  public void tryKillDAG() throws IOException, TezException;
+  public abstract void tryKillDAG() throws IOException, TezException;
 
   /**
    * Wait for DAG to complete without printing any vertex statuses
@@ -79,24 +80,9 @@ public interface DAGClient extends Closeable {
    * @return Final DAG Status
    * @throws IOException
    * @throws TezException
+   * @throws InterruptedException 
    */
-  public DAGStatus waitForCompletion() throws IOException, TezException;
-
-  /**
-   * Wait for DAG to complete and print the selected vertex status periodically.
-   * 
-   * @param vertexNames
-   *          which vertex details to print; null mean no vertex status and it
-   *          is equivalent to call <code>waitForCompletion()</code>
-   * @param statusGetOpts
-   *          : status get options. For example, to get counter pass
-   *          <code>EnumSet.of(StatusGetOpts.GET_COUNTERS)</code>
-   * @return Final DAG Status
-   * @throws IOException
-   * @throws TezException
-   */
-  public DAGStatus waitForCompletionWithStatusUpdates(@Nullable Set<Vertex> vertices,
-      @Nullable Set<StatusGetOpts> statusGetOpts) throws IOException, TezException;
+  public abstract DAGStatus waitForCompletion() throws IOException, TezException, InterruptedException;
 
   /**
    * Wait for DAG to complete and periodically print *all* vertices' status.
@@ -107,7 +93,8 @@ public interface DAGClient extends Closeable {
    * @return Final DAG Status
    * @throws IOException
    * @throws TezException
+   * @throws InterruptedException 
    */
-  DAGStatus waitForCompletionWithAllStatusUpdates(@Nullable Set<StatusGetOpts> statusGetOpts)
-      throws IOException, TezException;
+  public abstract DAGStatus waitForCompletionWithStatusUpdates(@Nullable Set<StatusGetOpts> statusGetOpts)
+      throws IOException, TezException, InterruptedException;
 }

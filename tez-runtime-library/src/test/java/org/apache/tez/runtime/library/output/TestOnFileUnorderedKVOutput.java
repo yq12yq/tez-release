@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -38,23 +39,23 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.yarn.util.AuxiliaryServiceHelper;
-import org.apache.tez.common.TezJobConfig;
-import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.OutputDescriptor;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.runtime.RuntimeTask;
 import org.apache.tez.runtime.api.Event;
-import org.apache.tez.runtime.api.TezOutputContext;
+import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
 import org.apache.tez.runtime.api.impl.TezOutputContextImpl;
 import org.apache.tez.runtime.api.impl.TezUmbilical;
 import org.apache.tez.runtime.common.resources.MemoryDistributor;
 import org.apache.tez.runtime.library.api.KeyValueWriter;
+import org.apache.tez.runtime.library.api.TezRuntimeConfiguration;
 import org.apache.tez.runtime.library.shuffle.common.ShuffleUtils;
 import org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads.DataMovementEventPayloadProto;
 import org.apache.tez.runtime.library.testutils.KVDataGen;
@@ -92,12 +93,9 @@ public class TestOnFileUnorderedKVOutput {
 
   @Test
   public void testGeneratedDataMovementEvent() throws Exception {
-
-    OnFileUnorderedKVOutput kvOutput = new OnFileUnorderedKVOutputForTest();
-
     Configuration conf = new Configuration();
-    conf.set(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_KEY_CLASS, Text.class.getName());
-    conf.set(TezJobConfig.TEZ_RUNTIME_INTERMEDIATE_OUTPUT_VALUE_CLASS, IntWritable.class.getName());
+    conf.set(TezRuntimeConfiguration.TEZ_RUNTIME_KEY_CLASS, Text.class.getName());
+    conf.set(TezRuntimeConfiguration.TEZ_RUNTIME_VALUE_CLASS, IntWritable.class.getName());
 
     int appAttemptNumber = 1;
     TezUmbilical tezUmbilical = null;
@@ -109,7 +107,7 @@ public class TestOnFileUnorderedKVOutput {
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
     TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 1);
     TezCounters counters = new TezCounters();
-    byte[] userPayload = TezUtils.createUserPayloadFromConf(conf);
+    UserPayload userPayload = TezUtils.createUserPayloadFromConf(conf);
     RuntimeTask runtimeTask = mock(RuntimeTask.class);
     
     int shufflePort = 2112;
@@ -123,14 +121,16 @@ public class TestOnFileUnorderedKVOutput {
     OutputDescriptor outputDescriptor = mock(OutputDescriptor.class);
     when(outputDescriptor.getClassName()).thenReturn("OutputDescriptor");
 
-    TezOutputContext outputContext = new TezOutputContextImpl(conf, new String[] {workDir.toString()},
+    OutputContext outputContext = new TezOutputContextImpl(conf, new String[] {workDir.toString()},
         appAttemptNumber, tezUmbilical, dagName, taskVertexName, destinationVertexName,
-        taskAttemptID, counters, 0, userPayload, runtimeTask,
-        null, auxEnv, new MemoryDistributor(1, 1, conf) , outputDescriptor);
+        -1, taskAttemptID, counters, 0, userPayload, runtimeTask,
+        null, auxEnv, new MemoryDistributor(1, 1, conf) , outputDescriptor, null);
+
+    UnorderedKVOutput kvOutput = new OnFileUnorderedKVOutputForTest(outputContext, 1);
 
     List<Event> events = null;
 
-    events = kvOutput.initialize(outputContext);
+    events = kvOutput.initialize();
     assertTrue(events != null && events.size() == 0);
 
     KeyValueWriter kvWriter = kvOutput.getWriter();
@@ -146,7 +146,7 @@ public class TestOnFileUnorderedKVOutput {
     assertEquals("Invalid source index", 0, dmEvent.getSourceIndex());
 
     DataMovementEventPayloadProto shufflePayload = DataMovementEventPayloadProto
-        .parseFrom(dmEvent.getUserPayload());
+        .parseFrom(ByteString.copyFrom(dmEvent.getUserPayload()));
 
     assertFalse(shufflePayload.hasEmptyPartitions());
     assertEquals(outputContext.getUniqueIdentifier(), shufflePayload.getPathComponent());
@@ -154,7 +154,12 @@ public class TestOnFileUnorderedKVOutput {
     assertEquals("host", shufflePayload.getHost());
   }
 
-  private static class OnFileUnorderedKVOutputForTest extends OnFileUnorderedKVOutput {
+  private static class OnFileUnorderedKVOutputForTest extends UnorderedKVOutput {
+
+    public OnFileUnorderedKVOutputForTest(OutputContext outputContext, int numPhysicalOutputs) {
+      super(outputContext, numPhysicalOutputs);
+    }
+
     @Override
     String getHost() {
       return "host";

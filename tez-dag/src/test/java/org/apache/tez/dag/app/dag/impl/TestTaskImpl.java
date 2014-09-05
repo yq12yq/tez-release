@@ -46,7 +46,7 @@ import org.apache.hadoop.yarn.event.Event;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
-import org.apache.tez.dag.api.VertexLocationHint.TaskLocationHint;
+import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.dag.api.oldrecords.TaskAttemptState;
 import org.apache.tez.dag.api.oldrecords.TaskState;
 import org.apache.tez.dag.app.AppContext;
@@ -56,12 +56,8 @@ import org.apache.tez.dag.app.TaskHeartbeatHandler;
 import org.apache.tez.dag.app.dag.TaskStateInternal;
 import org.apache.tez.dag.app.dag.TaskTerminationCause;
 import org.apache.tez.dag.app.dag.Vertex;
-import org.apache.tez.dag.app.dag.event.TaskAttemptEventAttemptFailed;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventDiagnosticsUpdate;
-import org.apache.tez.dag.app.dag.event.TaskAttemptEventKillRequest;
 import org.apache.tez.dag.app.dag.event.TaskEvent;
-import org.apache.tez.dag.app.dag.event.TaskEventAddTezEvent;
-import org.apache.tez.dag.app.dag.event.TaskEventRecoverTask;
 import org.apache.tez.dag.app.dag.event.TaskEventTAUpdate;
 import org.apache.tez.dag.app.dag.event.TaskEventTermination;
 import org.apache.tez.dag.app.dag.event.TaskEventType;
@@ -127,7 +123,7 @@ public class TestTaskImpl {
     taskHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     credentials = new Credentials();
     clock = new SystemClock();
-    locationHint = new TaskLocationHint(null, null);
+    locationHint = TaskLocationHint.createTaskLocationHint(null, null);
 
     appId = ApplicationId.newInstance(System.currentTimeMillis(), 1);
     dagId = TezDAGID.getInstance(appId, 1);
@@ -168,13 +164,11 @@ public class TestTaskImpl {
   }
 
   private void sendTezEventsToTask(TezTaskID taskId, int numTezEvents) {
-    TaskEventAddTezEvent event = null;
     EventMetaData eventMetaData = new EventMetaData();
-    DataMovementEvent dmEvent = new DataMovementEvent(null);
+    DataMovementEvent dmEvent = DataMovementEvent.create(null);
     TezEvent tezEvent = new TezEvent(dmEvent, eventMetaData);
     for (int i = 0; i < numTezEvents; i++) {
-      event = new TaskEventAddTezEvent(taskId, tezEvent);
-      mockTask.handle(event);
+      mockTask.registerTezEvent(tezEvent);
     }
   }
 
@@ -238,7 +232,7 @@ public class TestTaskImpl {
   }
 
   /**
-   * {@link TaskState#TERMINATING}
+   * {@link org.apache.tez.dag.app.dag.TaskStateInternal#KILL_WAIT}
    */
   private void assertTaskKillWaitState() {
     assertEquals(TaskStateInternal.KILL_WAIT, mockTask.getInternalState());
