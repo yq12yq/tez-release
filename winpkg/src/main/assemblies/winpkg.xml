@@ -52,6 +52,7 @@
           <outputDirectory>/resources</outputDirectory>
           <includes>
             <include>tez*.zip</include>
+            <include>tez*.tar.gz</include>
           </includes>
           <excludes>
             <exclude>*-full.zip</exclude>
