@@ -64,8 +64,13 @@ function Install(
         if( -not (Test-Path "$nodeInstallRoot"))
         {
             Write-Log "Creating Node Install Root directory: `"$nodeInstallRoot`""
-            $cmd = "mkdir `"$nodeInstallRoot`""
-            Invoke-CmdChk $cmd
+            New-Item -ItemType directory -Path  "$nodeInstallRoot"
+        }
+        ### Create Tez Install Root directory
+        if( -not (Test-Path "$tezInstallPath"))
+        {
+            Write-Log "Creating Node Install Root directory: `"$tezInstallPath`""
+            New-Item -ItemType directory -Path  "$tezInstallPath"
         }
 
 
@@ -76,8 +81,8 @@ function Install(
         if ( Test-Path ENV:UNZIP_CMD )
         {
             ### Use external unzip command if given
-            $unzipExpr = $ENV:UNZIP_CMD.Replace("@SRC", "`"$HDP_RESOURCES_DIR\$FinalName.zip`"")
-            $unzipExpr = $unzipExpr.Replace("@DEST", "`"$nodeInstallRoot`"")
+            $unzipExpr = $ENV:UNZIP_CMD.Replace("@SRC", "`"$HDP_RESOURCES_DIR\$FinalName-minimal.zip`"")
+            $unzipExpr = $unzipExpr.Replace("@DEST", "`"$tezInstallPath`"")
             ### We ignore the error code of the unzip command for now to be
             ### consistent with prior behavior.
             Invoke-Ps $unzipExpr
@@ -85,10 +90,23 @@ function Install(
         else
         {
             $shellApplication = new-object -com shell.application
-            $zipPackage = $shellApplication.NameSpace("$HDP_RESOURCES_DIR\$FinalName.zip")
-            $destinationFolder = $shellApplication.NameSpace($nodeInstallRoot)
+            $zipPackage = $shellApplication.NameSpace("$HDP_RESOURCES_DIR\$FinalName-minimal.zip")
+            $destinationFolder = $shellApplication.NameSpace($tezInstallPath)
             $destinationFolder.CopyHere($zipPackage.Items(), 20)
         }
+
+        ### Create Lib dir if necessary
+        $targetdir = "$tezInstallPath"
+        if( -not (Test-Path -Path  "$targetdir"))
+        {
+            Write-Log "Creating Lib Install directory: `"$targetdir`""
+            New-Item -ItemType directory -Path  "$targetdir"
+        }
+
+        ### Copy actual .tar.gz file of tez content, for other apps, to $TEZ_HOME\conf.
+        Write-Log "Creating `"$HDP_RESOURCES_DIR\$FinalName.tar.gz`" to `"$targetdir`""
+        $xcopy_cmd = "xcopy /EIYF `"$HDP_RESOURCES_DIR\$FinalName.tar.gz`" `"$targetdir`""
+        Invoke-Cmd $xcopy_cmd
 
         ###
         ###  Copy template config files
@@ -206,9 +224,9 @@ function Configure(
     {
         Write-Log "Starting Tez configuration"
         $xmlFile = "$ENV:TEZ_HOME\conf\tez-site.xml"
-	    $config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/,hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/lib/"}
+            $config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/" + $FinalName + ".tar.gz"}
         if ((Test-Path ENV:HA) -and ($ENV:HA -ieq "yes")) {
-            $config = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/,hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/lib/"}
+            $config = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/" + $FinalName + ".tar.gz"}
             $config["tez.am.max.app.attempts"] = "20"
         }
 
