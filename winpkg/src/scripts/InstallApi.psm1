@@ -90,6 +90,19 @@ function Install(
             $destinationFolder.CopyHere($zipPackage.Items(), 20)
         }
 
+        ### Create Lib dir if necessary
+        $targetdir = "$tezInstallPath\upload"
+        if( -not (Test-Path -Path  "$targetdir"))
+        {
+            Write-Log "Creating Lib Install directory: `"$targetdir`""
+            New-Item -ItemType directory -Path  "$targetdir"
+        }
+
+        ### Copy actual .tar.gz file of tez content, for other apps, to $TEZ_HOME\upload.
+        Write-Log "Creating `"$HDP_INSTALL_PATH\$FinalName.tar.gz`" to `"$targetdir`""
+        $xcopy_cmd = "xcopy /EIYF `"$HDP_INSTALL_PATH\$FinalName.tar.gz`" `"$targetdir`""
+        Invoke-Cmd $xcopy_cmd
+
         ###
         ###  Copy template config files
         ###
