@@ -6,6 +6,7 @@ Release 0.6.0: Unreleased
 INCOMPATIBLE CHANGES
   TEZ-1488. Rename HashComparator to ProxyComparator and implement in TezBytesComparator
   TEZ-1578. Remove TeraSort from Tez codebase.
+  TEZ-1499. Add SortMergeJoinExample to tez-examples
 
 ALL CHANGES:
   TEZ-1544. Link to release artifacts for 0.5.0 does not point to a specific link for 0.5.0.
@@ -14,13 +15,15 @@ ALL CHANGES:
   TEZ-853. Support counters recovery.
   TEZ-1345. Add checks to guarantee all init events are written to recovery to consider vertex initialized.
   TEZ-1575. MRRSleepJob does not pick MR settings for container size and java opts.
+  TEZ-1488. Rename HashComparator to ProxyComparator and implement in TezBytesComparator
   TEZ-1578. Remove TeraSort from Tez codebase.
   TEZ-1569. Add tests for preemption
   TEZ-1580. Change TestOrderedWordCount to optionally use MR configs.
   TEZ-1524. Resolve user group information only if ACLs are enabled.
   TEZ-1581. GroupByOrderByMRRTest no longer functional.
-  TEZ-1563. TezClient.submitDAGSession alters DAG local resources regardless of DAG submission.
   TEZ-1157. Optimize broadcast shuffle to download data only once per host. 
+  TEZ-1607. support mr envs in mrrsleep and testorderedwordcount
+  TEZ-1499. Add SortMergeJoinExample to tez-examples
 
 Release 0.5.1: Unreleased
 
@@ -44,6 +47,15 @@ ALL CHANGES
   TEZ-1585. Memory leak in tez session mode.
   TEZ-1533. Request Events more often if a complete set of events is received by a task.
   TEZ-1587. Some tez-examples fail in local mode.
+  TEZ-1597. ImmediateStartVertexManager should handle corner case of vertex having zero tasks.
+  TEZ-1495. ATS integration for TezClient
+  TEZ-1553. Multiple failures in testing path-related tests in
+  TestTezCommonUtils for Windows
+  TEZ-1598. DAGClientTimelineImpl uses ReflectiveOperationException (which has JDK 1.7 dependency)
+  TEZ-1599. TezClient.preWarm() is not enabled
+  TEZ-1550. TestEnvironmentUpdateUtils.testMultipleUpdateEnvironment fails on
+  Windows
+  TEZ-1554. Failing tests in TestMRHelpers related to environment on Windows
 
 Release 0.5.0: 2014-09-03
 
