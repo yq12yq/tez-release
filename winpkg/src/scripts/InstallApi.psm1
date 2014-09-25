@@ -219,9 +219,9 @@ function Configure(
     {
         Write-Log "Starting Tez configuration"
         $xmlFile = "$ENV:TEZ_HOME\conf\tez-site.xml"
-	    $config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/,hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/lib/"}
+	    $config = @{"tez.lib.uris"='${fs.default.name}' + "/apps/tez/" + $FinalName + ".tar.gz"}
         if ((Test-Path ENV:HA) -and ($ENV:HA -ieq "yes")) {
-            $config = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/,hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/lib/"}
+            $config = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/" + $FinalName + ".tar.gz"}
             $config["tez.am.max.app.attempts"] = "20"
         }
 
