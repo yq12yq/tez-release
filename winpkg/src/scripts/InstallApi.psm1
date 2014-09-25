@@ -76,7 +76,7 @@ function Install(
         if ( Test-Path ENV:UNZIP_CMD )
         {
             ### Use external unzip command if given
-            $unzipExpr = $ENV:UNZIP_CMD.Replace("@SRC", "`"$HDP_RESOURCES_DIR\$FinalName.zip`"")
+            $unzipExpr = $ENV:UNZIP_CMD.Replace("@SRC", "`"$HDP_RESOURCES_DIR\$FinalName-minimal.zip`"")
             $unzipExpr = $unzipExpr.Replace("@DEST", "`"$nodeInstallRoot`"")
             ### We ignore the error code of the unzip command for now to be
             ### consistent with prior behavior.
@@ -85,7 +85,7 @@ function Install(
         else
         {
             $shellApplication = new-object -com shell.application
-            $zipPackage = $shellApplication.NameSpace("$HDP_RESOURCES_DIR\$FinalName.zip")
+            $zipPackage = $shellApplication.NameSpace("$HDP_RESOURCES_DIR\$FinalName-minimal.zip")
             $destinationFolder = $shellApplication.NameSpace($nodeInstallRoot)
             $destinationFolder.CopyHere($zipPackage.Items(), 20)
         }
@@ -99,8 +99,8 @@ function Install(
         }
 
         ### Copy actual .tar.gz file of tez content, for other apps, to $TEZ_HOME\upload.
-        Write-Log "Creating `"$HDP_INSTALL_PATH\$FinalName.tar.gz`" to `"$targetdir`""
-        $xcopy_cmd = "xcopy /EIYF `"$HDP_INSTALL_PATH\$FinalName.tar.gz`" `"$targetdir`""
+        Write-Log "Creating `"$HDP_RESOURCES_DIR\$FinalName.tar.gz`" to `"$targetdir`""
+        $xcopy_cmd = "xcopy /EIYF `"$HDP_RESOURCES_DIR\$FinalName.tar.gz`" `"$targetdir`""
         Invoke-Cmd $xcopy_cmd
 
         ###
