@@ -67,6 +67,13 @@ function Install(
             $cmd = "mkdir `"$nodeInstallRoot`""
             Invoke-CmdChk $cmd
         }
+        ### Create Tez Install Root directory
+        if( -not (Test-Path "$tezInstallPath"))
+        {
+            Write-Log "Creating Node Install Root directory: `"$tezInstallPath`""
+            $cmd = "mkdir `"$tezInstallPath`""
+            Invoke-CmdChk $cmd
+        }
 
 
         ###
@@ -77,7 +84,7 @@ function Install(
         {
             ### Use external unzip command if given
             $unzipExpr = $ENV:UNZIP_CMD.Replace("@SRC", "`"$HDP_RESOURCES_DIR\$FinalName-minimal.zip`"")
-            $unzipExpr = $unzipExpr.Replace("@DEST", "`"$nodeInstallRoot`"")
+            $unzipExpr = $unzipExpr.Replace("@DEST", "`"$tezInstallPath`"")
             ### We ignore the error code of the unzip command for now to be
             ### consistent with prior behavior.
             Invoke-Ps $unzipExpr
@@ -86,12 +93,12 @@ function Install(
         {
             $shellApplication = new-object -com shell.application
             $zipPackage = $shellApplication.NameSpace("$HDP_RESOURCES_DIR\$FinalName-minimal.zip")
-            $destinationFolder = $shellApplication.NameSpace($nodeInstallRoot)
+            $destinationFolder = $shellApplication.NameSpace($tezInstallPath)
             $destinationFolder.CopyHere($zipPackage.Items(), 20)
         }
 
         ### Create Lib dir if necessary
-        $targetdir = "$tezInstallPath\upload"
+        $targetdir = "$tezInstallPath\conf"
         if( -not (Test-Path -Path  "$targetdir"))
         {
             Write-Log "Creating Lib Install directory: `"$targetdir`""
