@@ -64,15 +64,13 @@ function Install(
         if( -not (Test-Path "$nodeInstallRoot"))
         {
             Write-Log "Creating Node Install Root directory: `"$nodeInstallRoot`""
-            $cmd = "mkdir `"$nodeInstallRoot`""
-            Invoke-CmdChk $cmd
+            New-Item -ItemType directory -Path  "$nodeInstallRoot"
         }
         ### Create Tez Install Root directory
         if( -not (Test-Path "$tezInstallPath"))
         {
             Write-Log "Creating Node Install Root directory: `"$tezInstallPath`""
-            $cmd = "mkdir `"$tezInstallPath`""
-            Invoke-CmdChk $cmd
+            New-Item -ItemType directory -Path  "$tezInstallPath"
         }
 
 
@@ -105,7 +103,7 @@ function Install(
             New-Item -ItemType directory -Path  "$targetdir"
         }
 
-        ### Copy actual .tar.gz file of tez content, for other apps, to $TEZ_HOME\upload.
+        ### Copy actual .tar.gz file of tez content, for other apps, to $TEZ_HOME\conf.
         Write-Log "Creating `"$HDP_RESOURCES_DIR\$FinalName.tar.gz`" to `"$targetdir`""
         $xcopy_cmd = "xcopy /EIYF `"$HDP_RESOURCES_DIR\$FinalName.tar.gz`" `"$targetdir`""
         Invoke-Cmd $xcopy_cmd
