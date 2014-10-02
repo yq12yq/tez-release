@@ -96,7 +96,7 @@ function Install(
         }
 
         ### Create Lib dir if necessary
-        $targetdir = "$tezInstallPath\conf"
+        $targetdir = "$tezInstallPath"
         if( -not (Test-Path -Path  "$targetdir"))
         {
             Write-Log "Creating Lib Install directory: `"$targetdir`""
