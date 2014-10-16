@@ -19,11 +19,14 @@
 package org.apache.tez.dag.history.logging.ats;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEvent;
 import org.apache.tez.common.ATSConstants;
+import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
@@ -41,6 +44,7 @@ import org.apache.tez.dag.history.events.TaskFinishedEvent;
 import org.apache.tez.dag.history.events.TaskStartedEvent;
 import org.apache.tez.dag.history.events.VertexFinishedEvent;
 import org.apache.tez.dag.history.events.VertexInitializedEvent;
+import org.apache.tez.dag.history.events.VertexParallelismUpdatedEvent;
 import org.apache.tez.dag.history.events.VertexStartedEvent;
 import org.apache.tez.dag.history.logging.EntityTypes;
 import org.apache.tez.dag.history.utils.DAGUtils;
@@ -99,11 +103,14 @@ public class HistoryEventTimelineConversion {
       case TASK_ATTEMPT_FINISHED:
         timelineEntity = convertTaskAttemptFinishedEvent((TaskAttemptFinishedEvent) historyEvent);
         break;
+      case VERTEX_PARALLELISM_UPDATED:
+        timelineEntity = convertVertexParallelismUpdatedEvent(
+            (VertexParallelismUpdatedEvent) historyEvent);
+        break;
       case VERTEX_DATA_MOVEMENT_EVENTS_GENERATED:
       case VERTEX_COMMIT_STARTED:
       case VERTEX_GROUP_COMMIT_STARTED:
       case VERTEX_GROUP_COMMIT_FINISHED:
-      case VERTEX_PARALLELISM_UPDATED:
       case DAG_COMMIT_STARTED:
         throw new UnsupportedOperationException("Invalid Event, does not support history"
             + ", eventType=" + historyEvent.getEventType());
@@ -192,6 +199,8 @@ public class HistoryEventTimelineConversion {
     stoppedEvt.setTimestamp(event.getStoppedTime());
     atsEntity.addEvent(stoppedEvt);
 
+    atsEntity.addPrimaryFilter(ATSConstants.EXIT_STATUS, event.getExitStatus());
+
     atsEntity.addOtherInfo(ATSConstants.EXIT_STATUS, event.getExitStatus());
     atsEntity.addOtherInfo(ATSConstants.FINISH_TIME, event.getStoppedTime());
 
@@ -210,6 +219,7 @@ public class HistoryEventTimelineConversion {
 
     atsEntity.addPrimaryFilter(ATSConstants.USER, event.getUser());
     atsEntity.addPrimaryFilter(ATSConstants.DAG_NAME, event.getDagName());
+    atsEntity.addPrimaryFilter(ATSConstants.STATUS, event.getState().name());
 
     atsEntity.addOtherInfo(ATSConstants.START_TIME, event.getStartTime());
     atsEntity.addOtherInfo(ATSConstants.FINISH_TIME, event.getFinishTime());
@@ -284,7 +294,7 @@ public class HistoryEventTimelineConversion {
 
     try {
       atsEntity.addOtherInfo(ATSConstants.DAG_PLAN,
-          DAGUtils.convertDAGPlanToATSMap(event.getDAGPlan()));
+          DAGUtils.convertDAGPlanToATSMap(event.getDAGPlan(), event.getVertexNameIDMap()));
     } catch (IOException e) {
       throw new TezUncheckedException(e);
     }
@@ -310,6 +320,8 @@ public class HistoryEventTimelineConversion {
     finishEvt.setEventType(HistoryEventType.TASK_ATTEMPT_FINISHED.name());
     finishEvt.setTimestamp(event.getFinishTime());
     atsEntity.addEvent(finishEvt);
+
+    atsEntity.addPrimaryFilter(ATSConstants.STATUS, event.getState().name());
 
     atsEntity.addOtherInfo(ATSConstants.FINISH_TIME, event.getFinishTime());
     atsEntity.addOtherInfo(ATSConstants.TIME_TAKEN, (event.getFinishTime() - event.getStartTime()));
@@ -348,6 +360,9 @@ public class HistoryEventTimelineConversion {
     atsEntity.addOtherInfo(ATSConstants.START_TIME, event.getStartTime());
     atsEntity.addOtherInfo(ATSConstants.IN_PROGRESS_LOGS_URL, event.getInProgressLogsUrl());
     atsEntity.addOtherInfo(ATSConstants.COMPLETED_LOGS_URL, event.getCompletedLogsUrl());
+    atsEntity.addOtherInfo(ATSConstants.NODE_ID, event.getNodeId().toString());
+    atsEntity.addOtherInfo(ATSConstants.NODE_HTTP_ADDRESS, event.getNodeHttpAddress());
+    atsEntity.addOtherInfo(ATSConstants.CONTAINER_ID, event.getContainerId().toString());
 
     return atsEntity;
   }
@@ -366,6 +381,8 @@ public class HistoryEventTimelineConversion {
     finishEvt.setEventType(HistoryEventType.TASK_FINISHED.name());
     finishEvt.setTimestamp(event.getFinishTime());
     atsEntity.addEvent(finishEvt);
+
+    atsEntity.addPrimaryFilter(ATSConstants.STATUS, event.getState().name());
 
     atsEntity.addOtherInfo(ATSConstants.FINISH_TIME, event.getFinishTime());
     atsEntity.addOtherInfo(ATSConstants.TIME_TAKEN, (event.getFinishTime() - event.getStartTime()));
@@ -413,6 +430,8 @@ public class HistoryEventTimelineConversion {
     finishEvt.setEventType(HistoryEventType.VERTEX_FINISHED.name());
     finishEvt.setTimestamp(event.getFinishTime());
     atsEntity.addEvent(finishEvt);
+
+    atsEntity.addPrimaryFilter(ATSConstants.STATUS, event.getState().name());
 
     atsEntity.addOtherInfo(ATSConstants.FINISH_TIME, event.getFinishTime());
     atsEntity.addOtherInfo(ATSConstants.TIME_TAKEN, (event.getFinishTime() - event.getStartTime()));
@@ -474,6 +493,36 @@ public class HistoryEventTimelineConversion {
     atsEntity.addOtherInfo(ATSConstants.START_REQUESTED_TIME, event.getStartRequestedTime());
     atsEntity.addOtherInfo(ATSConstants.START_TIME, event.getStartTime());
     atsEntity.addOtherInfo(ATSConstants.STATUS, event.getVertexState().toString());
+
+    return atsEntity;
+  }
+
+  private static TimelineEntity convertVertexParallelismUpdatedEvent(
+      VertexParallelismUpdatedEvent event) {
+    TimelineEntity atsEntity = new TimelineEntity();
+    atsEntity.setEntityId(event.getVertexID().toString());
+    atsEntity.setEntityType(EntityTypes.TEZ_VERTEX_ID.name());
+
+    TimelineEvent updateEvt = new TimelineEvent();
+    updateEvt.setEventType(HistoryEventType.VERTEX_PARALLELISM_UPDATED.name());
+    updateEvt.setTimestamp(event.getUpdateTime());
+
+    Map<String,Object> eventInfo = new HashMap<String, Object>();
+    if (event.getSourceEdgeManagers() != null && !event.getSourceEdgeManagers().isEmpty()) {
+      Map<String, Object> updatedEdgeManagers = new HashMap<String, Object>();
+      for (Entry<String, EdgeManagerPluginDescriptor> entry :
+          event.getSourceEdgeManagers().entrySet()) {
+        updatedEdgeManagers.put(entry.getKey(),
+            DAGUtils.convertEdgeManagerPluginDescriptor(entry.getValue()));
+      }
+      eventInfo.put(ATSConstants.UPDATED_EDGE_MANAGERS, updatedEdgeManagers);
+    }
+    eventInfo.put(ATSConstants.NUM_TASKS, event.getNumTasks());
+    eventInfo.put(ATSConstants.OLD_NUM_TASKS, event.getOldNumTasks());
+    updateEvt.setEventInfo(eventInfo);
+    atsEntity.addEvent(updateEvt);
+
+    atsEntity.addOtherInfo(ATSConstants.NUM_TASKS, event.getNumTasks());
 
     return atsEntity;
   }

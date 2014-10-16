@@ -148,7 +148,7 @@ public class TestHistoryEventsProtoConversion {
         ApplicationId.newInstance(0, 1), 1), 1001l,
         DAGPlan.newBuilder().setName("foo").build(),
         ApplicationAttemptId.newInstance(
-            ApplicationId.newInstance(0, 1), 1), null, "");
+            ApplicationId.newInstance(0, 1), 1), null, "", null);
     DAGSubmittedEvent deserializedEvent = (DAGSubmittedEvent)
         testProtoConversion(event);
     Assert.assertEquals(event.getApplicationAttemptId(),
@@ -278,7 +278,7 @@ public class TestHistoryEventsProtoConversion {
           new VertexParallelismUpdatedEvent(
               TezVertexID.getInstance(
                   TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 111),
-              100, null, null, rootInputSpecUpdates);
+              100, null, null, rootInputSpecUpdates, 1);
       VertexParallelismUpdatedEvent deserializedEvent = (VertexParallelismUpdatedEvent)
           testProtoConversion(event);
       Assert.assertEquals(event.getVertexID(), deserializedEvent.getVertexID());
@@ -315,7 +315,7 @@ public class TestHistoryEventsProtoConversion {
               100, VertexLocationHint.create(Arrays.asList(TaskLocationHint.createTaskLocationHint(
               new HashSet<String>(Arrays.asList("h1")),
               new HashSet<String>(Arrays.asList("r1"))))),
-              sourceEdgeManagers, null);
+              sourceEdgeManagers, null, 1);
 
       VertexParallelismUpdatedEvent deserializedEvent = (VertexParallelismUpdatedEvent)
           testProtoConversion(event);
@@ -435,7 +435,7 @@ public class TestHistoryEventsProtoConversion {
         "vertex1", 10009l, ContainerId.newInstance(
         ApplicationAttemptId.newInstance(
             ApplicationId.newInstance(0, 1), 1), 1001), NodeId.newInstance(
-        "host1", 19999), "inProgress", "Completed");
+        "host1", 19999), "inProgress", "Completed", "nodeHttpAddress");
     TaskAttemptStartedEvent deserializedEvent = (TaskAttemptStartedEvent)
         testProtoConversion(event);
     Assert.assertEquals(event.getTaskAttemptID(),

@@ -43,6 +43,7 @@ public class ATSConstants {
   public static final String APPLICATION_ATTEMPT_ID = "applicationAttemptId";
   public static final String CONTAINER_ID = "containerId";
   public static final String NODE_ID = "nodeId";
+  public static final String NODE_HTTP_ADDRESS = "nodeHttpAddress";
   public static final String USER = "user";
 
   /* Keys used in other info */
@@ -64,6 +65,7 @@ public class ATSConstants {
   public static final String COUNTERS = "counters";
   public static final String STATS = "stats";
   public static final String NUM_TASKS = "numTasks";
+  public static final String OLD_NUM_TASKS = "oldNumTasks";
   public static final String NUM_COMPLETED_TASKS = "numCompletedTasks";
   public static final String NUM_SUCCEEDED_TASKS = "numSucceededTasks";
   public static final String NUM_FAILED_TASKS = "numFailedTasks";
@@ -72,6 +74,7 @@ public class ATSConstants {
   public static final String IN_PROGRESS_LOGS_URL = "inProgressLogsURL";
   public static final String COMPLETED_LOGS_URL = "completedLogsURL";
   public static final String EXIT_STATUS = "exitStatus";
+  public static final String UPDATED_EDGE_MANAGERS = "updatedEdgeManagers";
 
   /* Counters-related keys */
   public static final String COUNTER_GROUPS = "counterGroups";
