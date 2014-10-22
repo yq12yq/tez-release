@@ -228,7 +228,7 @@ function Configure(
             $config["tez.am.max.app.attempts"] = "20"
         }
         $config[ "tez.history.logging.service.class" ] =  "org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService"
-        $config[ "tez.yarn.ats.enabled" ] =  "false"
+       
         if ((Test-Path ENV:ENABLE_LZO) -and ($ENV:ENABLE_LZO -ieq "yes"))
         {
             $hadoopLzoJar = @(gci -Filter hadoop-lzo*.jar -Path "$ENV:HADOOP_HOME\share\hadoop\common")[0]
