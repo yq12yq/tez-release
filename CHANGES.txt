@@ -4,6 +4,8 @@ Apache Tez Change Log
 Release 0.5.3: Unreleased
 
 ALL CHANGES:
+  TEZ-1742. Improve response time of internal preemption
+  TEZ-1749. Increase test timeout for TestLocalMode.testMultipleClientsWithSession
   TEZ-1745. TestATSHistoryLoggingService::testATSHistoryLoggingServiceShutdown can be flaky.
 
 Release 0.5.2: Unreleased
