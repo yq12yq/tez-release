@@ -1,11 +1,10 @@
 Apache Tez Change Log
 =====================
 
-Release 0.6.0: Unreleased
-
-INCOMPATIBLE CHANGES
+Release 0.5.3: Unreleased
 
 ALL CHANGES:
+  TEZ-1745. TestATSHistoryLoggingService::testATSHistoryLoggingServiceShutdown can be flaky.
 
 Release 0.5.2: Unreleased
 
