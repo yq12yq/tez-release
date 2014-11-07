@@ -105,8 +105,6 @@ ALL CHANGES:
   TEZ-1728. Remove local host name from Fetcher thread name.
   TEZ-1547. Make use of state change notifier in VertexManagerPlugins and fix
   TEZ-1494 without latency penalty
-  TEZ-1747. Increase test timeout for TestSecureShuffle
-  TEZ-1749. Increase test timeout for TestLocalMode.testMultipleClientsWithSession
 
 Release 0.5.1: 2014-10-02
 
