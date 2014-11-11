@@ -6,6 +6,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   IMPROVEMENTS
 
+  TEZ-1687 (BUG-44593). Use logIdentifier of Vertex for logging.
   TEZ-1775 (BUG-29175). Allow setting log level per logger.
   TEZ-1750. Add a DAGScheduler which schedules tasks only when  sources have been scheduled.
   TEZ-1742. Improve response time of internal preemption
