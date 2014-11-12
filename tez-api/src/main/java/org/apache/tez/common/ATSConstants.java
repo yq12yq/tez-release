@@ -50,7 +50,6 @@ public class ATSConstants {
   public static final String APP_SUBMIT_TIME = "appSubmitTime";
 
   /* Tez-specific info */
-  public static final String CONFIG = "config";
   public static final String DAG_PLAN = "dagPlan";
   public static final String DAG_NAME = "dagName";
   public static final String VERTEX_NAME = "vertexName";
@@ -104,5 +103,9 @@ public class ATSConstants {
   public static final String VERSION = "version";
   public static final String REVISION = "revision";
   public static final String BUILD_TIME = "buildTime";
+
+  /* History text related Keys */
+  public static final String DESCRIPTION = "desc";
+  public static final String CONFIG = "config";
 
 }

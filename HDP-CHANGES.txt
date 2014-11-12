@@ -9,6 +9,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-1775 (BUG-29175). Allow setting log level per logger.
   TEZ-1750. Add a DAGScheduler which schedules tasks only when  sources have been scheduled.
   TEZ-1742. Improve response time of internal preemption
+  TEZ-1736. Add support for Inputs/Outputs in runtime-library to generate history text data.
 
   BUG FIXES
 
