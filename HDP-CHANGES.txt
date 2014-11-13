@@ -6,6 +6,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   IMPROVEMENTS
 
+  TEZ-1772 (BUG-44595). Failing tests post TEZ-1737.
   TEZ-1737 (BUG-44594). Should add taskNum in VertexFinishedEvent.
   TEZ-1687 (BUG-44593). Use logIdentifier of Vertex for logging.
   TEZ-1775 (BUG-29175). Allow setting log level per logger.
