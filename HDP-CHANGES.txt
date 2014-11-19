@@ -1,0 +1,22 @@
+Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence not covered by CHANGES.txt.
+
+  INCOMPATIBLE CHANGES
+
+  NEW FEATURES
+
+  IMPROVEMENTS
+
+  TEZ-1750. Add a DAGScheduler which schedules tasks only when  sources have been scheduled.
+  TEZ-1742. Improve response time of internal preemption
+
+  BUG FIXES
+
+  TEZ-1758. TezClient should provide YARN diagnostics when the AM crashes
+  TEZ-1745. TestATSHistoryLoggingService::testATSHistoryLoggingServiceShutdown can be flaky.
+  TEZ-1747. Increase test timeout for TestSecureShuffle.
+  TEZ-1746. Flaky test in TestVertexImpl and TestExceptionPropagation.
+  TEZ-1749. Increase test timeout for TestLocalMode.testMultipleClientsWithSession
+  TEZ-1761. TestRecoveryParser::testGetLastInProgressDAG fails in similar manner to TEZ-1686.
+  TEZ-1770. Handle ConnectExceptions correctly when establishing connections to an NM which may be down.
+  TEZ-1774. AppLaunched event for Timeline does not have start time set.
+
