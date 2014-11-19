@@ -1,20 +1,6 @@
 Apache Tez Change Log
 =====================
 
-Release 0.5.3: Unreleased
-
-ALL CHANGES:
-  TEZ-1758. TezClient should provide YARN diagnostics when the AM crashes
-  TEZ-1742. Improve response time of internal preemption
-  TEZ-1745. TestATSHistoryLoggingService::testATSHistoryLoggingServiceShutdown can be flaky.
-  TEZ-1747. Increase test timeout for TestSecureShuffle.
-  TEZ-1746. Flaky test in TestVertexImpl and TestExceptionPropagation.
-  TEZ-1749. Increase test timeout for TestLocalMode.testMultipleClientsWithSession
-  TEZ-1750. Add a DAGScheduler which schedules tasks only when sources have been scheduled.
-  TEZ-1761. TestRecoveryParser::testGetLastInProgressDAG fails in similar manner to TEZ-1686.
-  TEZ-1770. Handle ConnectExceptions correctly when establishing connections to an NM which may be down.
-  TEZ-1774. AppLaunched event for Timeline does not have start time set.
-
 Release 0.5.2: 2014-11-07
 
 INCOMPATIBLE CHANGES
