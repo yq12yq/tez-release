@@ -58,6 +58,7 @@ import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.events.TaskAttemptFinishedEvent;
 import org.apache.tez.dag.history.events.TaskAttemptStartedEvent;
 import org.apache.tez.dag.history.events.TaskFinishedEvent;
+import org.apache.tez.dag.records.TaskAttemptTerminationCause;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.dag.records.TezVertexID;
@@ -162,10 +163,15 @@ public class TestTaskAttemptRecovery {
   private void restoreFromTAFinishedEvent(TaskAttemptState state) {
     String diag = "test_diag";
     TezCounters counters = mock(TezCounters.class);
+    
+    TaskAttemptTerminationCause errorEnum = null;
+    if (state != TaskAttemptState.SUCCEEDED) {
+      errorEnum = TaskAttemptTerminationCause.APPLICATION_ERROR;
+    }
 
     TaskAttemptState recoveredState =
         ta.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            startTime, finishTime, state, diag, counters));
+            startTime, finishTime, state, errorEnum, diag, counters));
     assertEquals(startTime, ta.getLaunchTime());
     assertEquals(finishTime, ta.getFinishTime());
     assertEquals(counters, ta.reportedStatus.counters);
@@ -174,6 +180,11 @@ public class TestTaskAttemptRecovery {
     assertEquals(1, ta.getDiagnostics().size());
     assertEquals(diag, ta.getDiagnostics().get(0));
     assertEquals(state, recoveredState);
+    if (state != TaskAttemptState.SUCCEEDED) {
+      assertEquals(errorEnum, ta.getTerminationCause());
+    } else {
+      assertEquals(TaskAttemptTerminationCause.UNKNOWN_ERROR, ta.getTerminationCause());
+    }
   }
 
   private void verifyEvents(List<Event> events, Class<? extends Event> eventClass,

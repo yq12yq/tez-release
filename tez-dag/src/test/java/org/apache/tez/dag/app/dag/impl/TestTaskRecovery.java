@@ -63,6 +63,7 @@ import org.apache.tez.dag.history.events.TaskAttemptFinishedEvent;
 import org.apache.tez.dag.history.events.TaskAttemptStartedEvent;
 import org.apache.tez.dag.history.events.TaskFinishedEvent;
 import org.apache.tez.dag.history.events.TaskStartedEvent;
+import org.apache.tez.dag.records.TaskAttemptTerminationCause;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
@@ -300,8 +301,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.SUCCEEDED, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -333,8 +334,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.FAILED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.FAILED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.RUNNING, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -366,8 +367,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.KILLED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.KILLED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.RUNNING, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -401,8 +402,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.SUCCEEDED, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -444,8 +445,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.SUCCEEDED, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -456,8 +457,8 @@ public class TestTaskRecovery {
     // it is possible for TaskAttempt transit from SUCCEEDED to FAILURE due to output failure.
     recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.FAILED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.FAILED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.RUNNING, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -491,8 +492,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.SUCCEEDED, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -503,8 +504,8 @@ public class TestTaskRecovery {
     // it is possible for TaskAttempt transit from SUCCEEDED to KILLED due to node failure.
     recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.KILLED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.KILLED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.RUNNING, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -542,8 +543,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.SUCCEEDED, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -582,8 +583,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     TaskState recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.SUCCEEDED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.SUCCEEDED, recoveredState);
     assertEquals(1, task.getAttempts().size());
     assertEquals(1, task.getFinishedAttemptsCount());
@@ -663,8 +664,8 @@ public class TestTaskRecovery {
     long taFinishTime = taStartTime + 100L;
     recoveredState =
         task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName,
-            taStartTime, taFinishTime, TaskAttemptState.KILLED, "",
-            new TezCounters()));
+            taStartTime, taFinishTime, TaskAttemptState.KILLED, null,
+            "", new TezCounters()));
     assertEquals(TaskState.RUNNING, recoveredState);
     assertEquals(TaskAttemptStateInternal.NEW,
         ((TaskAttemptImpl) task.getAttempt(taId)).getInternalState());
@@ -705,7 +706,7 @@ public class TestTaskRecovery {
       task.restoreFromEvent(new TaskAttemptStartedEvent(taId, vertexName, 0L,
           mock(ContainerId.class), mock(NodeId.class), "", "", ""));
       task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName, 0,
-          0, TaskAttemptState.KILLED, "", null));
+          0, TaskAttemptState.KILLED, null, "", null));
     }
     assertEquals(maxFailedAttempts, task.getAttempts().size());
     assertEquals(0, task.failedAttempts);
@@ -735,7 +736,7 @@ public class TestTaskRecovery {
       task.restoreFromEvent(new TaskAttemptStartedEvent(taId, vertexName, 0L,
           mock(ContainerId.class), mock(NodeId.class), "", "", ""));
       task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName, 0,
-          0, TaskAttemptState.FAILED, "", null));
+          0, TaskAttemptState.FAILED, null, "", null));
     }
     assertEquals(maxFailedAttempts, task.getAttempts().size());
     assertEquals(maxFailedAttempts, task.failedAttempts);
@@ -765,7 +766,7 @@ public class TestTaskRecovery {
       task.restoreFromEvent(new TaskAttemptStartedEvent(taId, vertexName, 0L,
           mock(ContainerId.class), mock(NodeId.class), "", "", ""));
       task.restoreFromEvent(new TaskAttemptFinishedEvent(taId, vertexName, 0,
-          0, TaskAttemptState.FAILED, "", null));
+          0, TaskAttemptState.FAILED, null, "", null));
     }
     assertEquals(maxFailedAttempts - 1, task.getAttempts().size());
     assertEquals(maxFailedAttempts - 1, task.failedAttempts);
