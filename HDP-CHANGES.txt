@@ -11,6 +11,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-1800. Integer overflow in ExternalSorter.getInitialMemoryRequirement()
   TEZ-1758. TezClient should provide YARN diagnostics when the AM crashes
   TEZ-1745. TestATSHistoryLoggingService::testATSHistoryLoggingServiceShutdown can be flaky.
   TEZ-1747. Increase test timeout for TestSecureShuffle.
