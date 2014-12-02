@@ -221,20 +221,7 @@ function Configure(
     {
         Write-Log "Starting Tez configuration"
         $xmlFile = "$ENV:TEZ_HOME\conf\tez-site.xml"
-
-        $config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/" + $FinalName + ".tar.gz"}
-        if ((Test-Path ENV:HA) -and ($ENV:HA -ieq "yes")) {
-            $config = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/" + $FinalName + ".tar.gz"}
-            $config["tez.am.max.app.attempts"] = "20"
-        }
-
-        if ((Test-Path ENV:ENABLE_LZO) -and ($ENV:ENABLE_LZO -ieq "yes"))
-        {
-            $hadoopLzoJar = @(gci -Filter hadoop-lzo*.jar -Path "$ENV:HADOOP_HOME\share\hadoop\common")[0]
-            Write-Log "Creating tez.cluster.additional.classpath.prefix to point to $hadoopLzoJar.FullName"
-            $config["tez.cluster.additional.classpath.prefix"] = $hadoopLzoJar.FullName
-        }
-        UpdateXmlConfig $xmlFile $config
+        UpdateXmlConfig $xmlFile $configs
     }
     else
     {

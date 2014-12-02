@@ -12,12 +12,50 @@
 ### WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 ### See the License for the specific language governing permissions and
 ### limitations under the License.
+param(
+    [String]
+    [Parameter( ParameterSetName='UsernamePassword', Position=0, Mandatory=$true )]
+    [Parameter( ParameterSetName='UsernamePasswordBase64', Position=0, Mandatory=$true )]
+    $username,
+    [String]
+    [Parameter( ParameterSetName='UsernamePassword', Position=1, Mandatory=$true )]
+    $password,
+    [String]
+    [Parameter( ParameterSetName='UsernamePasswordBase64', Position=1, Mandatory=$true )]
+    $passwordBase64,
+    [Parameter( ParameterSetName='CredentialFilePath', Mandatory=$true )]
+    $credentialFilePath
+    )
 
 function Main( $scriptDir )
 {
     Write-Log "Installing Apache Tez @final.name@ to $tezInstallPath"
+    
+    ###
+    ### Create the Credential object from the given username and password or the provided credentials file
+    ###
+    $serviceCredential = Get-HadoopUserCredentials -credentialsHash @{"username" = $username; "password" = $password; `
+        "passwordBase64" = $passwordBase64; "credentialFilePath" = $credentialFilePath}
+    $username = $serviceCredential.UserName
+    Write-Log "Username: $username"
+    Write-Log "CredentialFilePath: $credentialFilePath"       
+   
     Install "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
-    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT
+    Write-Log "Configuring Apache Tez"
+    $config = @{"tez.lib.uris"="hdfs://"+$ENV:NAMENODE_HOST+":8020/apps/tez/" + $FinalName + ".tar.gz"}
+    if ((Test-Path ENV:HA) -and ($ENV:HA -ieq "yes")) 
+    {
+        $config = @{"tez.lib.uris"="hdfs://"+$ENV:NN_HA_CLUSTER_NAME+"/apps/tez/" + $FinalName + ".tar.gz"}
+        $config["tez.am.max.app.attempts"] = "20"
+    }
+    if ((Test-Path ENV:ENABLE_LZO) -and ($ENV:ENABLE_LZO -ieq "yes"))
+    {
+        $hadoopLzoJar = @(gci -Filter hadoop-lzo*.jar -Path "$ENV:HADOOP_HOME\share\hadoop\common")[0]
+        Write-Log "Creating tez.cluster.additional.classpath.prefix to point to $hadoopLzoJar.FullName"
+        $config["tez.cluster.additional.classpath.prefix"] = $hadoopLzoJar.FullName
+    }
+    Configure "Tez" $ENV:HADOOP_NODE_INSTALL_ROOT $serviceCredential $config
+
     Write-Log "Finished installing Apache Tez"
 }
 
