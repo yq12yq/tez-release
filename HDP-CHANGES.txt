@@ -11,6 +11,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-1816. Fix failing test - TestOnFileSortedOutput (broken by TEZ-1836)
   TEZ-1836 (BUG-29050). Provide better error messages when tez.runtime.io.sort.mb,spill percentage is incorrectly configured.
   TEZ-1800. Integer overflow in ExternalSorter.getInitialMemoryRequirement()
   TEZ-1758. TezClient should provide YARN diagnostics when the AM crashes
