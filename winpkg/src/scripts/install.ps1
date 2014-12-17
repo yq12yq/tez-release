@@ -30,6 +30,7 @@ param(
 function Main( $scriptDir )
 {
     Write-Log "Installing Apache Tez @final.name@ to $tezInstallPath"
+    $FinalName = "@final.name@"
     
     ###
     ### Create the Credential object from the given username and password or the provided credentials file
