@@ -12,6 +12,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-1852 (BUG-29345). Get examples to work in LocalMode.
   TEZ-1878 (BUG-29175). Task-specific log level override not working in certain conditions.
   TEZ-1851 (BUG-29373) FileSystem counters do not differentiate between different FileSystems.
   TEZ-1816. Fix failing test - TestOnFileSortedOutput (broken by TEZ-1836)
