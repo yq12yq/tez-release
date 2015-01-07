@@ -623,7 +623,6 @@
     <module>tez-examples</module>
     <module>tez-tests</module>
     <module>tez-dag</module>
-    <module>tez-ui</module>
     <module>tez-plugins</module>
     <module>tez-dist</module>
     <module>docs</module>
