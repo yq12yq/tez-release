@@ -7,6 +7,11 @@ Release 0.7.0: Unreleased
 INCOMPATIBLE CHANGES
 
 ALL CHANGES:
+  TEZ-1899. Fix findbugs warnings in tez-common module.
+  TEZ-1898. Fix findbugs warnings in tez-api module.
+  TEZ-1906. Fix findbugs warnings in tez-yarn-timeline-history-with-acls.
+  TEZ-1767. Enable RLE in reducer side merge codepath.
+  TEZ-1837. Restrict usage of Environment variables to main methods.
   TEZ-1867. Create new central dispatcher for Tez AM
   TEZ-1844. Shouldn't invoke system.exit in local mode when AM is failed to start.
   TEZ-1889. Fix test-patch to provide correct findbugs report.
@@ -18,6 +23,8 @@ Release 0.6.0: Unreleased
 INCOMPATIBLE CHANGES
 
 ALL CHANGES:
+  TEZ-1907. Fix javadoc warnings in tez codebase
+  TEZ-1891. Incorrect number of Javadoc warnings reported
   TEZ-1762. Lots of unit tests do not have timeout parameter set.
   TEZ-1886. remove deprecation warnings for tez-ui on the console.
   TEZ-1875. dropdown filters do not work on vertices and task attempts page.

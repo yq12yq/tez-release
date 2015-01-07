@@ -846,6 +846,13 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <configuration>
+          <excludeFilterFile>${basedir}/findbugs-exclude.xml</excludeFilterFile>
+        </configuration>
+      </plugin>
    </plugins>
   </build>
 
@@ -981,7 +988,7 @@
               </execution>
             </executions>
             <configuration>
-              <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
+              <excludeFilterFile>${basedir}/findbugs-exclude.xml</excludeFilterFile>
             </configuration>
           </plugin>
         </plugins>
@@ -997,6 +1004,7 @@
                 <format>html</format>
               </formats>
               <canGenerate>true</canGenerate>
+              <excludeFilterFile>${basedir}/findbugs-exclude.xml</excludeFilterFile>
             </configuration>
           </plugin>
         </plugins>
@@ -1101,6 +1109,13 @@
             </reports>
           </reportSet>
         </reportSets>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <configuration>
+          <excludeFilterFile>${basedir}/findbugs-exclude.xml</excludeFilterFile>
+        </configuration>
       </plugin>
     </plugins>
   </reporting>

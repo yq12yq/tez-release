@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
@@ -215,24 +216,11 @@ public class TezUtilsInternal {
     return bytes;
   }
 
-  public static String getContainerLogDir() {
-    String logDirsStr  = System.getenv(Environment.LOG_DIRS.name());
-    if (logDirsStr == null || logDirsStr.isEmpty()) {
-      return null;
-    }
-    String[] logDirs = StringUtils.split(logDirsStr, ',');
-    if (logDirs.length == 0) {
-      return null;
-    }
-    int logIndex = RANDOM.nextInt(logDirs.length);
-    return logDirs[logIndex];
-  }
-
   /**
    * Convert DAGPlan to text. Skip sensitive informations like credentials.
    *
    * @param dagPlan
-   * @return
+   * @return a string representation of the dag plan with sensitive information removed
    */
   public static String convertDagPlanToString(DAGProtos.DAGPlan dagPlan) throws IOException {
     StringBuilder sb = new StringBuilder();
@@ -243,7 +231,8 @@ public class TezUtilsInternal {
         Credentials credentials =
             DagTypeConverters.convertByteStringToCredentials(dagPlan.getCredentialsBinary());
         TextFormat.printField(entry.getKey(),
-            ByteString.copyFrom(TezCommonUtils.getCredentialsInfo(credentials,"dag").getBytes()), sb);
+            ByteString.copyFrom(TezCommonUtils.getCredentialsInfo(credentials,"dag").getBytes(
+                Charset.forName("UTF-8"))), sb);
       }
     }
     return sb.toString();
