@@ -39,6 +39,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.annotation.Nullable;
 
+import com.google.common.base.Strings;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
@@ -56,6 +57,7 @@ import org.apache.hadoop.yarn.state.SingleArcTransition;
 import org.apache.hadoop.yarn.state.StateMachine;
 import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.Clock;
+import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.common.ATSConstants;
 import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.common.counters.TezCounters;
@@ -102,6 +104,7 @@ import org.apache.tez.dag.app.dag.event.DAGEventDiagnosticsUpdate;
 import org.apache.tez.dag.app.dag.event.DAGEventType;
 import org.apache.tez.dag.app.dag.event.DAGEventVertexCompleted;
 import org.apache.tez.dag.app.dag.event.DAGEventVertexReRunning;
+import org.apache.tez.dag.app.dag.event.SpeculatorEvent;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEvent;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventAttemptFailed;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventStatusUpdate;
@@ -122,7 +125,6 @@ import org.apache.tez.dag.app.dag.event.VertexEventSourceTaskAttemptCompleted;
 import org.apache.tez.dag.app.dag.event.VertexEventSourceVertexRecovered;
 import org.apache.tez.dag.app.dag.event.VertexEventSourceVertexStarted;
 import org.apache.tez.dag.app.dag.event.VertexEventTaskAttemptCompleted;
-import org.apache.tez.dag.app.dag.event.VertexEventTaskAttemptStatusUpdate;
 import org.apache.tez.dag.app.dag.event.VertexEventTaskCompleted;
 import org.apache.tez.dag.app.dag.event.VertexEventTaskReschedule;
 import org.apache.tez.dag.app.dag.event.VertexEventTermination;
@@ -241,8 +243,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
   private static final TaskAttemptCompletedEventTransition
       TASK_ATTEMPT_COMPLETED_EVENT_TRANSITION =
           new TaskAttemptCompletedEventTransition();
-  private static final TaskAttempStatusUpdateEventTransition
-      TASK_ATTEMPT_STATUS_UPDATE_EVENT_TRANSITION = new TaskAttempStatusUpdateEventTransition();
   private static final SourceTaskAttemptCompletedEventTransition
       SOURCE_TASK_ATTEMPT_COMPLETED_EVENT_TRANSITION =
           new SourceTaskAttemptCompletedEventTransition();
@@ -470,10 +470,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
               EnumSet.of(VertexState.RUNNING, VertexState.TERMINATING),
               VertexEventType.V_ROUTE_EVENT,
               ROUTE_EVENT_TRANSITION)
-          .addTransition(
-              VertexState.RUNNING,
-              VertexState.RUNNING, VertexEventType.V_TASK_ATTEMPT_STATUS_UPDATE,
-              TASK_ATTEMPT_STATUS_UPDATE_EVENT_TRANSITION)
 
           // Transitions from TERMINATING state.
           .addTransition
@@ -491,7 +487,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                   VertexEventType.V_MANAGER_USER_CODE_ERROR,
                   VertexEventType.V_ROOT_INPUT_FAILED,
                   VertexEventType.V_SOURCE_VERTEX_STARTED,
-                  VertexEventType.V_TASK_ATTEMPT_STATUS_UPDATE,
                   VertexEventType.V_ROOT_INPUT_INITIALIZED,
                   VertexEventType.V_NULL_EDGE_INITIALIZED,
                   VertexEventType.V_ROUTE_EVENT,
@@ -525,7 +520,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
               EnumSet.of(VertexEventType.V_TERMINATE,
                   VertexEventType.V_ROOT_INPUT_FAILED,
                   VertexEventType.V_TASK_ATTEMPT_COMPLETED,
-                  VertexEventType.V_TASK_ATTEMPT_STATUS_UPDATE,
                   // after we are done reruns of source tasks should not affect
                   // us. These reruns may be triggered by other consumer vertices.
                   // We should have been in RUNNING state if we had triggered the
@@ -551,7 +545,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                   VertexEventType.V_START,
                   VertexEventType.V_ROUTE_EVENT,
                   VertexEventType.V_TASK_ATTEMPT_COMPLETED,
-                  VertexEventType.V_TASK_ATTEMPT_STATUS_UPDATE,
                   VertexEventType.V_TASK_COMPLETED,
                   VertexEventType.V_ONE_TO_ONE_SOURCE_SPLIT,
                   VertexEventType.V_ROOT_INPUT_INITIALIZED,
@@ -576,7 +569,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                   VertexEventType.V_ROUTE_EVENT,
                   VertexEventType.V_TASK_RESCHEDULED,
                   VertexEventType.V_TASK_ATTEMPT_COMPLETED,
-                  VertexEventType.V_TASK_ATTEMPT_STATUS_UPDATE,
                   VertexEventType.V_ONE_TO_ONE_SOURCE_SPLIT,
                   VertexEventType.V_SOURCE_TASK_ATTEMPT_COMPLETED,
                   VertexEventType.V_TASK_COMPLETED,
@@ -596,7 +588,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                   VertexEventType.V_ROUTE_EVENT,
                   VertexEventType.V_TERMINATE,
                   VertexEventType.V_MANAGER_USER_CODE_ERROR,
-                  VertexEventType.V_TASK_ATTEMPT_STATUS_UPDATE,
                   VertexEventType.V_TASK_COMPLETED,
                   VertexEventType.V_TASK_ATTEMPT_COMPLETED,
                   VertexEventType.V_ONE_TO_ONE_SOURCE_SPLIT,
@@ -711,7 +702,9 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
 
   private TaskLocationHint taskLocationHints[];
   private Map<String, LocalResource> localResources;
-  private Map<String, String> environment;
+  private final Map<String, String> environment;
+  private final Map<String, String> environmentTaskSpecific;
+  private final String javaOptsTaskSpecific;
   private final String javaOpts;
   private final ContainerContext containerContext;
   private VertexTerminationCause terminationCause;
@@ -773,9 +766,35 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     this.environment = DagTypeConverters
         .createEnvironmentMapFromDAGPlan(vertexPlan.getTaskConfig()
             .getEnvironmentSettingList());
-    this.javaOpts = vertexPlan.getTaskConfig().hasJavaOpts() ? vertexPlan
-        .getTaskConfig().getJavaOpts() : null;
     this.taskSpecificLaunchCmdOpts = taskSpecificLaunchCmdOption;
+
+    // Set up log properties, including task specific log properties.
+    String javaOptsWithoutLoggerMods =
+        vertexPlan.getTaskConfig().hasJavaOpts() ? vertexPlan.getTaskConfig().getJavaOpts() : null;
+    String logString = conf.get(TezConfiguration.TEZ_TASK_LOG_LEVEL, TezConfiguration.TEZ_TASK_LOG_LEVEL_DEFAULT);
+    String [] taskLogParams = TezClientUtils.parseLogParams(logString);
+    this.javaOpts = TezClientUtils.maybeAddDefaultLoggingJavaOpts(taskLogParams[0], javaOptsWithoutLoggerMods);
+
+    if (taskSpecificLaunchCmdOpts.hasModifiedLogProperties()) {
+      String [] taskLogParamsTaskSpecific = taskSpecificLaunchCmdOption.getTaskSpecificLogParams();
+      this.javaOptsTaskSpecific = TezClientUtils
+          .maybeAddDefaultLoggingJavaOpts(taskLogParamsTaskSpecific[0], javaOptsWithoutLoggerMods);
+
+      environmentTaskSpecific = new HashMap<String, String>(this.environment.size());
+      environmentTaskSpecific.putAll(environment);
+      if (taskLogParamsTaskSpecific.length == 2 && !Strings.isNullOrEmpty(taskLogParamsTaskSpecific[1])) {
+        TezClientUtils.addLogParamsToEnv(environmentTaskSpecific, taskLogParamsTaskSpecific);
+      }
+    } else {
+      this.javaOptsTaskSpecific = null;
+      this.environmentTaskSpecific = null;
+    }
+
+    // env for tasks which don't have task-specific configuration. Has to be set up later to
+    // optionally allow copying this for specific tasks
+    TezClientUtils.addLogParamsToEnv(this.environment, taskLogParams);
+
+
     this.containerContext = new ContainerContext(this.localResources,
         appContext.getCurrentDAG().getCredentials(), this.environment, this.javaOpts, this);
 
@@ -809,7 +828,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
         stateMachineFactory.make(this), this);
     augmentStateMachine();
   }
-  
+
   private boolean isSpeculationEnabled() {
     return isSpeculationEnabled;
   }
@@ -1226,8 +1245,13 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
 
   @Override
   public void scheduleSpeculativeTask(TezTaskID taskId) {
-    Preconditions.checkState(taskId.getId() < numTasks);
-    eventHandler.handle(new TaskEvent(taskId, TaskEventType.T_ADD_SPEC_ATTEMPT));
+    readLock.lock();
+    try {
+      Preconditions.checkState(taskId.getId() < numTasks);
+      eventHandler.handle(new TaskEvent(taskId, TaskEventType.T_ADD_SPEC_ATTEMPT));
+    } finally {
+      readLock.unlock();
+    }
   }
   
   @Override
@@ -1977,9 +2001,17 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
   @VisibleForTesting
   ContainerContext getContainerContext(int taskIdx) {
     if (taskSpecificLaunchCmdOpts.addTaskSpecificLaunchCmdOption(vertexName, taskIdx)) {
-      String jvmOpts = taskSpecificLaunchCmdOpts.getTaskSpecificOption(javaOpts, vertexName, taskIdx);
+
+      String jvmOpts = javaOptsTaskSpecific != null ? javaOptsTaskSpecific : javaOpts;
+
+      if (taskSpecificLaunchCmdOpts.hasModifiedTaskLaunchOpts()) {
+        jvmOpts = taskSpecificLaunchCmdOpts.getTaskSpecificOption(jvmOpts, vertexName, taskIdx);
+      }
+
       ContainerContext context = new ContainerContext(this.localResources,
-          appContext.getCurrentDAG().getCredentials(), this.environment, jvmOpts);
+          appContext.getCurrentDAG().getCredentials(),
+          this.environmentTaskSpecific != null ? this.environmentTaskSpecific : this.environment,
+          jvmOpts);
       return context;
     } else {
       return this.containerContext;
@@ -3559,23 +3591,6 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
   }
 
-  private static class TaskAttempStatusUpdateEventTransition implements
-      SingleArcTransition<VertexImpl, VertexEvent> {
-    @Override
-    public void transition(VertexImpl vertex, VertexEvent event) {
-      VertexEventTaskAttemptStatusUpdate updateEvent =
-        ((VertexEventTaskAttemptStatusUpdate) event);
-      if (vertex.isSpeculationEnabled()) {
-        if (updateEvent.hasJustStarted()) {
-          vertex.speculator.notifyAttemptStarted(updateEvent.getAttemptId(),
-              updateEvent.getTimestamp());
-        } else {
-          vertex.speculator.notifyAttemptStatusUpdate(updateEvent.getAttemptId(),
-              updateEvent.getTaskAttemptState(), updateEvent.getTimestamp());
-        }
-      }
-    }
-  }
   private static class TaskCompletedTransition implements
       MultipleArcTransition<VertexImpl, VertexEvent, VertexState> {
 
@@ -4050,6 +4065,14 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                       .convertInputInitializerDescriptorFromDAGPlan(input
                           .getControllerDescriptor()) : null));
       this.rootInputSpecs.put(input.getName(), DEFAULT_ROOT_INPUT_SPECS);
+    }
+  }
+  
+  // not taking a lock by design. Speculator callbacks to the vertex will take locks if needed
+  @Override
+  public void handleSpeculatorEvent(SpeculatorEvent event) {
+    if (isSpeculationEnabled()) {
+      speculator.handle(event);
     }
   }
 

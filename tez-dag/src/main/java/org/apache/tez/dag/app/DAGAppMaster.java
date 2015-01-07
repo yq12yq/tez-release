@@ -80,7 +80,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.event.AsyncDispatcher;
 import org.apache.hadoop.yarn.event.Dispatcher;
 import org.apache.hadoop.yarn.event.Event;
 import org.apache.hadoop.yarn.event.EventHandler;
@@ -88,6 +87,7 @@ import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.SystemClock;
+import org.apache.tez.common.AsyncDispatcher;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezConverterUtils;
 import org.apache.tez.common.TezUtilsInternal;
@@ -121,6 +121,8 @@ import org.apache.tez.dag.app.dag.event.DAGEvent;
 import org.apache.tez.dag.app.dag.event.DAGEventRecoverEvent;
 import org.apache.tez.dag.app.dag.event.DAGEventStartDag;
 import org.apache.tez.dag.app.dag.event.DAGEventType;
+import org.apache.tez.dag.app.dag.event.SpeculatorEvent;
+import org.apache.tez.dag.app.dag.event.SpeculatorEventType;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEvent;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventType;
 import org.apache.tez.dag.app.dag.event.TaskEvent;
@@ -149,6 +151,7 @@ import org.apache.tez.dag.history.events.AppLaunchedEvent;
 import org.apache.tez.dag.history.events.DAGSubmittedEvent;
 import org.apache.tez.dag.history.utils.DAGUtils;
 import org.apache.tez.dag.records.TezDAGID;
+import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.utils.Graph;
 import org.apache.tez.dag.utils.RelocalizationUtils;
 import org.apache.tez.common.security.JobTokenSecretManager;
@@ -206,7 +209,7 @@ public class DAGAppMaster extends AbstractService {
   private AMNodeTracker nodes;
   private AppContext context;
   private Configuration amConf;
-  private Dispatcher dispatcher;
+  private AsyncDispatcher dispatcher;
   private ContainerLauncher containerLauncher;
   private ContainerHeartbeatHandler containerHeartbeatHandler;
   private TaskHeartbeatHandler taskHeartbeatHandler;
@@ -399,8 +402,10 @@ public class DAGAppMaster extends AbstractService {
     dispatcher.register(DAGEventType.class, dagEventDispatcher);
     dispatcher.register(VertexEventType.class, vertexEventDispatcher);
     dispatcher.register(TaskEventType.class, new TaskEventDispatcher());
-    dispatcher.register(TaskAttemptEventType.class,
-        new TaskAttemptEventDispatcher());
+    dispatcher.register(TaskAttemptEventType.class, new TaskAttemptEventDispatcher());
+    
+    // register other delegating dispatchers
+    dispatcher.registerAndCreateDispatcher(SpeculatorEventType.class, new SpeculatorEventHandler(), "Speculator");
 
     this.taskSchedulerEventHandler = new TaskSchedulerEventHandler(context,
         clientRpcServer, dispatcher.getEventHandler(), containerSignatureMatcher);
@@ -483,8 +488,8 @@ public class DAGAppMaster extends AbstractService {
   }
   
   @VisibleForTesting
-  protected Dispatcher createDispatcher() {
-    return new AsyncDispatcher();
+  protected AsyncDispatcher createDispatcher() {
+    return new AsyncDispatcher("Central");
   }
 
   /**
@@ -1702,6 +1707,18 @@ public class DAGAppMaster extends AbstractService {
           dag.getVertex(event.getTaskID().getVertexID()).
               getTask(event.getTaskID());
       ((EventHandler<TaskEvent>)task).handle(event);
+    }
+  }
+  
+  private class SpeculatorEventHandler implements EventHandler<SpeculatorEvent> {
+    @Override
+    public void handle(SpeculatorEvent event) {
+      DAG dag = context.getCurrentDAG();
+      TezVertexID vertexId = event.getVertexId();
+      Vertex v = dag.getVertex(vertexId);
+      Preconditions.checkState(v != null,
+          "Unknown vertex: " + vertexId + " for DAG: " + dag.getID());
+      v.handleSpeculatorEvent(event);
     }
   }
 

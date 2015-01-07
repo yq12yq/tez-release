@@ -59,6 +59,7 @@ import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -157,7 +158,32 @@ public class TestOnFileSortedOutput {
     writer = sortedOutput.getWriter();
   }
 
-  @Test
+  @Test (timeout = 5000)
+  public void testSortBufferSize() throws Exception{
+    OutputContext context = createTezOutputContext();
+    conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB, 2048);
+    UserPayload payLoad = TezUtils.createUserPayloadFromConf(conf);
+    doReturn(payLoad).when(context).getUserPayload();
+    sortedOutput = new OrderedPartitionedKVOutput(context, partitions);
+    try {
+      sortedOutput.initialize();
+      fail();
+    } catch(IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB));
+    }
+    conf.setInt(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB, 0);
+    payLoad = TezUtils.createUserPayloadFromConf(conf);
+    doReturn(payLoad).when(context).getUserPayload();
+    sortedOutput = new OrderedPartitionedKVOutput(context, partitions);
+    try {
+      sortedOutput.initialize();
+      fail();
+    } catch(IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains(TezRuntimeConfiguration.TEZ_RUNTIME_IO_SORT_MB));
+    }
+  }
+
+  @Test(timeout = 5000)
   public void baseTest() throws Exception {
     startSortedOutput(partitions);
 
@@ -184,7 +210,7 @@ public class TestOnFileSortedOutput {
     assertEquals(UniqueID, payload.getPathComponent());
   }
 
-  @Test
+  @Test(timeout = 5000)
   public void testWithSomeEmptyPartition() throws Exception {
     //ensure atleast 2 partitions are available
     partitions = Math.max(2, partitions);
@@ -212,7 +238,7 @@ public class TestOnFileSortedOutput {
     assertEquals(UniqueID, payload.getPathComponent());
   }
 
-  @Test
+  @Test(timeout = 5000)
   public void testAllEmptyPartition() throws Exception {
     startSortedOutput(partitions);
 

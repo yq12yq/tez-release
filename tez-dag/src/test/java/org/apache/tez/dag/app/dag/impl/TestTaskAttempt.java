@@ -55,6 +55,7 @@ import org.apache.hadoop.yarn.event.Event;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
+import org.apache.tez.common.MockDNSToSwitchMapping;
 import org.apache.tez.dag.api.TaskLocationHint;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.oldrecords.TaskAttemptState;
@@ -82,7 +83,7 @@ import org.apache.tez.dag.app.dag.event.TaskAttemptEventStatusUpdate;
 import org.apache.tez.dag.app.dag.event.TaskAttemptEventType;
 import org.apache.tez.dag.app.dag.event.TaskEventTAUpdate;
 import org.apache.tez.dag.app.dag.event.TaskEventType;
-import org.apache.tez.dag.app.dag.event.VertexEventTaskAttemptStatusUpdate;
+import org.apache.tez.dag.app.dag.event.SpeculatorEventTaskAttemptStatusUpdate;
 import org.apache.tez.dag.app.rm.AMSchedulerEventTAEnded;
 import org.apache.tez.dag.app.rm.AMSchedulerEventTALaunchRequest;
 import org.apache.tez.dag.app.rm.container.AMContainerMap;
@@ -98,6 +99,7 @@ import org.apache.tez.runtime.api.impl.EventMetaData;
 import org.apache.tez.runtime.api.impl.TaskSpec;
 import org.apache.tez.runtime.api.impl.TezEvent;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -109,6 +111,11 @@ public class TestTaskAttempt {
     public FileStatus getFileStatus(Path f) throws IOException {
       return new FileStatus(1, false, 1, 1, 1, f);
     }
+  }
+
+  @BeforeClass
+  public static void setup() {
+    MockDNSToSwitchMapping.initializeMockRackResolver();
   }
 
   @Test(timeout = 5000)
@@ -312,7 +319,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -343,11 +349,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
-
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
     taImpl.handle(new TaskAttemptEventSchedule(taskAttemptID, 0, 0));
@@ -356,6 +363,7 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", taImpl.getState(),
         TaskAttemptState.RUNNING);
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 3;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
@@ -365,7 +373,7 @@ public class TestTaskAttempt {
     assertFalse(
         "InternalError occurred trying to handle TA_CONTAINER_TERMINATING",
         eventHandler.internalError);
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals("Task attempt is not in the  FAILED state", taImpl.getState(),
         TaskAttemptState.FAILED);
 
@@ -389,6 +397,8 @@ public class TestTaskAttempt {
 
     taImpl.handle(new TaskAttemptEventContainerTerminated(taskAttemptID,
         "Terminated", TaskAttemptTerminationCause.CONTAINER_EXITED));
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
     int expectedEventAfterTerminated = expectedEvenstAfterTerminating + 0;
     arg = ArgumentCaptor.forClass(Event.class);
     verify(eventHandler, times(expectedEventAfterTerminated)).handle(arg.capture());
@@ -410,7 +420,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = new MockEventHandler();
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -441,23 +450,26 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
-
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
     taImpl.handle(new TaskAttemptEventSchedule(taskAttemptID, 0, 0));
     // At state STARTING.
     taImpl.handle(new TaskAttemptEventStartedRemotely(taskAttemptID, contId,
         null));
     assertEquals("Task attempt is not in running state", taImpl.getState(),
         TaskAttemptState.RUNNING);
+    verify(mockHeartbeatHandler).register(taskAttemptID);
+
     taImpl.handle(new TaskAttemptEventContainerTerminated(taskAttemptID, "Terminated",
         TaskAttemptTerminationCause.CONTAINER_EXITED));
     assertFalse(
         "InternalError occurred trying to handle TA_CONTAINER_TERMINATED",
         eventHandler.internalError);
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals("Terminated", taImpl.getDiagnostics().get(0));
     assertEquals(TaskAttemptTerminationCause.CONTAINER_EXITED, taImpl.getTerminationCause());
     // TODO Ensure TA_TERMINATING after this is ingored.
@@ -473,7 +485,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -504,11 +515,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
-
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
     taImpl.handle(new TaskAttemptEventSchedule(taskAttemptID, 0, 0));
@@ -517,6 +529,7 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", taImpl.getState(),
         TaskAttemptState.RUNNING);
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 3;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
@@ -525,7 +538,7 @@ public class TestTaskAttempt {
 
     assertEquals("Task attempt is not in the  SUCCEEDED state", taImpl.getState(),
         TaskAttemptState.SUCCEEDED);
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals(0, taImpl.getDiagnostics().size());
 
     int expectedEvenstAfterTerminating = expectedEventsAtRunning + 3;
@@ -544,6 +557,8 @@ public class TestTaskAttempt {
 
     taImpl.handle(new TaskAttemptEventContainerTerminated(taskAttemptID,
         "Terminated", TaskAttemptTerminationCause.CONTAINER_EXITED));
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
     int expectedEventAfterTerminated = expectedEvenstAfterTerminating + 0;
     arg = ArgumentCaptor.forClass(Event.class);
     verify(eventHandler, times(expectedEventAfterTerminated)).handle(arg.capture());
@@ -562,7 +577,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -594,11 +608,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
-
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
     taImpl.handle(new TaskAttemptEventSchedule(taskAttemptID, 0, 0));
@@ -607,12 +622,13 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", taImpl.getState(),
         TaskAttemptState.RUNNING);
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 4;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
     verifyEventType(
         arg.getAllValues().subList(0,
-            expectedEventsAtRunning), VertexEventTaskAttemptStatusUpdate.class, 1);
+            expectedEventsAtRunning), SpeculatorEventTaskAttemptStatusUpdate.class, 1);
     
     taImpl.handle(new TaskAttemptEventStatusUpdate(taskAttemptID, new TaskStatusUpdateEvent(null, 0.1f)));
     
@@ -621,14 +637,15 @@ public class TestTaskAttempt {
 
     assertEquals("Task attempt is not in the  FAIL_IN_PROGRESS state", taImpl.getInternalState(),
         TaskAttemptStateInternal.FAIL_IN_PROGRESS);
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals(1, taImpl.getDiagnostics().size());
     assertEquals("0", taImpl.getDiagnostics().get(0));
     assertEquals(TaskAttemptTerminationCause.APPLICATION_ERROR, taImpl.getTerminationCause());
-    
+
     taImpl.handle(new TaskAttemptEventContainerTerminated(taskAttemptID, "1",
         TaskAttemptTerminationCause.CONTAINER_EXITED));
-
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
     assertEquals(2, taImpl.getDiagnostics().size());
     assertEquals("1", taImpl.getDiagnostics().get(1));
     // err cause does not change
@@ -651,10 +668,10 @@ public class TestTaskAttempt {
             expectedEvenstAfterTerminating), DAGEventCounterUpdate.class, 1);
     verifyEventType(
         arg.getAllValues().subList(expectedEventsAtRunning,
-            expectedEvenstAfterTerminating), VertexEventTaskAttemptStatusUpdate.class, 2);
+            expectedEvenstAfterTerminating), SpeculatorEventTaskAttemptStatusUpdate.class, 2);
   }
   
-  @Test//(timeout = 5000)
+  @Test(timeout = 5000)
   public void testSuccess() throws Exception {
     ApplicationId appId = ApplicationId.newInstance(1, 2);
     ApplicationAttemptId appAttemptId = ApplicationAttemptId.newInstance(
@@ -662,7 +679,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -694,11 +710,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
-
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
     taImpl.handle(new TaskAttemptEventSchedule(taskAttemptID, 0, 0));
@@ -707,12 +724,13 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", taImpl.getState(),
         TaskAttemptState.RUNNING);
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 4;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
     verifyEventType(
         arg.getAllValues().subList(0,
-            expectedEventsAtRunning), VertexEventTaskAttemptStatusUpdate.class, 1);
+            expectedEventsAtRunning), SpeculatorEventTaskAttemptStatusUpdate.class, 1);
     
     taImpl.handle(new TaskAttemptEventStatusUpdate(taskAttemptID, new TaskStatusUpdateEvent(null, 0.1f)));
     
@@ -720,7 +738,7 @@ public class TestTaskAttempt {
 
     assertEquals("Task attempt is not in the  SUCCEEDED state", taImpl.getState(),
         TaskAttemptState.SUCCEEDED);
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals(0, taImpl.getDiagnostics().size());
 
     int expectedEvenstAfterTerminating = expectedEventsAtRunning + 5;
@@ -740,7 +758,7 @@ public class TestTaskAttempt {
             expectedEvenstAfterTerminating), DAGEventCounterUpdate.class, 1);
     verifyEventType(
         arg.getAllValues().subList(expectedEventsAtRunning,
-            expectedEvenstAfterTerminating), VertexEventTaskAttemptStatusUpdate.class, 2);
+            expectedEvenstAfterTerminating), SpeculatorEventTaskAttemptStatusUpdate.class, 2);
   }
   
   @Test(timeout = 5000)
@@ -753,7 +771,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -784,10 +801,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
 
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
@@ -797,6 +816,7 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", taImpl.getState(),
         TaskAttemptState.RUNNING);
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 3;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
@@ -805,6 +825,7 @@ public class TestTaskAttempt {
 
     assertEquals("Task attempt is not in the  SUCCEEDED state", taImpl.getState(),
         TaskAttemptState.SUCCEEDED);
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
 
     assertEquals(0, taImpl.getDiagnostics().size());
 
@@ -824,6 +845,8 @@ public class TestTaskAttempt {
 
     taImpl.handle(new TaskAttemptEvent(taskAttemptID,
         TaskAttemptEventType.TA_CONTAINER_TERMINATED_BY_SYSTEM));
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
     int expectedEventAfterTerminated = expectedEventsAfterTerminating + 0;
     arg = ArgumentCaptor.forClass(Event.class);
     verify(eventHandler, times(expectedEventAfterTerminated)).handle(arg.capture());
@@ -843,7 +866,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -874,10 +896,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     MockTaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
 
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
@@ -887,6 +911,7 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", TaskAttemptState.RUNNING,
         taImpl.getState());
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 3;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
@@ -895,7 +920,7 @@ public class TestTaskAttempt {
 
     assertEquals("Task attempt is not in the  SUCCEEDED state", TaskAttemptState.SUCCEEDED,
         taImpl.getState());
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals(0, taImpl.getDiagnostics().size());
 
     int expectedEvenstAfterTerminating = expectedEventsAtRunning + 3;
@@ -918,6 +943,8 @@ public class TestTaskAttempt {
     // Verify in KILLED state
     assertEquals("Task attempt is not in the  KILLED state", TaskAttemptState.KILLED,
         taImpl.getState());
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
     assertEquals(true, taImpl.inputFailedReported);
     // Verify one event to the Task informing it about FAILURE. No events to scheduler. Counter event.
     int expectedEventsNodeFailure = expectedEvenstAfterTerminating + 2;
@@ -942,7 +969,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler eventHandler = spy(new MockEventHandler());
     TaskAttemptListener taListener = mock(TaskAttemptListener.class);
@@ -973,10 +999,12 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     TaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), true);
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
 
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
 
@@ -986,6 +1014,7 @@ public class TestTaskAttempt {
         null));
     assertEquals("Task attempt is not in the RUNNING state", TaskAttemptState.RUNNING,
         taImpl.getState());
+    verify(mockHeartbeatHandler).register(taskAttemptID);
 
     int expectedEventsAtRunning = 3;
     verify(eventHandler, times(expectedEventsAtRunning)).handle(arg.capture());
@@ -994,7 +1023,7 @@ public class TestTaskAttempt {
 
     assertEquals("Task attempt is not in the  SUCCEEDED state", TaskAttemptState.SUCCEEDED,
         taImpl.getState());
-
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
     assertEquals(0, taImpl.getDiagnostics().size());
 
     int expectedEvenstAfterTerminating = expectedEventsAtRunning + 3;
@@ -1023,6 +1052,8 @@ public class TestTaskAttempt {
     // Verify still in SUCCEEDED state
     assertEquals("Task attempt is not in the  SUCCEEDED state", TaskAttemptState.SUCCEEDED,
         taImpl.getState());
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
     // error cause remains as default value
     assertEquals(TaskAttemptTerminationCause.UNKNOWN_ERROR, taImpl.getTerminationCause());
   }
@@ -1037,7 +1068,6 @@ public class TestTaskAttempt {
     TezDAGID dagID = TezDAGID.getInstance(appId, 1);
     TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
     TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
-    TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 0);
 
     MockEventHandler mockEh = new MockEventHandler();
     MockEventHandler eventHandler = spy(mockEh);
@@ -1069,19 +1099,23 @@ public class TestTaskAttempt {
     doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
     doReturn(containers).when(appCtx).getAllContainers();
 
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
     MockTaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
         taListener, taskConf, new SystemClock(),
-        mock(TaskHeartbeatHandler.class), appCtx, locationHint, false,
+        mockHeartbeatHandler, appCtx, locationHint, false,
         resource, createFakeContainerContext(), false);
+    TezTaskAttemptID taskAttemptID = taImpl.getID();
 
     taImpl.handle(new TaskAttemptEventSchedule(taskAttemptID, 0, 0));
     // At state STARTING.
     taImpl.handle(new TaskAttemptEventStartedRemotely(taskAttemptID, contId,
         null));
+    verify(mockHeartbeatHandler).register(taskAttemptID);
     taImpl.handle(new TaskAttemptEvent(taskAttemptID,
         TaskAttemptEventType.TA_DONE));
     assertEquals("Task attempt is not in succeeded state", taImpl.getState(),
         TaskAttemptState.SUCCEEDED);
+    verify(mockHeartbeatHandler).unregister(taskAttemptID);
 
     int expectedEventsTillSucceeded = 6;
     ArgumentCaptor<Event> arg = ArgumentCaptor.forClass(Event.class);
@@ -1098,7 +1132,7 @@ public class TestTaskAttempt {
     // failure threshold not met. state is SUCCEEDED
     assertEquals("Task attempt is not in succeeded state", taImpl.getState(),
         TaskAttemptState.SUCCEEDED);
-    
+
     // sending same error again doesnt change anything
     taImpl.handle(new TaskAttemptEventOutputFailed(taskAttemptID, tzEvent, 4));
     assertEquals("Task attempt is not in succeeded state", taImpl.getState(),
@@ -1114,6 +1148,8 @@ public class TestTaskAttempt {
     assertEquals("Task attempt is not in FAILED state", taImpl.getState(),
         TaskAttemptState.FAILED);
     assertEquals(TaskAttemptTerminationCause.OUTPUT_LOST, taImpl.getTerminationCause());
+    // verify unregister is not invoked again
+    verify(mockHeartbeatHandler, times(1)).unregister(taskAttemptID);
 
     assertEquals(true, taImpl.inputFailedReported);
     int expectedEventsAfterFetchFailure = expectedEventsTillSucceeded + 2;

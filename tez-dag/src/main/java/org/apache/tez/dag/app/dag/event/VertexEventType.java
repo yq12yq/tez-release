@@ -19,7 +19,7 @@
 package org.apache.tez.dag.app.dag.event;
 
 /**
- * Event types handled by Task.
+ * Event types handled by Vertex.
  */
 public enum VertexEventType {
 
@@ -39,9 +39,6 @@ public enum VertexEventType {
   V_TASK_COMPLETED,
   V_TASK_RESCHEDULED,
   V_TASK_ATTEMPT_COMPLETED,
-  
-  //Producer:TaskAttempt
-  V_TASK_ATTEMPT_STATUS_UPDATE,
   
   //Producer:Any component
   V_INTERNAL_ERROR,

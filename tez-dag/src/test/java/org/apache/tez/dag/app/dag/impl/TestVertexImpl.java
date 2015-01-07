@@ -64,6 +64,7 @@ import org.apache.hadoop.yarn.event.DrainDispatcher;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.hadoop.yarn.util.SystemClock;
+import org.apache.tez.common.MockDNSToSwitchMapping;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeManagerPlugin;
 import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
@@ -103,7 +104,6 @@ import org.apache.tez.dag.api.records.DAGProtos.RootInputLeafOutputProto;
 import org.apache.tez.dag.api.records.DAGProtos.TezEntityDescriptorProto;
 import org.apache.tez.dag.api.records.DAGProtos.VertexPlan;
 import org.apache.tez.dag.app.AppContext;
-import org.apache.tez.dag.app.ClusterInfo;
 import org.apache.tez.dag.app.ContainerHeartbeatHandler;
 import org.apache.tez.dag.app.TaskAttemptListener;
 import org.apache.tez.dag.app.TaskHeartbeatHandler;
@@ -111,7 +111,6 @@ import org.apache.tez.dag.app.dag.DAG;
 import org.apache.tez.dag.app.dag.RootInputInitializerManager;
 import org.apache.tez.dag.app.dag.StateChangeNotifier;
 import org.apache.tez.dag.app.dag.Task;
-import org.apache.tez.dag.app.dag.TaskAttempt;
 import org.apache.tez.dag.app.dag.TaskAttemptStateInternal;
 import org.apache.tez.dag.app.dag.Vertex;
 import org.apache.tez.dag.app.dag.VertexState;
@@ -174,6 +173,7 @@ import org.apache.tez.runtime.api.impl.TezEvent;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.internal.util.collections.Sets;
@@ -2202,7 +2202,12 @@ public class TestVertexImpl {
     dispatcher.init(conf);
     dispatcher.start();
   }
-  
+
+  @BeforeClass
+  public static void beforeClass() {
+    MockDNSToSwitchMapping.initializeMockRackResolver();
+  }
+
   @Before
   public void setup() throws AMUserCodeException {
     useCustomInitializer = false;
@@ -2283,7 +2288,7 @@ public class TestVertexImpl {
     VertexImpl v3 = vertices.get("vertex3");
 
     Assert.assertEquals("x3.y3", v3.getProcessorName());
-    Assert.assertEquals("foo", v3.getJavaOpts());
+    Assert.assertTrue(v3.getJavaOpts().contains("foo"));
 
     Assert.assertEquals(2, v3.getInputSpecList(0).size());
     Assert.assertEquals(2, v3.getInputVerticesCount());

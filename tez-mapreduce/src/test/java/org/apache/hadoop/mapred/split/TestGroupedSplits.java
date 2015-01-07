@@ -49,7 +49,9 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.mapreduce.split.TezMapReduceSplitsGrouper;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.tez.common.MockDNSToSwitchMapping;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Sets;
@@ -80,7 +82,7 @@ public class TestGroupedSplits {
   // A reporter that does nothing
   private static final Reporter voidReporter = Reporter.NULL;
 
-  //@Test(timeout=10000)
+  @Test(timeout=10000)
   public void testFormat() throws Exception {
     JobConf job = new JobConf(defaultConf);
 
@@ -222,10 +224,15 @@ public class TestGroupedSplits {
     return result;
   }
 
+  @BeforeClass
+  public static void beforeClass() {
+    MockDNSToSwitchMapping.initializeMockRackResolver();
+  }
+
   /**
    * Test using the gzip codec for reading
    */
-  //@Test(timeout=10000)
+  @Test(timeout=10000)
   public void testGzip() throws IOException {
     JobConf job = new JobConf(defaultConf);
     CompressionCodec gzip = new GzipCodec();
@@ -249,9 +256,8 @@ public class TestGroupedSplits {
     for (int j=1; j<=3; ++j) {
       format.setDesiredNumberOfSplits(j);
       InputSplit[] splits = format.getSplits(job, 100);
-      if (j==1 || j==3) {
+      if (j==1) {
         // j==1 covers single split corner case
-        // j==3 cases exercises the code where desired == actual
         // and does not do grouping
         Assert.assertEquals("compressed splits == " + j, j, splits.length);
       }
