@@ -12,6 +12,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-1924 (TEZ-20 monarch). Tez AM does not register with AM with full FQDN causing jobs to fail in some environments.
   TEZ-1852 (BUG-29345). Get examples to work in LocalMode.
   TEZ-1878 (BUG-29175). Task-specific log level override not working in certain conditions.
   TEZ-1851 (BUG-29373) FileSystem counters do not differentiate between different FileSystems.
