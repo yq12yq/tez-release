@@ -12,7 +12,8 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
-  TEZ-1642 (BUG-27830)  TestAMRecovery sometimes fail.
+  TEZ-1934 (BUG-27830). TestAMRecovery may fail due to the execution order is not determined 
+  TEZ-1642 (BUG-27830). TestAMRecovery sometimes fail.
   TEZ-1949 (BUG-30101). Whitelist TEZ_RUNTIME_OPTIMIZE_SHARED_FETCH for broadcast edges.
   TEZ-1962 (BUG-30259). Fix a thread leak in LocalMode.
   TEZ-1931 (BUG-30120). Publish tez version info to Timeline.
