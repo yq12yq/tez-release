@@ -7,6 +7,9 @@ Release 0.7.0: Unreleased
 INCOMPATIBLE CHANGES
 
 ALL CHANGES:
+  TEZ-1879. Create local UGI instances for each task and the AM, when running in LocalMode.
+  TEZ-1661. LocalTaskScheduler hangs when shutdown.
+  TEZ-1934. TestAMRecovery may fail due to the execution order is not determined.
   TEZ-1951. Fix general findbugs warnings in tez-dag.
   TEZ-1905. Fix findbugs warnings in tez-tests.
   TEZ-1945. Remove 2 GB memlimit restriction in MergeManager.
@@ -37,6 +40,7 @@ Release 0.6.0: Unreleased
 INCOMPATIBLE CHANGES
 
 ALL CHANGES:
+  TEZ-1968. Tez UI - All vertices of DAG are not listed in vertices page
   TEZ-1890. tez-ui web.tar.gz also being uploaded to maven repository
   TEZ-1931. Publish tez version info to Timeline.
   TEZ-1938. Build warning duplicate jersey-json definitions
@@ -124,6 +128,8 @@ TEZ-UI CHANGES (TEZ-8):
 Release 0.5.4: Unreleased
 
 ALL CHANGES:
+  TEZ-1942. Number of tasks show in Tez UI with auto-reduce parallelism is misleading.
+  TEZ-1962. Fix a thread leak in LocalMode.
   TEZ-1924. Tez AM does not register with AM with full FQDN causing jobs
   to fail in some environments.
   TEZ-1878. Task-specific log level override not working in certain conditions.
