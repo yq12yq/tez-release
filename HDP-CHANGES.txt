@@ -12,6 +12,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-1962.(BUG-30259). Fix a thread leak in LocalMode.
   TEZ-1931 (BUG-30120). Publish tez version info to Timeline.
   TEZ-1942 (BUG-30381). Number of tasks show in Tez UI with auto-reduce parallelism is misleading.
   TEZ-1924 (TEZ-20 monarch). Tez AM does not register with AM with full FQDN causing jobs to fail in some environments.
