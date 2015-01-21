@@ -7,6 +7,7 @@ Release 0.7.0: Unreleased
 INCOMPATIBLE CHANGES
 
 ALL CHANGES:
+  TEZ-1982. TezChild setupUgi should not be using environment.
   TEZ-1980. Suppress tez-dag findbugs warnings until addressed.
   TEZ-1855. Avoid scanning for previously written files within Inputs / Outputs.
   TEZ-1902. Fix findbugs warnings in tez-mapreduce.
@@ -42,6 +43,13 @@ ALL CHANGES:
   TEZ-1856. Remove LocalOnFileSortedOutput, LocalMergedInput, LocalTaskOutputFiles.
   TEZ-1949. Whitelist TEZ_RUNTIME_OPTIMIZE_SHARED_FETCH for broadcast edges.
   TEZ-1593. Refactor PipelinedSorter to remove all MMAP based ByteBuffer references.
+
+Release 0.6.1: Unreleased
+
+INCOMPATIBLE CHANGES
+
+ALL CHANGES:
+  TEZ-1983. Tez UI swimlane task attempt link is broken
 
 Release 0.6.0: Unreleased
 
