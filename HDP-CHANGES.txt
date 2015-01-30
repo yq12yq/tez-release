@@ -14,6 +14,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+  TEZ-2000 (BUG-44600). Source vertex exists error during DAG submission.
   TEZ-1697 (BUG-44597). DAG submission fails if a local resource added is already part of tez.lib.uris.
   TEZ-1832 (BUG-44649). TestSecureShuffle fails with NoClassDefFoundError: org/bouncycastle/x509/X509V1CertificateGenerator.
   TEZ-1772 (BUG-44595). Failing tests post TEZ-1737.
