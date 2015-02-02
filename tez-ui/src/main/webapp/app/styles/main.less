@@ -1,0 +1,456 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Imports
+@import "../bower_components/font-awesome/less/font-awesome";
+@import "../bower_components/bootstrap/less/bootstrap"; //UI theme
+@import "app/styles/dag-view";
+
+// Colors
+@import "app/styles/colors";
+@import "app/styles/shared";
+
+// Base style
+body, html, body > .ember-view {
+  height: 100%;
+  overflow: visible;
+}
+
+// TEZ UI in stand alone mode
+.standalone {
+  height: 100%;
+
+  a {
+    color: @logo-orange;
+  }
+
+  #top-nav {
+    a.logo {
+      img {
+        margin-top: 2px;
+      }
+      span {
+        vertical-align: bottom;
+        color: @logo-orange;
+      }
+      &:hover {
+        text-decoration: none;
+      }
+    }
+
+    .navbar-inner {
+      background-color: @bg-lite;
+
+      max-height: 40px;
+      border-bottom: 1px @border-lite solid;
+    }
+  }
+
+  .nav-pills > li.active > a,
+  .nav-pills > li.active > a:hover,
+  .nav-pills > li.active > a:focus {
+    background-color: @logo-orange;
+  }
+
+  .top-wrapper {
+    min-height: 100%;
+    height: auto !important;
+    height: 100%;
+    margin: 0 auto -40px; // Must be same as footer & footer-frame
+  }
+
+  .footer, .footer-frame {
+    height: 40px;
+  }
+
+  .footer {
+    background-color: @white;
+    color: @text-color;
+
+    padding: 10px 0px;
+    margin: 0px;
+
+    border-top: 1px @border-lite solid;
+  }
+}
+
+// TEZ UI wrapped in a host like Ambari
+.wrapped {
+  #top-nav, .footer, .push {
+    display: none;
+  }
+}
+
+// Styles used in both standalone and wrapped modes
+.standalone, .wrapped {
+
+  .main-container {
+    margin: 0px 30px;
+  }
+
+  .breadcrumb {
+    font-size: 16px;
+    .active .sub {
+      font-size: 12px;
+    }
+  }
+
+  .navbar {
+    margin-bottom: 0px;
+  }
+
+}
+
+.error-bar {
+  position: fixed;
+  bottom: -50px;
+  width: 100%;
+  z-index: 1000;
+
+  .main-container {
+    margin: 0px 30px;
+
+    .message-container, .close-container {
+      .inline-block;
+      vertical-align: top;
+    }
+
+    .message-container {
+      width:90%;
+
+      .align-children-left;
+
+      .error-icon {
+        .task-status;
+        .failed;
+        margin-top: 3px;
+      }
+    }
+
+    .close-container {
+      width:10%;
+
+      .align-children-right;
+    }
+  }
+
+  -webkit-transition: bottom .2s cubic-bezier(0.175, 0.885, 0.320, 1); /* older webkit */
+  -webkit-transition: bottom .2s cubic-bezier(0.175, 0.885, 0.320, 1.275);
+  -moz-transition: bottom .2s cubic-bezier(0.175, 0.885, 0.320, 1.275);
+  -o-transition: bottom .2s cubic-bezier(0.175, 0.885, 0.320, 1.275);
+  transition: bottom .2s cubic-bezier(0.175, 0.885, 0.320, 1.275); /* easeOutBack */
+
+  background-color: #F5F5DC;
+  color: @text-red;
+
+  padding: 5px 0px 15px 0px;
+  margin: 0px;
+  min-height: 50px;
+
+  border-top: 1px @border-lite solid;
+
+  a {
+    color: @text-red !important;
+  }
+
+  .message {
+    display: none;
+  }
+
+  .details {
+    display: none;
+    overflow: auto;
+    max-height: 300px;
+
+    &.visible {
+      display: inline;
+    }
+  }
+
+  &.visible {
+    bottom: -10px;
+
+    .message {
+      display: inline;
+    }
+  }
+}
+
+/* misc helpers */
+.inline-block {
+  display: inline-block;
+}
+
+.horizontal-half {
+  .inline-block;
+  width: 50%;
+}
+
+.align-children-left {
+  text-align: left;
+}
+
+.align-children-right {
+  text-align: right;
+}
+
+.align-children-center {
+  text-align: center;
+}
+
+.align-right {
+  float: right;
+}
+
+.align-left {
+  float: left;
+}
+
+.margin-small {
+  margin: 15px;
+}
+
+.margin-small-vertical {
+  margin: 15px 0px;
+}
+
+.margin-small-horizontal {
+  margin: 0px 15px;
+}
+
+.type-table {
+  display: table;
+}
+
+.fill-full {
+  width: 100%;
+  height: 100%;
+}
+
+/* Navigation */
+.page-nav-link {
+  padding-top: 2px;
+
+  .page-count {
+    display: inline-block;
+    text-align: right;
+    width: 100px;
+    .text {
+      display: inline-block;
+      width: 30px;
+      margin-right: 3px;
+      font-size: .8em;
+    }
+    .counter {
+      font-size: 2em;
+    }
+  }
+
+  .nav-first, .nav-prev, .nav-next {
+    .fa;
+    .fa-2x;
+    cursor: pointer;
+    color: black;
+  }
+
+  .disabled {
+    pointer-events: none;
+    color:lightgray;
+  }
+
+  .nav-first {
+    .fa-icon(arrow-circle-o-left);
+  }
+
+  .nav-prev {
+    .fa-icon(arrow-circle-left)
+  }
+
+  .nav-next {
+    .fa-icon(arrow-circle-right);
+  }
+}
+
+.pill-container {
+  display: table-cell;
+  margin-right: 30px;
+
+  a {
+    height: 30px !important;
+    padding: 5px 15px !important;
+  }
+}
+
+/* dag page */
+.detail-list {
+  table-layout: fixed;
+  overflow: hidden;
+  white-space: nowrap;
+
+  td {
+    padding: 0px 20px 0px 0px;
+  }
+
+  td:first-child {
+    width:120px;
+  }
+}
+
+/* status related */
+.task-status {
+  .fa;
+  .fa-lg;
+
+  &.success {
+    .fa-icon(check-circle);
+    color: @success-color;
+  }
+
+  &.running {
+    .fa-icon(spinner);
+    .fa-spin;
+    color: @success-color;
+  }
+
+  &.failed {
+    .fa-icon(exclamation-circle);
+    color: @error-color;
+  }
+
+  &.killed {
+    .fa-icon(exclamation-circle);
+    color: @warning-color;
+  }
+
+  &.warning {
+    .fa-icon(exclamation-triangle);
+    color: @warning-color;
+  }
+}
+
+.fa-action {
+  .fa;
+  .fa-2x;
+  cursor: pointer;
+  color: black;
+}
+
+.left-divider{
+  padding-left: 5px;
+  border-left: 1px solid lightgrey;
+  margin-left: 5px;
+}
+
+div.indent {
+  margin: 0px 0px 0px 20px;
+  i {
+    .fa;
+    .fa-icon(angle-double-right);
+  }
+}
+
+.countertable {
+  width: 100%;
+
+  th, td {
+    border: 1px solid #dcdcdc;
+    padding: 5px 5px;
+  }
+
+  th, td.filter {
+    background-color: #f0f0f0;
+    font-style: italic;
+    font-weight: bold;
+  }
+
+  th:first-child {
+    width: 70%;
+  }
+
+  tr {
+    margin: 0px 0px 0px 15px;
+    &.group-header td {
+      background-color: #f8f8f8;
+      font-style: italic;
+      font-weight: bold;
+    }
+  }
+}
+
+.kv-table {
+  width: 100%;
+  margin-top: 10px;
+  table-layout: fixed;
+
+  th, td {
+    border: 1px solid #dcdcdc;
+    padding: 5px 5px;
+    width: 50%;
+    word-wrap:break-word;
+  }
+
+  th, td.filter {
+    background-color: #f0f0f0;
+    font-style: italic;
+    font-weight: bold;
+  }
+
+  input[type=search] {
+    width: 100%;
+  }
+}
+
+.ember-table-header-row {
+  .ember-table-content {
+    padding: 2px;
+    input, select {
+      width: 100%;
+    }
+    input {
+      margin-bottom: -3px;
+    }
+  }
+}
+
+.inline-display {
+  display: inline;
+}
+
+.disabled-icon {
+  pointer-events: none;
+  color:lightgray;
+}
+
+.enabled-icon {
+  cursor: pointer;
+  color: black;
+}
+
+.table-container {
+  min-height: 380px;
+}
+
+.input-dirty {
+  background-color: yellow;
+}
+
+/* --- Close button fix */
+.align-close-button {
+  margin-left: -1px;
+  margin-top: -1px;
+}
