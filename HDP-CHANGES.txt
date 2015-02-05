@@ -35,6 +35,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-1770. Handle ConnectExceptions correctly when establishing connections to an NM which may be down.
   TEZ-1774. AppLaunched event for Timeline does not have start time set.
   TEZ-2010. History payload generated from conf has ${var} placeholders.
+  TEZ-2018. App Tracking and History URL should point to the Tez UI.
 
   TEZ-UI
 

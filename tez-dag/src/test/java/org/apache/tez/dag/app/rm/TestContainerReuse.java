@@ -131,6 +131,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(conf).when(appContext).getAMConf();
     AMContainerMap amContainerMap = new AMContainerMap(
       mock(ContainerHeartbeatHandler.class),
       mock(TaskAttemptListener.class),
@@ -269,6 +270,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(new Configuration(false)).when(appContext).getAMConf();
     AMContainerMap amContainerMap = new AMContainerMap(
       mock(ContainerHeartbeatHandler.class),
       mock(TaskAttemptListener.class),
@@ -374,6 +376,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(new Configuration(false)).when(appContext).getAMConf();
     AMContainerMap amContainerMap = new AMContainerMap(mock(ContainerHeartbeatHandler.class),
         mock(TaskAttemptListener.class), new ContainerContextMatcher(), appContext);
     AMNodeTracker amNodeTracker = new AMNodeTracker(eventHandler, appContext);
@@ -514,6 +517,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(new Configuration(false)).when(appContext).getAMConf();
     AMContainerMap amContainerMap = new AMContainerMap(mock(ContainerHeartbeatHandler.class),
         mock(TaskAttemptListener.class), new ContainerContextMatcher(), appContext);
     AMNodeTracker amNodeTracker = new AMNodeTracker(eventHandler, appContext);
@@ -704,6 +708,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(new Configuration(false)).when(appContext).getAMConf();
     AMContainerMap amContainerMap = new AMContainerMap(
         mock(ContainerHeartbeatHandler.class),
         mock(TaskAttemptListener.class),
@@ -832,6 +837,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(new Configuration(false)).when(appContext).getAMConf();
     AMContainerMap amContainerMap = new AMContainerMap(
       mock(ContainerHeartbeatHandler.class),
       mock(TaskAttemptListener.class),
@@ -953,6 +959,7 @@ public class TestContainerReuse {
     doReturn(finalStatus).when(mockApp).getFinalAppStatus();
 
     AppContext appContext = mock(AppContext.class);
+    doReturn(new Configuration(false)).when(appContext).getAMConf();
     ChangingDAGIDAnswer dagIDAnswer = new ChangingDAGIDAnswer(dagID1);
     AMContainerMap amContainerMap = new AMContainerMap(mock(ContainerHeartbeatHandler.class),
         mock(TaskAttemptListener.class), new ContainerContextMatcher(), appContext);
