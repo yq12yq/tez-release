@@ -155,6 +155,8 @@ public class TestTezClient {
     TezClientForTest client = configureAndCreateTezClient(lrs, isSession, null);
     
     ArgumentCaptor<ApplicationSubmissionContext> captor = ArgumentCaptor.forClass(ApplicationSubmissionContext.class);
+    when(client.mockYarnClient.getApplicationReport(client.mockAppId).getYarnApplicationState())
+    .thenReturn(YarnApplicationState.RUNNING);
     client.start();
     verify(client.mockYarnClient, times(1)).init((Configuration)any());
     verify(client.mockYarnClient, times(1)).start();
@@ -211,6 +213,8 @@ public class TestTezClient {
     when(client.mockYarnClient.createApplication().getNewApplicationResponse().getApplicationId())
         .thenReturn(appId2);
     
+    when(client.mockYarnClient.getApplicationReport(appId2).getYarnApplicationState())
+    .thenReturn(YarnApplicationState.RUNNING);
     dag = DAG.create("DAG").addVertex(
         Vertex.create("Vertex", ProcessorDescriptor.create("P"), 1, Resource.newInstance(1, 1)));
     dagClient = client.submitDAG(dag);

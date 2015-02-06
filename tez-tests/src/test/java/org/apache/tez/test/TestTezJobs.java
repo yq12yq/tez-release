@@ -49,6 +49,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.tez.client.TezClient;
@@ -509,6 +510,40 @@ public class TestTezJobs {
       Assert.assertEquals(appsBeforeCount + 1, appsAfterCount);
     } finally {
       remoteFs.delete(stagingDirPath, true);
+      if (yarnClient != null) {
+        yarnClient.stop();
+      }
+    }
+
+  }
+
+  @Test(timeout = 60000)
+  public void testInvalidQueueSubmission() throws Exception {
+
+    TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
+    YarnClient yarnClient = YarnClient.createYarnClient();
+    try {
+
+      yarnClient.init(mrrTezCluster.getConfig());
+      yarnClient.start();
+
+      SimpleSessionExample job = new SimpleSessionExample();
+      tezConf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, false);
+      tezConf.set(TezConfiguration.TEZ_QUEUE_NAME, "nonexistent");
+
+      String[] inputPaths = new String[1];
+      String[] outputPaths = new String[1];
+      String inputDirStr = "/tmp/owc-input";
+      inputPaths[0] = inputDirStr;
+      Path inputDir = new Path(inputDirStr);
+      remoteFs.mkdirs(inputDir);
+      String outputDirStr = "/tmp/owc-output";
+      outputPaths[0] = outputDirStr;
+      job.run(inputPaths, outputPaths, tezConf, 2);
+      fail("Job submission should have thrown an exception");
+    } catch(IOException e) {
+      Assert.assertTrue(e.getMessage().contains("Failed to submit application to YARN"));
+    } finally {
       if (yarnClient != null) {
         yarnClient.stop();
       }
