@@ -34,7 +34,14 @@ var App = window.App = Em.Application.createWithMixins(Bootstrap, {
   },
 
   setConfigs: function (configs) {
+    if(configs.envDefaults.version == "${version}") {
+      delete configs.envDefaults.version;
+    }
     App.Helpers.misc.merge(App.Configs, configs);
+    $.extend(App.env, {
+      timelineBaseUrl: App.Helpers.misc.normalizePath(App.env.timelineBaseUrl),
+      RMWebUrl: App.Helpers.misc.normalizePath(App.env.RMWebUrl)
+    });
     App.advanceReadiness();
   }
 });
@@ -105,6 +112,50 @@ App.ready = function () {
           return data;
         });
       });
+    }
+  });
+
+  App.AMInfoAdapter = DS.RESTAdapter.extend({
+    ajax: function(url, method, hash) {
+      hash = hash || {}; // hash may be undefined
+      if (hash && hash.data && hash.data.__app_id__) {
+        url = url.replace('__app_id__', hash.data.__app_id__);
+        delete hash.data['__app_id__'];
+      }
+      hash.crossDomain = true;
+      hash.xhrFields = {withCredentials: true};
+      return this._super(url, method, hash);
+    },
+    host: App.env.RMWebUrl,
+    namespace: App.Configs.restNamespace.aminfo,
+  });
+
+  App.DagProgressAdapter = App.AMInfoAdapter.extend({
+    buildURL: function(type, id, record) {
+      var url = this._super(type, undefined, record);
+      return url.replace('__app_id__', record.get('appId'))
+        .fmt(record.get('dagIdx'));
+    },
+    pathForType: function() {
+      return 'dagProgress?dagID=%@';
+    }
+  });
+
+  App.VertexProgressAdapter = App.AMInfoAdapter.extend({
+    findQuery: function(store, type, query) {
+      var record = query.metadata;
+      delete query.metadata;
+      return this.ajax(
+        this.buildURL(Ember.String.pluralize(type.typeKey),
+          record.vertexIds, Em.Object.create(record)), 'GET', { data: query});
+    },
+    buildURL: function(type, id, record) {
+      var url = this._super(type, undefined, record);
+      return url.replace('__app_id__', record.get('appId'))
+        .fmt(record.get('dagIdx'), id);
+    },
+    pathForType: function(typeName) {
+      return typeName + '?dagID=%@&vertexID=%@';
     }
   });
 };
