@@ -39,6 +39,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-UI
 
+  TEZ-2043. Tez UI: add progress info from am webservice to dag and vertex views.
   TEZ-2017. TEZ UI - Dag view throwing error whild re-displaying additionals in some dags. (Sreenath Somarajapuram via hitesh)
   TEZ-2013. TEZ UI - App Details Page UI Nits (Sreenath Somarajapuram via jeagles)
   TEZ-2014. Tez UI: Nits : All tables, Vertices Page UI. (Sreenath Somarajapuram via hitesh)
