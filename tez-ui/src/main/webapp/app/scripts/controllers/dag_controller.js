@@ -69,7 +69,8 @@ App.DagController = Em.ObjectController.extend(App.Helpers.DisplayHelper, {
     Ember.Object.create({title: 'Tasks', linkTo: 'dag.tasks'}),
     Ember.Object.create({title: 'Task Attempts', linkTo: 'dag.taskAttempts'}),
     Ember.Object.create({title: 'Counters', linkTo: 'dag.counters'}),
-    Ember.Object.create({title: 'Swimlane', linkTo: 'dag.swimlane'})
+    //disabling swimlanes for BUG-31495
+    //Ember.Object.create({title: 'Swimlane', linkTo: 'dag.swimlane'})
   ],
 
 });

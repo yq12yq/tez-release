@@ -60,7 +60,8 @@ App.VertexController = Em.ObjectController.extend(App.Helpers.DisplayHelper, {
     Ember.Object.create({title: 'Tasks', linkTo: 'vertex.tasks'}),
     Ember.Object.create({title: 'Task Attempts', linkTo: 'vertex.taskAttempts'}),
     Ember.Object.create({title: 'Counters', linkTo: 'vertex.counters'}),
-    Ember.Object.create({title: 'Swimlane', linkTo: 'vertex.swimlane'}),
+    //disabling swimlanes for BUG-31495
+    //Ember.Object.create({title: 'Swimlane', linkTo: 'vertex.swimlane'}),
     Ember.Object.create({title: 'Sources & Sinks', linkTo: 'vertex.additionals'}),
   ],
 });
