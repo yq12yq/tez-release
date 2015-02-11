@@ -36,9 +36,14 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-1774. AppLaunched event for Timeline does not have start time set.
   TEZ-2010. History payload generated from conf has ${var} placeholders.
   TEZ-2018. App Tracking and History URL should point to the Tez UI.
+  TEZ-2065. Setting up tez.tez-ui.history-url.base with a trailing slash can result in failures to redirect correctly.
 
   TEZ-UI
 
+  TEZ-2078. Tez UI: Task logs url use in-progress url causing various errors.
+  TEZ-2077. Tez UI: No diagnostics on Task Attempt Details page if task attempt failed.
+  TEZ-2068. Tez UI: Dag view should use full window height, disable webuiservice in localmode.
+  TEZ-2079. Tez UI: trailing slash in timelineBaseUrl in ui should be handled.
   TEZ-2069. Tez UI: appId should link to application in dag details view.
   TEZ-2063. Tez UI: Flaky log url in tasks table.
   TEZ-2062. Tez UI: Showing 50 elements not working properly.
