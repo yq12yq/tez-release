@@ -81,6 +81,9 @@ public class LocalClient extends FrameworkClient {
     tezConf.setBoolean(TezConfiguration.TEZ_IGNORE_LIB_URIS, true);
     isSession = tezConf.getBoolean(TezConfiguration.TEZ_AM_SESSION_MODE,
         TezConfiguration.TEZ_AM_SESSION_MODE_DEFAULT);
+
+    // disable web service for local mode.
+    this.conf.setBoolean(TezConfiguration.TEZ_AM_WEBSERVICE_ENABLE, false);
   }
 
 
