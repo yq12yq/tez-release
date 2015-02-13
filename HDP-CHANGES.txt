@@ -13,6 +13,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2037 (BUG-31540). Should log TaskAttemptFinishedEvent if taskattempt is recovered to KILLED
   TEZ-1934 (BUG-27830). TestAMRecovery may fail due to the execution order is not determined 
   TEZ-1642 (BUG-27830). TestAMRecovery sometimes fail.
   TEZ-1949 (BUG-30101). Whitelist TEZ_RUNTIME_OPTIMIZE_SHARED_FETCH for broadcast edges.
