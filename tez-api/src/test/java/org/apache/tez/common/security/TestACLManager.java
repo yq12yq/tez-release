@@ -42,7 +42,10 @@ public class TestACLManager {
     UserGroupInformation dagUser = UserGroupInformation.createUserForTesting("dagUser", noGroups);
     UserGroupInformation user1 = UserGroupInformation.createUserForTesting("user1", noGroups);
 
-    ACLManager aclManager = new ACLManager(currentUser.getShortUserName());
+    Configuration conf = new Configuration();
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
+
+    ACLManager aclManager = new ACLManager(currentUser.getShortUserName(), conf);
 
     UserGroupInformation user = user1;
 
@@ -53,7 +56,9 @@ public class TestACLManager {
     Assert.assertTrue(aclManager.checkAccess(user, ACLType.AM_VIEW_ACL));
     Assert.assertTrue(aclManager.checkAccess(user, ACLType.AM_MODIFY_ACL));
 
-    aclManager = new ACLManager(currentUser.getShortUserName(), new Configuration(false));
+    Configuration conf2 = new Configuration(false);
+    conf2.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
+    aclManager = new ACLManager(currentUser.getShortUserName(), conf2);
 
     user = user1;
     Assert.assertFalse(aclManager.checkAccess(user, ACLType.AM_VIEW_ACL));
@@ -63,7 +68,7 @@ public class TestACLManager {
     Assert.assertTrue(aclManager.checkAccess(user, ACLType.AM_VIEW_ACL));
     Assert.assertTrue(aclManager.checkAccess(user, ACLType.AM_MODIFY_ACL));
 
-    ACLManager dagAclManager = new ACLManager(aclManager, dagUser.getShortUserName(), new Configuration(false));
+    ACLManager dagAclManager = new ACLManager(aclManager, dagUser.getShortUserName(), conf2);
     user = dagUser;
     Assert.assertFalse(dagAclManager.checkAccess(user, ACLType.AM_VIEW_ACL));
     Assert.assertFalse(dagAclManager.checkAccess(user, ACLType.AM_MODIFY_ACL));
@@ -89,6 +94,7 @@ public class TestACLManager {
     UserGroupInformation user6 = UserGroupInformation.createUserForTesting("user6", noGroups);
 
     Configuration conf = new Configuration(false);
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
     // View ACLs: user1, user4, grp3, grp4.
     String viewACLs = user1.getShortUserName() + "," + user4.getShortUserName()
         + "   " + "grp3,grp4  ";
@@ -131,6 +137,7 @@ public class TestACLManager {
     UserGroupInformation user6 = UserGroupInformation.createUserForTesting("user6", noGroups);
 
     Configuration conf = new Configuration(false);
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
     // View ACLs: user1, user4
     String viewACLs = user1.getShortUserName() + "," + user4.getShortUserName() + " ";
     // Modify ACLs: user3
@@ -171,6 +178,7 @@ public class TestACLManager {
     UserGroupInformation user6 = UserGroupInformation.createUserForTesting("user6", noGroups);
 
     Configuration conf = new Configuration(false);
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
     // View ACLs: user1, user4, grp3, grp4.
     String viewACLs = "user1,user4,,   grp3,grp4  ";
     // Modify ACLs: user3, grp6, grp7
@@ -229,6 +237,7 @@ public class TestACLManager {
     UserGroupInformation user6 = UserGroupInformation.createUserForTesting("user6", noGroups);
 
     Configuration conf = new Configuration(false);
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
     // View ACLs: user1, user4, grp3, grp4.
     String viewACLs = "user1,user4,,   grp3,grp4  ";
     // Modify ACLs: user3, grp6, grp7
@@ -289,6 +298,7 @@ public class TestACLManager {
   @Test
   public void testWildCardCheck() {
     Configuration conf = new Configuration(false);
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
     String viewACLs = "   *  ";
     String modifyACLs = "   * ";
     conf.set(TezConfiguration.TEZ_AM_VIEW_ACLS, viewACLs);
@@ -345,6 +355,7 @@ public class TestACLManager {
   public void testConvertToYARNACLs() {
     String currentUser = "c1";
     Configuration conf = new Configuration(false);
+    conf.setBoolean(TezConfiguration.TEZ_AM_ACLS_ENABLED, true);
     String viewACLs = "user1,user4,,   grp3,grp4  ";
     conf.set(TezConfiguration.TEZ_AM_VIEW_ACLS, viewACLs);
     conf.set(TezConfiguration.TEZ_AM_MODIFY_ACLS, "   * ");
