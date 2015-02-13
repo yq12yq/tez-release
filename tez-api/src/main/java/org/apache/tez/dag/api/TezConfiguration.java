@@ -910,7 +910,7 @@ public class TezConfiguration extends Configuration {
    * Boolean value. Configuration to enable/disable ACL checks.
    */
   public static final String TEZ_AM_ACLS_ENABLED = TEZ_AM_PREFIX + "acls.enabled";
-  public static final boolean TEZ_AM_ACLS_ENABLED_DEFAULT = true;
+  public static final boolean TEZ_AM_ACLS_ENABLED_DEFAULT = false;
 
   /**
    * String value. 

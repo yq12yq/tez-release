@@ -40,6 +40,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-2018. App Tracking and History URL should point to the Tez UI.
   TEZ-2065. Setting up tez.tez-ui.history-url.base with a trailing slash can result in failures to redirect correctly.
   TEZ-2092. Tez UI history url handler injects spurious trailing slash.
+  BUG-31683. Set acls enabled to false by default as ACLs not supported.
 
   TEZ-UI
 
