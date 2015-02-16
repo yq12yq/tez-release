@@ -13,6 +13,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2038 (BUG-31481). TEZ-UI DAG is always running in tez-ui when the app is failed but no DAGFinishedEvent is logged
   TEZ-2024 (BUG-31540). TaskFinishedEvent may not be logged in recovery
   TEZ-2037 (BUG-31540). Should log TaskAttemptFinishedEvent if taskattempt is recovered to KILLED
   TEZ-1934 (BUG-27830). TestAMRecovery may fail due to the execution order is not determined 
