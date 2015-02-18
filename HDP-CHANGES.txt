@@ -45,6 +45,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-UI
 
+  TEZ-2116. Tez UI: dags page filter does not work if more than one filter is specified.
   TEZ-2106. TEZ UI: Display data load time, and add a refresh button for items that can be refreshed.
   TEZ-2114. Tez UI: task/task attempt status is not available when its running.
   TEZ-2112. Tez UI: fix offset calculation, add home button to breadcrumbs.
