@@ -46,6 +46,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-UI
 
+  TEZ-2134. TEZ UI: On request failure, display request URL and server name in error bar.
   TEZ-2136. Some enhancements to the new Tez UI.
   TEZ-1990. Tez UI: DAG details page shows Nan for end time when a DAG is running.
   TEZ-2116. Tez UI: dags page filter does not work if more than one filter is specified.
