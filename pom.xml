@@ -855,11 +855,16 @@
                     <configuration>
                         <includes>
                             <include>winpkg/src/scripts/*</include>
+                            <include>winpkg/src/template/conf/*</include>
                         </includes>
                     <replacements>
                         <replacement>
                             <token>@final.name@</token>
                             <value>tez-${project.version}</value>
+                        </replacement>
+                        <replacement>
+                            <token>@hadoop.version@</token>
+                            <value>${hadoop.version}</value>
                         </replacement>
                     </replacements>
                     </configuration>

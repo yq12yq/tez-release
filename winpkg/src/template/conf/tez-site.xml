@@ -11,8 +11,8 @@
 
   <property>
     <name>tez.cluster.additional.classpath.prefix</name>
-    <value></value>
-    <description></description>
+    <value>%HADOOP_COMMON_HOME%\share\hadoop\common\hadoop-azure-@hadoop.version@.jar</value>
+    <description>Additional classpath to be prefix to classpath for Tez AM and all Tez tasks</description>
   </property>
 
   <property>
