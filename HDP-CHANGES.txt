@@ -14,6 +14,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+  TEZ-2133 (BUG-44605). Secured Impersonation: Failed to delete tez scratch data dir.
   TEZ-2036 (BUG-44603). OneToOneEdgeManager should enforce that source and destination tasks have same number.
   TEZ-2000 (BUG-44600). Source vertex exists error during DAG submission.
   TEZ-1697 (BUG-44597). DAG submission fails if a local resource added is already part of tez.lib.uris.
