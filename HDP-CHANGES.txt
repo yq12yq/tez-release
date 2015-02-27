@@ -46,6 +46,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-UI
 
+  TEZ-2158. TEZ UI: Display dag/vertex names, and task/attempt index in breadcrumb.
   TEZ-2160. Tez UI: App tracking URL should support navigation back.
   TEZ-2142. TEZ UI: Breadcrumb border color looks out of place in wrapped mode.
   TEZ-2134. TEZ UI: On request failure, display request URL and server name in error bar.
