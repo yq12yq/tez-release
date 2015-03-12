@@ -26,6 +26,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2195 (BUG-45643). TestTezJobs::testInvalidQueueSubmission/testInvalidQueueSubmissionToSession fail with hadoop branch-2.
   TEZ-2483 (BUG-45561). Tez should close task if processor fail.
   TEZ-2317 (BUG-45577). Event processing backlog can result in task failures for short tasks.
   TEZ-2509 (BUG-45560). YarnTaskSchedulerService should not try to allocate containers if AM is shutting down.
