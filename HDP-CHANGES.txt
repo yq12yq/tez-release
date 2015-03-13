@@ -13,6 +13,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2189. (BUG-39649). Tez UI live AM tracking url only works for localhost addresses
   TEZ-2488 (BUG-37915). Tez AM crashes if a submitted DAG is configured to use invalid resource sizes.
   TEZ-2369 (BUG-35728). Backport fix to RootInputInitializerManager from TEZ-1951.
   TEZ-2397 (BUG-35923). Tez jobs can fail on a cluster with HDFS HA.
