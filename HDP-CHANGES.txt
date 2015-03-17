@@ -15,6 +15,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2193 (BUG-44607). Check returned value from EdgeManagerPlugin before using it.
   TEZ-2179 (BUG-44606). Timeline relatedentries missing cause exaggerated warning.
   TEZ-2133 (BUG-44605). Secured Impersonation: Failed to delete tez scratch data dir.
   TEZ-2036 (BUG-44603). OneToOneEdgeManager should enforce that source and destination tasks have same number.
