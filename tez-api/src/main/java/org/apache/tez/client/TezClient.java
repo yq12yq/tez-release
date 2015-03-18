@@ -38,6 +38,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.tez.common.counters.Limits;
 import org.apache.tez.common.security.JobTokenSecretManager;
@@ -458,6 +459,8 @@ public class TezClient {
               + ", applicationId=" + sessionAppId);
           try {
             frameworkClient.killApplication(sessionAppId);
+          } catch (ApplicationNotFoundException e) {
+            LOG.info("Failed to kill nonexistent application " + sessionAppId, e);
           } catch (YarnException e) {
             throw new TezException(e);
           }
@@ -545,6 +548,8 @@ public class TezClient {
           LOG.info("Failed to retrieve AM Status via proxy", e);
         }
       }
+    } catch (ApplicationNotFoundException e) {
+      return TezAppMasterStatus.SHUTDOWN;
     } catch (YarnException e) {
       throw new TezException(e);
     }
