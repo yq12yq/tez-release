@@ -13,6 +13,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2214. FetcherOrderedGrouped can get stuck indefinitely when MergeManager misses memToDiskMerging
   TEZ-1923. FetcherOrderedGrouped gets into infinite loop due to memory pressure
   TEZ-2135. ACL checks handled incorrectly in AMWebController.
   TEZ-2038 (BUG-31481). TEZ-UI DAG is always running in tez-ui when the app is failed but no DAGFinishedEvent is logged
