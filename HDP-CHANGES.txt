@@ -15,6 +15,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2205 (BUG-44613). Tez still tries to post to ATS when yarn.timeline-service.enabled=false.
   TEZ-2186 (BUG-44612). TEZ-2186 OOM with a simple scatter gather job with re-use.
   TEZ-2064 (BUG-44610). SessionNotRunning Exception not thrown is all cases.
   TEZ-2199 (BUG-44609). updateLocalResourcesForInputSplits assumes wrongly that split data is on same FS as the default FS.
