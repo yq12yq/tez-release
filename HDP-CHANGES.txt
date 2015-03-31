@@ -15,6 +15,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
  
+  TEZ-2224 (BUG-44614). EventQueue empty doesn't mean events are consumed in RecoveryService.
   TEZ-2305 (BUG-44608). MR compatibility sleep job fails with IOException: Undefined job output-path.
   TEZ-2162 (BUG-44608). org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat is not recognized.
   TEZ-2205 (BUG-44613). Tez still tries to post to ATS when yarn.timeline-service.enabled=false.
