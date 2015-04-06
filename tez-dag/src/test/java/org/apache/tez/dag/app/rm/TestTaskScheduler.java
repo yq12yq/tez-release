@@ -73,6 +73,7 @@ import org.apache.tez.dag.app.rm.TestTaskSchedulerHelpers.TaskSchedulerAppCallba
 import org.apache.tez.dag.app.rm.TestTaskSchedulerHelpers.TaskSchedulerWithDrainableAppCallback;
 import org.apache.tez.dag.app.rm.TestTaskSchedulerHelpers.AlwaysMatchesContainerMatcher;
 import org.apache.tez.dag.app.rm.TestTaskSchedulerHelpers.PreemptionMatcher;
+import org.apache.tez.dag.app.rm.container.ContainerSignatureMatcher;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -87,6 +88,8 @@ public class TestTaskScheduler {
 
   RecordFactory recordFactory =
       RecordFactoryProvider.getRecordFactory(null);
+
+  static ContainerSignatureMatcher containerSignatureMatcher = new AlwaysMatchesContainerMatcher();
 
   @SuppressWarnings({ "unchecked" })
   @Test(timeout=10000)
@@ -520,6 +523,7 @@ public class TestTaskScheduler {
     conf.setLong(TezConfiguration.TEZ_AM_CONTAINER_REUSE_LOCALITY_DELAY_ALLOCATION_MILLIS, 0);
     // to release immediately after deallocate
     conf.setLong(TezConfiguration.TEZ_AM_CONTAINER_IDLE_RELEASE_TIMEOUT_MIN_MILLIS, 0);
+    conf.setLong(TezConfiguration.TEZ_AM_CONTAINER_IDLE_RELEASE_TIMEOUT_MAX_MILLIS, 0);
     scheduler.init(conf);
     drainableAppCallback.drain();
 
@@ -1420,7 +1424,8 @@ public class TestTaskScheduler {
     containers.add(mockContainer4);
     
     // Fudge new container being present in delayed allocation list due to race
-    HeldContainer heldContainer = new HeldContainer(mockContainer4, -1, -1, null);
+    HeldContainer heldContainer = new HeldContainer(mockContainer4, -1, -1, null,
+        containerSignatureMatcher);
     scheduler.delayedContainerManager.delayedContainers.add(heldContainer);
     // no preemption - container assignment attempts < 3
     scheduler.getProgress();
