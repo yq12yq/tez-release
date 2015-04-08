@@ -22,6 +22,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2293 (BUG-45432). When running in "mr" mode, always use MR config settings.
   TEZ-2745 (BUG-43221). ClassNotFoundException of user code should fail dag
   TEZ-2716 (BUG-44776). DefaultSorter.isRleNeeded not thread safe.
   TEZ-2548 (BUG-44631). TezClient submitDAG can hang if the AM is in the process of shutting down.
