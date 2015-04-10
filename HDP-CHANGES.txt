@@ -15,6 +15,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
  
+  TEZ-2289 (BUG-44617). ATSHistoryLoggingService can generate ArrayOutOfBoundsException.
   TEZ-2257 (BUG-44615). Fix potential NPEs in TaskReporter.
   TEZ-2224 (BUG-44614). EventQueue empty doesn't mean events are consumed in RecoveryService.
   TEZ-2305 (BUG-44608). MR compatibility sleep job fails with IOException: Undefined job output-path.
