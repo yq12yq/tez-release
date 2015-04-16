@@ -25,6 +25,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2317 (BUG-45577). Event processing backlog can result in task failures for short tasks.
   TEZ-2509 (BUG-45560). YarnTaskSchedulerService should not try to allocate containers if AM is shutting down.
   TEZ-2858 (BUG-45554). Stop using System.currentTimeMillis in TestInputReadyTracker.
   TEZ-2857 (BUG-45553). Fix flakey tests in TestDAGImpl.
