@@ -115,6 +115,12 @@ function Install(
         Invoke-Cmd $xcopy_cmd
 
         ###
+        ###  Remove slf4j.jar from the install, because of BUG-33641
+        ###
+        $slf4jjar = $tezInstallPath + "\lib\slf4j-log4j*.jar"
+        Remove-Item $slf4jjar -ErrorAction SilentlyContinue -Force
+
+        ###
         ### Set TEZ_HOME environment variable
         ###
         Write-Log "Setting the TEZ_HOME environment variable at machine scope to `"$tezInstallPath`""
