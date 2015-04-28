@@ -289,4 +289,39 @@
     </description>
   </property>
 
+  <property>
+    <name>tez.runtime.sorter.class</name>
+    <value>PIPELINED</value>
+    <description>Which sorter implementation to use. Valid values: PIPELINED, LEGACY.</description>
+  </property>
+
+  <property>
+    <name>tez.runtime.pipelined.sorter.sort.threads</name>
+    <value>2</value>
+    <description>Tez runtime pipelined sorter sort threads</description>
+  </property>
+
+  <property>
+    <name>tez.runtime.optimize.local.fetch</name>
+    <value>true</value>
+    <description>If the shuffle input is on the local host bypass the http fetch and access the files directly.</description>
+  </property>
+
+  <property>
+    <name>tez.task.generate.counters.per.io</name>
+    <value>true</value>
+    <description>Whether to generate counters on a per-edge basis for a Tez DAG. Helpful for in-depth analysis.</description>
+  </property>
+
+  <!--
+  <property>
+    <name>tez.am.view-acls</name>
+    <value>*</value>
+    <description>AM view ACLs. This allows the specified users/groups to view the status of the AM and all DAGs that run within this AM.
+    Value format: Comma separated list of users, followed by whitespace, followed by a comma separated list of groups. Should only be set
+    to "*" for non-secure clusters.
+    </description>
+  </property>
+  -->
+
 </configuration>
