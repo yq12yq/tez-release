@@ -14,8 +14,9 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
-
-  TEZ-2162 (BUG-44608). org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat is not recognized
+ 
+  TEZ-2305 (BUG-44608). MR compatibility sleep job fails with IOException: Undefined job output-path.
+  TEZ-2162 (BUG-44608). org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat is not recognized.
   TEZ-2205 (BUG-44613). Tez still tries to post to ATS when yarn.timeline-service.enabled=false.
   TEZ-2186 (BUG-44612). TEZ-2186 OOM with a simple scatter gather job with re-use.
   TEZ-2064 (BUG-44610). SessionNotRunning Exception not thrown is all cases.
