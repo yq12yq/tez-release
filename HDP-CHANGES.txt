@@ -14,7 +14,8 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
- 
+
+  TEZ-1560 (BUG-44620). Invalid state machine handling for V_SOURCE_VERTEX_RECOVERED in recovery.
   TEZ-2289 (BUG-44617). ATSHistoryLoggingService can generate ArrayOutOfBoundsException.
   TEZ-2257 (BUG-44615). Fix potential NPEs in TaskReporter.
   TEZ-2224 (BUG-44614). EventQueue empty doesn't mean events are consumed in RecoveryService.
