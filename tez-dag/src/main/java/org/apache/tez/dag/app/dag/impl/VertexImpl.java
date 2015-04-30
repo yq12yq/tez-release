@@ -1236,7 +1236,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
       if (!pendingTaskEvents.isEmpty()) {
         LOG.info("Routing pending task events for vertex: " + logIdentifier);
         try {
-          handleRoutedTezEvents(this, pendingTaskEvents, false);
+          handleRoutedTezEvents(this, pendingTaskEvents, false, true);
         } catch (AMUserCodeException e) {
           String msg = "Exception in " + e.getSource() +", vertex=" + logIdentifier;
           LOG.error(msg, e);
@@ -2845,7 +2845,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
         vertex.recoveredEvents.clear();
         if (!vertex.pendingRouteEvents.isEmpty()) {
           try {
-            handleRoutedTezEvents(vertex, vertex.pendingRouteEvents, false);
+            handleRoutedTezEvents(vertex, vertex.pendingRouteEvents, false, true);
             vertex.pendingRouteEvents.clear();
           } catch (AMUserCodeException e) {
             String msg = "Exception in " + e.getSource() + ", vertex=" + vertex.getLogIdentifier();
@@ -3074,7 +3074,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
               vertex.getAdditionalInputs().get(liInitEvent.getInputName())
                   .getIODescriptor(), liInitEvent.getEvents());
           if (inputInfoEvents != null && !inputInfoEvents.isEmpty()) {
-            VertexImpl.handleRoutedTezEvents(vertex, inputInfoEvents, false);
+            VertexImpl.handleRoutedTezEvents(vertex, inputInfoEvents, false, false);
           }
         } catch (AMUserCodeException e) {
             String msg = "Exception in " + e.getSource() + ", vertex:" + vertex.getLogIdentifier();
@@ -3721,7 +3721,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
       boolean recovered = rEvent.isRecovered();
       List<TezEvent> tezEvents = rEvent.getEvents();
       try {
-        VertexImpl.handleRoutedTezEvents(vertex, tezEvents, recovered);
+        VertexImpl.handleRoutedTezEvents(vertex, tezEvents, recovered, false);
       } catch (AMUserCodeException e) {
         String msg = "Exception in " + e.getSource() + ", vertex=" + vertex.getLogIdentifier();
         LOG.error(msg, e);
@@ -3739,9 +3739,10 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
   }
 
-  private static void handleRoutedTezEvents(VertexImpl vertex, List<TezEvent> tezEvents, boolean recovered) throws AMUserCodeException {
+  private static void handleRoutedTezEvents(VertexImpl vertex, List<TezEvent> tezEvents, boolean recovered, boolean isPendingEvents) throws AMUserCodeException {
     if (vertex.getAppContext().isRecoveryEnabled()
         && !recovered
+        && !isPendingEvents
         && !tezEvents.isEmpty()) {
       List<TezEvent> recoveryEvents =
           Lists.newArrayList();
