@@ -13,6 +13,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2397 (BUG-35923). Tez jobs can fail on a cluster with HDFS HA.
   TEZ-2334. ContainerManagementProtocolProxy modifies IPC timeout conf without making a copy.
   BUG-34940. Add dependency for hadoop-azure.jar
   TEZ-2192. Relocalization does not check for source.
