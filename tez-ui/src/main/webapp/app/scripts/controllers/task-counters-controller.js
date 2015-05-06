@@ -16,33 +16,13 @@
  * limitations under the License.
  */
 
-App.BasicTableComponent.SearchView = Ember.View.extend({
-  templateName: 'components/basic-table/search-view',
-
-  classNames: ['search-view'],
-
-  text: '',
-  _boundText: function () {
-    return this.get('text') || '';
-  }.property(),
-
-  _validRegEx: function () {
-    var regExText = this.get('_boundText');
-    regExText = regExText.substr(regExText.indexOf(':') + 1);
-    try {
-      new RegExp(regExText, 'im');
-    }
-    catch(e) {
-      return false;
-    }
-    return true;
-  }.property('_boundText'),
-
-  actions: {
-    search: function () {
-      if(this.get('_validRegEx')) {
-        this.get('parentView').send('search', this.get('_boundText'));
+App.TaskCountersController = Em.ObjectController.extend(App.ModelRefreshMixin, {
+  message: function () {
+    var status = this.get('content.status');
+    if(!this.get('content.counterGroups.length')) {
+      if(status == 'KILLED' || status == 'FAILED') {
+        return 'Task %@, please check the counters of individual task attempts.'.fmt(status);
       }
     }
-  }
+  }.property('content.status', 'content.counterGroups.length')
 });

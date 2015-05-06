@@ -18,7 +18,6 @@
 
 App.DagCountersController =
     App.VertexCountersController =
-    App.TaskCountersController =
     App.TaskAttemptCountersController =
 
     Em.ObjectController.extend(App.ModelRefreshMixin);
