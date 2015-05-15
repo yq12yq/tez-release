@@ -1,0 +1,10 @@
+Changes only in Hortonworks github and not in Apache Tez release 0.7.0 and hence not covered by CHANGES.txt.
+
+INCOMPATIBLE CHANGES
+
+NEW FEATURES
+
+IMPROVEMENTS
+
+BUG FIXES
+  BUG-36811. Disable swimlanes tab in Tez UI for Dal  
