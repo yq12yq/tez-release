@@ -5,6 +5,7 @@ INCOMPATIBLE CHANGES
 NEW FEATURES
 
 IMPROVEMENTS
+  TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
 
 BUG FIXES
   BUG-36811. Disable swimlanes tab in Tez UI for Dal  
