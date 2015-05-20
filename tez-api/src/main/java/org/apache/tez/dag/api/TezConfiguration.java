@@ -999,4 +999,15 @@ public class TezConfiguration extends Configuration {
   public static final String TEZ_AM_WEBSERVICE_ENABLE = TEZ_AM_PREFIX
       + "tez-ui.webservice.enable";
   public static final boolean TEZ_AM_WEBSERVICE_ENABLE_DEFAULT = true;
+
+  /**
+   * Long value
+   * Time to wait (in milliseconds) for yarn app's diagnotics is available
+   * Workaround for YARN-2560
+   */
+  @Private
+  public static final String TEZ_CLIENT_DIAGNOSTICS_WAIT_TIMEOUT_MS =
+      TEZ_PREFIX + "client.diagnostics.wait.timeout-ms";
+  @Private
+  public static final long TEZ_CLIENT_DIAGNOSTICS_WAIT_TIMEOUT_MS_DEFAULT = 3*1000;
 }
