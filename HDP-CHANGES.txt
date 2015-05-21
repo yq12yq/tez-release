@@ -2,6 +2,8 @@ Changes only in Hortonworks github and not in Apache Tez release 0.7.0 and hence
 
 INCOMPATIBLE CHANGES
 
+  TEZ-2468. Change the minimum Java version to Java 7.
+
 NEW FEATURES
 
   RMP-4813. Better handling of AM failures in Tez Job Commit stage
