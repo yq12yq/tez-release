@@ -1436,10 +1436,11 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
           LOG.info("Removing task: " + entry.getKey());
           iter.remove();
         }
-        LOG.info("Vertex " + logIdentifier +
-            " parallelism set to " + parallelism + " from " + numTasks);
+
         int oldNumTasks = numTasks;
         this.numTasks = parallelism;
+        LOG.info("Vertex " + getLogIdentifier() + " parallelism set to " + parallelism + " from "
+            + oldNumTasks);
         stateChangeNotifier.stateChanged(vertexId,
             new VertexStateUpdateParallelismUpdated(vertexName, numTasks, oldNumTasks));
         assert tasks.size() == numTasks;
