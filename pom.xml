@@ -37,7 +37,7 @@
   <properties>
     <maven.test.redirectTestOutputToFile>true</maven.test.redirectTestOutputToFile>
     <clover.license>${user.home}/clover.license</clover.license>
-    <hadoop.version>2.6.0</hadoop.version>
+    <hadoop.version>2.7.0</hadoop.version>
     <jetty.version>6.1.26</jetty.version>
     <pig.version>0.13.0</pig.version>
     <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
@@ -1109,6 +1109,26 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>hwx-common</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencyManagement>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-aws</artifactId>
+            <version>${hadoop.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-azure</artifactId>
+            <version>${hadoop.version}</version>
+          </dependency>
+        </dependencies>
+      </dependencyManagement>
     </profile>
   </profiles>
 
