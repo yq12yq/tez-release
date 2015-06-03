@@ -535,14 +535,18 @@ public class YarnTaskSchedulerService extends TaskSchedulerService
   private synchronized Map<CookieContainerRequest, Container>
       assignNewlyAllocatedContainers(Iterable<Container> containers) {
 
+    boolean amInCompletionState = appContext.isAMInCompletionState();
     Map<CookieContainerRequest, Container> assignedContainers =
         new HashMap<CookieContainerRequest, Container>();
-    assignNewContainersWithLocation(containers,
-      NODE_LOCAL_ASSIGNER, assignedContainers);
-    assignNewContainersWithLocation(containers,
-      RACK_LOCAL_ASSIGNER, assignedContainers);
-    assignNewContainersWithLocation(containers,
-      NON_LOCAL_ASSIGNER, assignedContainers);
+
+    if (!amInCompletionState) {
+      assignNewContainersWithLocation(containers,
+          NODE_LOCAL_ASSIGNER, assignedContainers);
+      assignNewContainersWithLocation(containers,
+          RACK_LOCAL_ASSIGNER, assignedContainers);
+      assignNewContainersWithLocation(containers,
+          NON_LOCAL_ASSIGNER, assignedContainers);
+    }
 
     // Release any unassigned containers given by the RM
     releaseUnassignedContainers(containers);
@@ -553,16 +557,19 @@ public class YarnTaskSchedulerService extends TaskSchedulerService
   private synchronized Map<CookieContainerRequest, Container>
       tryAssignReUsedContainers(Iterable<Container> containers) {
 
+    boolean amInCompletionState = appContext.isAMInCompletionState();
     Map<CookieContainerRequest, Container> assignedContainers =
       new HashMap<CookieContainerRequest, Container>();
 
     // Honor locality and match as many as possible
-    assignReUsedContainersWithLocation(containers,
-      NODE_LOCAL_ASSIGNER, assignedContainers, true);
-    assignReUsedContainersWithLocation(containers,
-      RACK_LOCAL_ASSIGNER, assignedContainers, true);
-    assignReUsedContainersWithLocation(containers,
-      NON_LOCAL_ASSIGNER, assignedContainers, true);
+    if (!amInCompletionState) {
+      assignReUsedContainersWithLocation(containers,
+          NODE_LOCAL_ASSIGNER, assignedContainers, true);
+      assignReUsedContainersWithLocation(containers,
+          RACK_LOCAL_ASSIGNER, assignedContainers, true);
+      assignReUsedContainersWithLocation(containers,
+          NON_LOCAL_ASSIGNER, assignedContainers, true);
+    }
 
     return assignedContainers;
   }
@@ -588,6 +595,7 @@ public class YarnTaskSchedulerService extends TaskSchedulerService
       assignDelayedContainer(HeldContainer heldContainer) {
 
     DAGAppMasterState state = appContext.getAMState();
+
     boolean isNew = heldContainer.isNew();
     if (LOG.isDebugEnabled()) {
       LOG.debug("Trying to assign a delayed container"
@@ -662,7 +670,7 @@ public class YarnTaskSchedulerService extends TaskSchedulerService
             heldContainer.getContainer(), currentTime
                 + localitySchedulingDelay);        
       }
-   } else if (state.equals(DAGAppMasterState.RUNNING)) {
+    } else if (state.equals(DAGAppMasterState.RUNNING)) {
       // clear min held containers since we need to allocate to tasks
       sessionMinHeldContainers.clear();
       HeldContainer.LocalityMatchLevel localityMatchLevel =
