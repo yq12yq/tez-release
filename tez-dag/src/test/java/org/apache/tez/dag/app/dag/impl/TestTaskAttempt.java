@@ -112,6 +112,7 @@ public class TestTaskAttempt {
   }
   
   AppContext appCtx;
+  TaskLocationHint locationHint;
 
   @Before
   public void setupTest() {
@@ -993,6 +994,58 @@ public class TestTaskAttempt {
 
   }
 
+  @SuppressWarnings("deprecation")
+  @Test(timeout = 5000)
+  public void testKilledInNew() {
+    ApplicationId appId = ApplicationId.newInstance(1, 2);
+    ApplicationAttemptId appAttemptId = ApplicationAttemptId.newInstance(
+        appId, 0);
+    TezDAGID dagID = TezDAGID.getInstance(appId, 1);
+    TezVertexID vertexID = TezVertexID.getInstance(dagID, 1);
+    TezTaskID taskID = TezTaskID.getInstance(vertexID, 1);
+
+    MockEventHandler eventHandler = spy(new MockEventHandler());
+    TaskAttemptListener taListener = mock(TaskAttemptListener.class);
+    when(taListener.getAddress()).thenReturn(
+        new InetSocketAddress("localhost", 0));
+
+    Configuration taskConf = new Configuration();
+    taskConf.setClass("fs.file.impl", StubbedFS.class, FileSystem.class);
+    taskConf.setBoolean("fs.file.impl.disable.cache", true);
+
+    locationHint = TaskLocationHint.createTaskLocationHint(
+        new HashSet<String>(Arrays.asList(new String[]{"127.0.0.1"})), null);
+    Resource resource = Resource.newInstance(1024, 1);
+
+    NodeId nid = NodeId.newInstance("127.0.0.1", 0);
+    ContainerId contId = ContainerId.newInstance(appAttemptId, 3);
+    Container container = mock(Container.class);
+    when(container.getId()).thenReturn(contId);
+    when(container.getNodeId()).thenReturn(nid);
+    when(container.getNodeHttpAddress()).thenReturn("localhost:0");
+
+    AMContainerMap containers = new AMContainerMap(
+        mock(ContainerHeartbeatHandler.class), mock(TaskAttemptListener.class),
+        new ContainerContextMatcher(), appCtx);
+    containers.addContainerIfNew(container);
+
+    doReturn(new ClusterInfo()).when(appCtx).getClusterInfo();
+    doReturn(containers).when(appCtx).getAllContainers();
+
+    TaskHeartbeatHandler mockHeartbeatHandler = mock(TaskHeartbeatHandler.class);
+    MockTaskAttemptImpl taImpl = new MockTaskAttemptImpl(taskID, 1, eventHandler,
+        taListener, taskConf, new SystemClock(),
+        mockHeartbeatHandler, appCtx, locationHint, false,
+        resource, createFakeContainerContext(), true);
+    Assert.assertEquals(TaskAttemptStateInternal.NEW, taImpl.getInternalState());
+    taImpl.handle(new TaskAttemptEventKillRequest(taImpl.getID(), "kill it",
+        TaskAttemptTerminationCause.TERMINATED_BY_CLIENT));
+    Assert.assertEquals(TaskAttemptStateInternal.KILLED, taImpl.getInternalState());
+
+    Assert.assertEquals(0, taImpl.taskAttemptStartedEventLogged);
+    Assert.assertEquals(1, taImpl.taskAttemptFinishedEventLogged);
+  }
+
   private void verifyEventType(List<Event> events,
       Class<? extends Event> eventClass, int expectedOccurences) {
     int count = 0;
@@ -1022,6 +1075,8 @@ public class TestTaskAttempt {
 
   private class MockTaskAttemptImpl extends TaskAttemptImpl {
     TaskLocationHint locationHint;
+    public int taskAttemptStartedEventLogged = 0;
+    public int taskAttemptFinishedEventLogged = 0;
 
     public MockTaskAttemptImpl(TezTaskID taskId, int attemptNumber,
         EventHandler eventHandler, TaskAttemptListener tal,
@@ -1064,18 +1119,21 @@ public class TestTaskAttempt {
     @Override
     protected void logJobHistoryAttemptStarted() {
       super.logJobHistoryAttemptStarted();
+      taskAttemptStartedEventLogged++;
     }
 
     @Override
     protected void logJobHistoryAttemptFinishedEvent(
         TaskAttemptStateInternal state) {
       super.logJobHistoryAttemptFinishedEvent(state);
+      taskAttemptFinishedEventLogged++;
     }
 
     @Override
     protected void logJobHistoryAttemptUnsuccesfulCompletion(
         TaskAttemptState state) {
       super.logJobHistoryAttemptUnsuccesfulCompletion(state);
+      taskAttemptFinishedEventLogged++;
     }
     
     @Override
