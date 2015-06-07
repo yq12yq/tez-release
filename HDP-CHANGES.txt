@@ -14,6 +14,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+  TEZ-2511 (BUG-44629). Add exitCode to diagnostics when container fails.
   TEZ-2304 (BUG-44627). InvalidStateTransitonException TA_SCHEDULE at START_WAIT during recovery
   TEZ-2474 (BUG-44626). The old taskNum is logged incorrectly when parallelism is changed.
   TEZ-2534 (BUG-44871). Error handling summary event when shutting down AM.
