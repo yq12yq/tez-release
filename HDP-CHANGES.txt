@@ -14,6 +14,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+  TEZ-2534 (BUG-44871). Error handling summary event when shutting down AM.
   TEZ-2460 (BUG-44625). Temporary solution for issue due to YARN-2560.
   TEZ-2383 (BUG-44621). Cleanup input/output/processor contexts in LogicalIOProcessorRuntimeTask.
   TEZ-2379 (BUG-44624). org.apache.hadoop.yarn.state.InvalidStateTransitonException: Invalid event: T_ATTEMPT_KILLED at KILLED.
