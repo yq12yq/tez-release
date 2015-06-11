@@ -34,6 +34,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.protobuf.ServiceException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -63,7 +64,7 @@ import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.GetAMStatusReque
 import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.GetAMStatusResponseProto;
 import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.ShutdownSessionRequestProto;
 import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.SubmitDAGRequestProto;
-import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.TezSessionStatusProto;
+import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.TezAppMasterStatusProto;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
@@ -93,25 +94,25 @@ public class TestTezClient {
     }
     
     @Override
-    protected DAGClientAMProtocolBlockingPB getSessionAMProxy(ApplicationId appId) 
+    protected DAGClientAMProtocolBlockingPB getAMProxy(ApplicationId appId)
         throws TezException, IOException {
       if (!callRealGetSessionAMProxy) {
         return sessionAmProxy;
       }
-      return super.getSessionAMProxy(appId);
+      return super.getAMProxy(appId);
     }
   }
-  
-  TezClientForTest configureAndCreateTezClient() throws YarnException, IOException {
+
+  TezClientForTest configureAndCreateTezClient() throws YarnException, IOException, ServiceException {
     return configureAndCreateTezClient(null);
   }
   
-  TezClientForTest configureAndCreateTezClient(TezConfiguration conf) throws YarnException, IOException {
+  TezClientForTest configureAndCreateTezClient(TezConfiguration conf) throws YarnException, IOException, ServiceException {
     return configureAndCreateTezClient(new HashMap<String, LocalResource>(), true, conf);
   }
   
   TezClientForTest configureAndCreateTezClient(Map<String, LocalResource> lrs, boolean isSession,
-                                               TezConfiguration conf) throws YarnException, IOException {
+                                               TezConfiguration conf) throws YarnException, IOException, ServiceException {
     if (conf == null) {
       conf = new TezConfiguration();
     }
@@ -124,6 +125,8 @@ public class TestTezClient {
     when(yarnClient.createApplication().getNewApplicationResponse().getApplicationId()).thenReturn(appId1);
 
     DAGClientAMProtocolBlockingPB sessionAmProxy = mock(DAGClientAMProtocolBlockingPB.class, RETURNS_DEEP_STUBS);
+    when(sessionAmProxy.getAMStatus(any(RpcController.class), any(GetAMStatusRequestProto.class)))
+        .thenReturn(GetAMStatusResponseProto.newBuilder().setStatus(TezAppMasterStatusProto.RUNNING).build());
 
     client.sessionAmProxy = sessionAmProxy;
     client.mockTezYarnClient = new TezYarnClient(yarnClient);
@@ -259,7 +262,7 @@ public class TestTezClient {
     
     when(
         client.sessionAmProxy.getAMStatus((RpcController) any(), (GetAMStatusRequestProto) any()))
-        .thenReturn(GetAMStatusResponseProto.newBuilder().setStatus(TezSessionStatusProto.READY).build());
+        .thenReturn(GetAMStatusResponseProto.newBuilder().setStatus(TezAppMasterStatusProto.READY).build());
 
     PreWarmVertex vertex = PreWarmVertex.create("PreWarm", 1, Resource.newInstance(1, 1));
     client.preWarm(vertex);
@@ -398,7 +401,7 @@ public class TestTezClient {
   }
 
   @Test(timeout = 5000)
-  public void testTezClientCounterLimits() throws YarnException, IOException {
+  public void testTezClientCounterLimits() throws YarnException, IOException, ServiceException {
     Limits.reset();
     int defaultCounterLimit = TezConfiguration.TEZ_COUNTERS_MAX_DEFAULT;
 

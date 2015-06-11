@@ -769,7 +769,7 @@ public class TezClientUtils {
     return textPath;
   }
 
-  static DAGClientAMProtocolBlockingPB getSessionAMProxy(FrameworkClient yarnClient,
+  static DAGClientAMProtocolBlockingPB getAMProxy(FrameworkClient yarnClient,
       Configuration conf,
       ApplicationId applicationId) throws TezException, IOException {
     ApplicationReport appReport;
