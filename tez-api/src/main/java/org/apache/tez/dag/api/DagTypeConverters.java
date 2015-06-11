@@ -54,7 +54,7 @@ import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
 import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
 import org.apache.tez.dag.api.EdgeProperty.SchedulingType;
 import org.apache.tez.dag.api.client.StatusGetOpts;
-import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.TezSessionStatusProto;
+import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.TezAppMasterStatusProto;
 import org.apache.tez.dag.api.records.DAGProtos;
 import org.apache.tez.dag.api.records.DAGProtos.CallerContextProto;
 import org.apache.tez.dag.api.records.DAGProtos.ConfigurationProto;
@@ -470,8 +470,8 @@ public class DagTypeConverters {
     return pd;
   }
 
-  public static TezAppMasterStatus convertTezSessionStatusFromProto(
-      TezSessionStatusProto proto) {
+  public static TezAppMasterStatus convertTezAppMasterStatusFromProto(
+          TezAppMasterStatusProto proto) {
     switch (proto) {
     case INITIALIZING:
       return TezAppMasterStatus.INITIALIZING;
@@ -486,17 +486,17 @@ public class DagTypeConverters {
         + " proto");
   }
 
-  public static TezSessionStatusProto convertTezSessionStatusToProto(
-      TezAppMasterStatus status) {
+  public static TezAppMasterStatusProto convertTezAppMasterStatusToProto(
+    TezAppMasterStatus status) {
     switch (status) {
     case INITIALIZING:
-      return TezSessionStatusProto.INITIALIZING;
+      return TezAppMasterStatusProto.INITIALIZING;
     case READY:
-      return TezSessionStatusProto.READY;
+      return TezAppMasterStatusProto.READY;
     case RUNNING:
-      return TezSessionStatusProto.RUNNING;
+      return TezAppMasterStatusProto.RUNNING;
     case SHUTDOWN:
-      return TezSessionStatusProto.SHUTDOWN;
+      return TezAppMasterStatusProto.SHUTDOWN;
     }
     throw new TezUncheckedException("Could not convert TezSessionStatus to"
         + " proto");

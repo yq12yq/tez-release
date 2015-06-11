@@ -46,6 +46,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-1961. (BUG-30204) Remove misleading exception "No running dag" from AM logs
   TEZ-3105. (BUG-54597) TezMxBeanResourceCalculator does not work on IBM JDK 7 or 8 causing Tez failures.
   TEZ-2988. (BUG-54605) DAGAppMaster::shutdownTezAM should return with a no-op if it has been invoked earlier.
   TEZ-3177. (BUG-47365) Non-DAG events should use the session domain or no domain if the data does not need protection.

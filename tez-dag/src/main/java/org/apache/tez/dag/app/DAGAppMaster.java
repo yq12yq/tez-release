@@ -2188,7 +2188,6 @@ public class DAGAppMaster extends AbstractService {
   private void startDAG(DAGPlan dagPlan, Map<String, LocalResource> additionalAMResources)
       throws TezException {
     long submitTime = this.clock.getTime();
-    this.state = DAGAppMasterState.RUNNING;
     this.appName = dagPlan.getName();
 
     // /////////////////// Create the job itself.
@@ -2244,6 +2243,9 @@ public class DAGAppMaster extends AbstractService {
     }
 
     startDAGExecution(newDAG, lrDiff);
+
+    // set state after curDag is set
+    this.state = DAGAppMasterState.RUNNING;
   }
 
   private void startDAGExecution(DAG dag, final Map<String, LocalResource> additionalAmResources)
