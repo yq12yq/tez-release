@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-1961. (BUG-56796) Remove misleading exception "No running dag" from AM logs
   TEZ-3189. (BUG-55312) Pre-warm dags should not be counted in submitted dags count by DAGAppMaster.
   TEZ-2863. (BUG-55894) Container, node, and logs not available in UI for tasks that fail to launch
   TEZ-3177. (BUG-47365) Non-DAG events should use the session domain or no domain if the data does not need protection.
