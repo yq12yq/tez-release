@@ -14,6 +14,8 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+
+  TEZ-2548 (BUG-44631). TezClient submitDAG can hang if the AM is in the process of shutting down.
   TEZ-2221 (BUG-44623). VertexGroup name should be unqiue
   TEZ-1961 (BUG-44630). Remove misleading exception "No running dag" from AM logs.
   TEZ-2566 (BUG-44632). Allow TaskAttemptFinishedEvent without TaskAttemptStartedEvent when it is KILLED/FAILED
