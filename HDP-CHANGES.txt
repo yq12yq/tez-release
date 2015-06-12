@@ -9,4 +9,5 @@ IMPROVEMENTS
   TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
 
 BUG FIXES
-  BUG-36811. Disable swimlanes tab in Tez UI for Dal  
+  BUG-36811. Disable swimlanes tab in Tez UI for Dal
+  TEZ-2548. TezClient submitDAG can hang if the AM is in the process of shutting down.
