@@ -11,3 +11,4 @@ IMPROVEMENTS
 BUG FIXES
   BUG-36811. Disable swimlanes tab in Tez UI for Dal
   TEZ-2548. TezClient submitDAG can hang if the AM is in the process of shutting down.
+  TEZ-2475. TEZ-2475. Fix a potential hang in Tez local mode caused by incorrectly handled interrupts.
