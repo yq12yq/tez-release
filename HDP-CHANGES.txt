@@ -76,6 +76,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2545. It is not necessary to start the vertex group commit when DAG is in TERMINATING
   TEZ-2857. (BUG-62134) Fix flakey tests in TestDAGImpl.
   TEZ-3314. (BUG-52060) Double counting input bytes in MultiMRInput.
   TEZ-3325. (BUG-55372) Flaky test in TestDAGImpl.testCounterLimits.
