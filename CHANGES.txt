@@ -1,38 +1,6 @@
 Apache Tez Change Log
 =====================
 
-Release 0.7.1: Unreleased
-
-INCOMPATIBLE CHANGES
-
-ALL CHANGES:
-  TEZ-2567. Tez UI: download dag data does not work within ambari
-  TEZ-2554. Tez UI: View log link does not correctly propagate login crendential to read log from yarn web.
-  TEZ-2547. Tez UI: Download Data fails on secure, cross-origin clusters
-  TEZ-2546. Tez UI: Fetch hive query text from timeline if dagInfo is not set.
-  TEZ-2513. Tez UI: Allow filtering by DAG ID on All dags table.
-  TEZ-2541. DAGClientImpl enable TimelineClient check is wrong.
-  TEZ-2539. Tez UI: Pages are not updating in IE.
-  TEZ-2535. Tez UI: Failed task attempts link in vertex details page is broken.
-  TEZ-2489. Disable warn log for Timeline ACL error when tez.allow.disabled.timeline-domains set to true.
-  TEZ-2528. Tez UI: Column selector buttons gets clipped, and table scroll bar not visible in mac.
-  TEZ-2391. TestVertexImpl timing out at times on jenkins builds.
-  TEZ-2509. YarnTaskSchedulerService should not try to allocate containers if AM is shutting down.
-  TEZ-2527. Tez UI: Application hangs on entering erroneous RegEx in counter table search box
-  TEZ-2523. Tez UI: derive applicationId from dag/vertex id instead of relying on json data
-  TEZ-2505. PipelinedSorter uses Comparator objects concurrently from multiple threads.
-  TEZ-2504. Tez UI: tables - show status column without scrolling, numeric 0 shown as Not available
-  TEZ-2478. Move OneToOne routing to store events in Tasks.
-  TEZ-2482. Tez UI: Mouse events not working on IE11
-  TEZ-1529. ATS and TezClient integration in secure kerberos enabled cluster.
-  TEZ-2481. Tez UI: graphical view does not render properly on IE11
-  TEZ-2474. The old taskNum is logged incorrectly when parallelism is changed
-  TEZ-2460. Temporary solution for issue due to YARN-2560
-  TEZ-2455. Tez UI: Dag view caching, error handling and minor layout changes
-  TEZ-2453. Tez UI: show the dagInfo is the application has set the same.
-  TEZ-2447. Tez UI: Generic changes based on feedbacks.
-  TEZ-2409. Allow different edges to have different routing plugins
-
 Release 0.7.0: 2015-05-18
 
 INCOMPATIBLE CHANGES
