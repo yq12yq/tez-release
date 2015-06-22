@@ -8,6 +8,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-2868 (BUG-44456). Fix setting Caller Context in Tez Examples.
   TEZ-2851 (BUG-44456). Support a way for upstream applications to pass in a caller context to Tez.
+  TEZ-2561 (BUG-45380). Port for TaskAttemptListenerImpTezDag should be configurable
   TEZ-2744 (BUG-45549). Improvements and cleanup of logging for the AM and parts of the runtime.
   TEZ-2731 (BUG-45562). Fix Tez GenericCounter performance bottleneck
   TEZ-2767 (BUG-45548) Make TezMxBeanResourceCalculator the default resource calculator.
