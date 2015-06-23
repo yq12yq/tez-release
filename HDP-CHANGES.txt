@@ -9,6 +9,7 @@ IMPROVEMENTS
   TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
 
 BUG FIXES
+  BUG-39836 (TEZ-2568). auto_sortmerge_join_5 fails in Tez mode
   BUG-36811. Disable swimlanes tab in Tez UI
   TEZ-2548. TezClient submitDAG can hang if the AM is in the process of shutting down.
   TEZ-2475. Fix a potential hang in Tez local mode caused by incorrectly handled interrupts.
