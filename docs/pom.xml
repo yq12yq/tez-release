@@ -16,9 +16,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 -->
-
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <name>Tez</name>
     <description>Tez is an application framework which allows for a complex directed-acyclic-graph of tasks for processing data and is built atop Apache Hadoop YARN.</description>
     <url>http://tez.apache.org/</url>
@@ -27,7 +25,7 @@
     <parent>
       <groupId>org.apache.tez</groupId>
       <artifactId>tez</artifactId>
-      <version>0.7.1-SNAPSHOT</version>
+      <version>0.7.0.2.3.0.0-2557</version>
     </parent>
     <artifactId>tez-docs</artifactId>
     <packaging>pom</packaging>
@@ -285,7 +283,7 @@
       </developer>
       <developer>
         <id>omalley</id>
-        <name>Owen O’Malley</name>
+        <name>Owen O&#8217;Malley</name>
         <email>omalley@apache.org</email>
         <timezone>-8</timezone>
         <roles>
