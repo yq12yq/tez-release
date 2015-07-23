@@ -11,6 +11,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2602. (BUG-40970) Throwing EOFException when launching MR job
   TEZ-2575. (BUG-40970) Handle KeyValue pairs size which do not fit in a single block in PipelinedSorter
   TEZ-2198. (BUG-40970) Fix sorter spill counts
   TEZ-2440. (BUG-40970) Sorter should check for indexCacheList.size() in flush()
