@@ -31,6 +31,7 @@
     <node.executable>${basedir}/src/main/webapp/node/node</node.executable>
     <nodeVersion>v0.10.18</nodeVersion>
     <npmVersion>1.3.8</npmVersion>
+    <url>http://public-repo-1.hortonworks.com/ARTIFACTS</url>
   </properties>
 
   <build>
@@ -74,7 +75,8 @@
             <configuration>
               <nodeVersion>${nodeVersion}</nodeVersion>
               <npmVersion>${npmVersion}</npmVersion>
-            </configuration>
+              <nodedownloadRoot>${url}</nodedownloadRoot>
+           </configuration>
           </execution>
           <execution>
             <phase>generate-sources</phase>
