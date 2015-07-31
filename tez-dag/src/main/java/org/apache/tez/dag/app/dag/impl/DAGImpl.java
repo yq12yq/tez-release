@@ -75,6 +75,7 @@ import org.apache.tez.dag.api.records.DAGProtos.PlanGroupInputEdgeInfo;
 import org.apache.tez.dag.api.records.DAGProtos.PlanVertexGroupInfo;
 import org.apache.tez.dag.api.records.DAGProtos.VertexPlan;
 import org.apache.tez.dag.app.AppContext;
+import org.apache.tez.dag.app.DAGAppMasterState;
 import org.apache.tez.dag.app.TaskAttemptListener;
 import org.apache.tez.dag.app.TaskHeartbeatHandler;
 import org.apache.tez.dag.app.dag.DAG;
@@ -381,6 +382,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   Map<String, VertexGroupInfo> vertexGroups = Maps.newHashMap();
   Map<String, List<VertexGroupInfo>> vertexGroupInfo = Maps.newHashMap();
   private DAGState recoveredState = DAGState.NEW;
+
   @VisibleForTesting
   boolean recoveryCommitInProgress = false;
   Map<String, Boolean> recoveredGroupCommits = new HashMap<String, Boolean>();
@@ -543,6 +545,10 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
               (VertexGroupCommitFinishedEvent) historyEvent;
           recoveredGroupCommits.put(
               vertexGroupCommitFinishedEvent.getVertexGroupName(), true);
+          return recoveredState;
+        case DAG_KILL_REQUEST:
+          trySetTerminationCause(DAGTerminationCause.DAG_KILL);
+          this.recoveredState = DAGState.KILLED;
           return recoveredState;
         case DAG_FINISHED:
           recoveryCommitInProgress = false;
@@ -990,7 +996,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       //notify the eventhandler of state change
       if (oldState != getInternalState()) {
         LOG.info(dagId + " transitioned from " + oldState + " to "
-                 + getInternalState());
+                 + getInternalState() + " due to event " + event.getType());
       }
     }
 
@@ -1560,7 +1566,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
         case FAILED:
         case KILLED:
           // Completed
-
+          
           // Recover all other data for all vertices
           // send recover event to all vertices with a final end state
           for (Vertex v : dag.vertices.values()) {

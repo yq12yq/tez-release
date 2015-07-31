@@ -208,6 +208,18 @@ public class TestHistoryEventsProtoConversion {
     logEvents(event, deserializedEvent);
   }
 
+  private void testDAGKillRequestEvent() throws Exception {
+    DAGKillRequestEvent event = 
+        new DAGKillRequestEvent(TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 100334l,false);
+    DAGKillRequestEvent deserializedEvent = (DAGKillRequestEvent)
+        testProtoConversion(event);
+    Assert.assertEquals(event.getDagID(),
+        deserializedEvent.getDagID());
+    Assert.assertEquals(event.getKillRequestTime(), deserializedEvent.getKillRequestTime());
+    Assert.assertEquals(event.isSessionStopped(), deserializedEvent.isSessionStopped());
+    logEvents(event, deserializedEvent);
+  }
+
   private void testDAGFinishedEvent() throws Exception {
     {
       DAGFinishedEvent event = new DAGFinishedEvent(
@@ -704,6 +716,9 @@ public class TestHistoryEventsProtoConversion {
           break;
         case VERTEX_GROUP_COMMIT_FINISHED:
           testVertexGroupCommitFinishedEvent();
+          break;
+        case DAG_KILL_REQUEST:
+          testDAGKillRequestEvent();
           break;
         default:
           throw new Exception("Unhandled Event type in Unit tests: " + eventType);

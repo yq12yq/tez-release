@@ -44,6 +44,7 @@ import org.apache.tez.dag.history.events.ContainerStoppedEvent;
 import org.apache.tez.dag.history.events.DAGCommitStartedEvent;
 import org.apache.tez.dag.history.events.DAGFinishedEvent;
 import org.apache.tez.dag.history.events.DAGInitializedEvent;
+import org.apache.tez.dag.history.events.DAGKillRequestEvent;
 import org.apache.tez.dag.history.events.DAGStartedEvent;
 import org.apache.tez.dag.history.events.DAGSubmittedEvent;
 import org.apache.tez.dag.history.events.TaskAttemptFinishedEvent;
@@ -179,6 +180,9 @@ public class TestHistoryEventJsonConversion {
           break;
         case VERTEX_GROUP_COMMIT_FINISHED:
           event = new VertexGroupCommitFinishedEvent();
+          break;
+        case DAG_KILL_REQUEST:
+          event = new DAGKillRequestEvent();
           break;
         default:
           Assert.fail("Unhandled event type " + eventType);

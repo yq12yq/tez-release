@@ -26,6 +26,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2311 (BUG-45540). AM can hang if kill received while recovering from previous attempt
   TEZ-2533 (BUG-45559). AM deadlock when shutdown
   TEZ-2834 (BUG-45552). Make Tez preemption resilient to incorrect free resource reported by YARN
   TEZ-814  (BUG-45552). Improve heuristic for determining a task has failed outputs
