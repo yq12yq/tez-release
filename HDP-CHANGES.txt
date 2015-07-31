@@ -56,6 +56,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2311. (BUG-57517) AM can hang if kill received while recovering from previous attempt
   TEZ-3114. (BUG-54603) Shuffle OOM due to EventMetaData flood (jlowe)
   TEZ-1961. (BUG-30204) Remove misleading exception "No running dag" from AM logs
   TEZ-3105. (BUG-54597) TezMxBeanResourceCalculator does not work on IBM JDK 7 or 8 causing Tez failures.

@@ -2794,10 +2794,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
           }
           break;
         case SUCCEEDED:
-        case FAILED:
-        case KILLED:
-          if (vertex.recoveredState == VertexState.SUCCEEDED
-              && vertex.hasCommitter
+          if (vertex.hasCommitter
               && vertex.summaryCompleteSeen && !vertex.vertexCompleteSeen) {
             String msg = "Cannot recover vertex as all recovery events not"
                 + " found, vertex=" + vertex.logIdentifier
@@ -2823,14 +2820,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
             }
             // recover tasks
             if (vertex.tasks != null && vertex.numTasks != 0) {
-              TaskState taskState = TaskState.KILLED;
-              if (vertex.recoveredState == VertexState.SUCCEEDED) {
-                taskState = TaskState.SUCCEEDED;
-              } else if (vertex.recoveredState == VertexState.KILLED) {
-                taskState = TaskState.KILLED;
-              } else if (vertex.recoveredState == VertexState.FAILED) {
-                taskState = TaskState.FAILED;
-              }
+              TaskState taskState = TaskState.SUCCEEDED;
               for (Task task : vertex.tasks.values()) {
                 vertex.eventHandler.handle(
                     new TaskEventRecoverTask(task.getTaskId(),
@@ -2852,6 +2842,25 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
               vertex.finished(endState);
             }
           }
+          break;
+        case FAILED:
+        case KILLED:
+          // vertex may be killed/failed before its tasks are scheduled. so here just recover vertex
+          // to the recovered state without waiting for its tasks' feedback and recover tasks to
+          // the corresponding state without recover its data.
+          if (vertex.tasks != null && vertex.numTasks != 0) {
+            TaskState taskState = TaskState.FAILED;
+            if (vertex.recoveredState == VertexState.KILLED) {
+              taskState = TaskState.KILLED;
+            }
+            for (Task task : vertex.tasks.values()) {
+              vertex.eventHandler.handle(
+                  new TaskEventRecoverTask(task.getTaskId(),
+                      taskState, false));
+            }
+          }
+          endState = vertex.recoveredState;
+          vertex.finished(endState);
           break;
         default:
           LOG.warn("Invalid recoveredState found when trying to recover"
@@ -3222,31 +3231,10 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
           }
           break;
         case SUCCEEDED:
-        case FAILED:
-        case KILLED:
-          try {
-            vertex.initializeCommitters();
-          } catch (Exception e) {
-            String msg = "Failed to initialize committers"
-                + ", vertex=" + vertex.logIdentifier + ","
-                + ExceptionUtils.getStackTrace(e);
-            LOG.error(msg);
-            vertex.finished(VertexState.FAILED,
-                VertexTerminationCause.INIT_FAILURE, msg);
-            endState = VertexState.FAILED;
-            break;
-          }
           // recover tasks
           assert vertex.tasks.size() == vertex.numTasks;
           if (vertex.tasks != null  && vertex.numTasks != 0) {
-            TaskState taskState = TaskState.KILLED;
-            if (vertex.recoveredState == VertexState.SUCCEEDED) {
-              taskState = TaskState.SUCCEEDED;
-            } else if (vertex.recoveredState == VertexState.KILLED) {
-              taskState = TaskState.KILLED;
-            } else if (vertex.recoveredState == VertexState.FAILED) {
-              taskState = TaskState.FAILED;
-            }
+            TaskState taskState = TaskState.SUCCEEDED;
             for (Task task : vertex.tasks.values()) {
               vertex.eventHandler.handle(
                   new TaskEventRecoverTask(task.getTaskId(),
@@ -3268,6 +3256,25 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
             endState = vertex.recoveredState;
             vertex.finished(endState);
           }
+          break;
+        case FAILED:
+        case KILLED:
+          // vertex may be killed/failed before its tasks are scheduled. so here just recover vertex
+          // to the recovered state without waiting for its tasks' feedback and recover tasks to
+          // the corresponding state without recover its data.
+          if (vertex.tasks != null && vertex.numTasks != 0) {
+            TaskState taskState = TaskState.FAILED;
+            if (vertex.recoveredState == VertexState.KILLED) {
+              taskState = TaskState.KILLED;
+            }
+            for (Task task : vertex.tasks.values()) {
+              vertex.eventHandler.handle(
+                  new TaskEventRecoverTask(task.getTaskId(),
+                      taskState, false));
+            }
+          }
+          endState = vertex.recoveredState;
+          vertex.finished(endState);
           break;
         default:
           LOG.warn("Invalid recoveredState found when trying to recover"
