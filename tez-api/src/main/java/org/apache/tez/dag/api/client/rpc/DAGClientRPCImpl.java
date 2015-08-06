@@ -27,13 +27,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.ipc.RPC;
-import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.tez.client.FrameworkClient;
 import org.apache.tez.client.TezClientUtils;
+import org.apache.tez.common.RPCUtil;
 import org.apache.tez.dag.api.DAGNotRunningException;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.TezConfiguration;
@@ -88,6 +88,9 @@ public class DAGClientRPCImpl extends DAGClient {
       } catch (TezException e) {
         resetProxy(e); // create proxy again
         throw e;
+      } catch (IOException e) {
+        resetProxy(e); // create proxy again
+        throw e;
       }
     }
 
@@ -103,6 +106,9 @@ public class DAGClientRPCImpl extends DAGClient {
       try {
         return getVertexStatusViaAM(vertexName, statusOptions);
       } catch (TezException e) {
+        resetProxy(e); // create proxy again
+        throw e;
+      } catch (IOException e) {
         resetProxy(e); // create proxy again
         throw e;
       }
@@ -168,22 +174,15 @@ public class DAGClientRPCImpl extends DAGClient {
         proxy.getDAGStatus(null,
           requestProtoBuilder.build()).getDagStatus());
     } catch (ServiceException e) {
-      final Throwable cause = e.getCause();
-      if (cause instanceof RemoteException) {
-        RemoteException remoteException = (RemoteException) cause;
-        if (DAG_NOT_RUNNING_CLASS_NAME.equals(remoteException.getClassName())) {
-          throw new DAGNotRunningException(remoteException.getMessage());
-        }
-      }
-
-      // TEZ-151 retrieve wrapped TezException
+      RPCUtil.unwrapAndThrowException(e);
+      // Should not reach here
       throw new TezException(e);
     }
   }
 
   VertexStatus getVertexStatusViaAM(String vertexName,
       Set<StatusGetOpts> statusOptions)
-      throws TezException {
+      throws TezException, IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("GetVertexStatus via AM for app: " + appId + " dag: " + dagId
           + " vertex: " + vertexName);
@@ -203,7 +202,8 @@ public class DAGClientRPCImpl extends DAGClient {
         proxy.getVertexStatus(null,
           requestProtoBuilder.build()).getVertexStatus());
     } catch (ServiceException e) {
-      // TEZ-151 retrieve wrapped TezException
+      RPCUtil.unwrapAndThrowException(e);
+      // Should not reach here
       throw new TezException(e);
     }
   }
