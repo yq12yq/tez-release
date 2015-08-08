@@ -226,6 +226,7 @@ The Apache TEZ tez-ui bundles the following files under the MIT License:
  - jquery-mousewheel v3.1.12 (https://github.com/jquery/jquery-mousewheel) - Copyright 2006, 2014 jQuery Foundation and other contributors, https://jquery.org/
  - jquery-ui v1.11 (http://jqueryui.com/) - Copyright 2014 jQuery Foundation and other contributors
  - moment v2.8.4 (http://momentjs.com/) - authors : Tim Wood, Iskren Chernev, Moment.js contributors
+ - CodeMirror 5.2.0 (https://codemirror.net/) authors: Copyright (C) 2015 by Marijn Haverbeke <marijnh@gmail.com> and others
 
 All rights reserved.
 

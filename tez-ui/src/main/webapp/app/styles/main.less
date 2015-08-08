@@ -541,3 +541,16 @@ div.indent {
   margin-left: -1px;
   margin-top: -1px;
 }
+
+
+// CodeMirror does not have any facility to add classes to the generated div
+.CodeMirror {
+  height: auto !important;
+  viewportMargin: Infinity !important;
+}
+
+.code-mirror-container {
+  .panel-body {
+    padding: 0px;
+  }
+}

@@ -13,7 +13,8 @@
     "d3": "3.4.11",
     "ember-addons.bs_for_ember": "~0.7.0",
     "ember-table": "~0.2.4",
-    "font-awesome":"4.2.0"
+    "font-awesome":"4.2.0",
+    "codemirror": "~5.2.0"
   },
   "resolutions": {
     "jquery": "1.10.2",

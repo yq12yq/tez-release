@@ -56,6 +56,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-UI
 
+  BUG-37223. Tez UI: Backport tez-ui changes to display hive query text to 2.2 maint branch
   TEZ-2165. Tez UI: DAG shows running status if killed by RM in some cases.
   TEZ-2158. TEZ UI: Display dag/vertex names, and task/attempt index in breadcrumb.
   TEZ-2160. Tez UI: App tracking URL should support navigation back.

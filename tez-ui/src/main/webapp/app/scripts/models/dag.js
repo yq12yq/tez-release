@@ -53,6 +53,7 @@ App.Dag = App.AbstractEntity.extend({
   // Dag plan reated data
   planName: DS.attr('string'),
   planVersion: DS.attr('number'),
+  appContextInfo: DS.attr('object'),
   vertices: DS.attr('array'), // Serialize when required
   edges: DS.attr('array'), // Serialize when required
   vertexGroups: DS.attr('array'),
@@ -382,3 +383,7 @@ App.EdgeType = {
   BROADCAST: "BROADCAST",
   CONTAINS: "CONTAINS"
 };
+
+App.HiveQuery = App.AbstractEntity.extend({
+  query: DS.attr('string')
+});

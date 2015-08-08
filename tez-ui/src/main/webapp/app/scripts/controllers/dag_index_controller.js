@@ -75,6 +75,26 @@ App.DagIndexController = Em.ObjectController.extend(App.ModelRefreshMixin, {
 
   failedTasksLink: function() {
     return '#tasks?status=FAILED&parentType=TEZ_DAG_ID&parentID=' + this.get('id');
-  }.property()
+  }.property(),
+
+  appContext: function() {
+    return this.get('appContextInfo.info')
+  }.property('appContextInfo.info'),
+
+  appContextHeading: function() {
+    var appContextType = this.get('appContextInfo.appType');
+    return 'Additional Info' + (!!appContextType ? ' from ' + appContextType : '');
+  }.property('appContextInfo.appType'),
+
+  appInfoContextType: function() {
+    switch (this.get('appContextInfo.appType')) {
+      case 'Hive':
+        return 'text/x-hive';
+      case 'Pig':
+        return 'text/x-pig';
+      default:
+        return 'text/x-sql';
+    }
+  }.property('appContextInfo.appType'),
 
 });
