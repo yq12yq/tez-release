@@ -9,6 +9,7 @@ IMPROVEMENTS
   TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
 
 BUG FIXES
+  TEZ-2730. tez-api missing dependency on org.codehaus.jettison for json.
   TEZ-2552. (BUG-42823) CRC errors can cause job to run for very long time in large jobs.
   TEZ-2636. (BUG-41461) MRInput and MultiMRInput should work for cases when there are 0 physical inputs.
   BUG-39836 (TEZ-2568). auto_sortmerge_join_5 fails in Tez mode
