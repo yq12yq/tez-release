@@ -12,6 +12,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-1736. Add support for Inputs/Outputs in runtime-library to generate history text data.
 
   BUG FIXES
+  TEZ-2629. (BUG-41385) LimitExceededException in Tez client when DAG has exceeds the default max counters
   TEZ-2552. (BUG-42823) CRC errors can cause job to run for very long time in large jobs.
   TEZ-2636. (BUG-41461) MRInput and MultiMRInput should work for cases when there are 0 physical inputs.
   TEZ-2189. (BUG-39649). Tez UI live AM tracking url only works for localhost addresses
