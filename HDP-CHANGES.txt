@@ -9,6 +9,7 @@ IMPROVEMENTS
   TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
 
 BUG FIXES
+  TEZ-2687. (BUG-42805). Tez should release/kill all held containers before stopping services during the shutdown phase
   TEZ-2635. (BUG-42217). Limit number of attempts being downloaded in unordered fetch.
   TEZ-2629. (BUG-43012). LimitExceededException in Tez client when DAG has exceeds the default max counters.
   TEZ-2730. tez-api missing dependency on org.codehaus.jettison for json.
