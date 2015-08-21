@@ -1660,6 +1660,10 @@ public class DAGAppMaster extends AbstractService {
   }
 
 
+  private void initiateStop() {
+    taskSchedulerEventHandler.initiateStop();
+  }
+
   @Override
   public synchronized void serviceStop() throws Exception {
     if (isSession) {
@@ -1668,6 +1672,8 @@ public class DAGAppMaster extends AbstractService {
     if (this.dagSubmissionTimer != null) {
       this.dagSubmissionTimer.cancel();
     }
+	// release all the held containers before stop services TEZ-2687
+	initiateStop();
     stopServices();
 
     // Given pre-emption, we should delete tez scratch dir only if unregister is

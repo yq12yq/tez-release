@@ -12,6 +12,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-1736. Add support for Inputs/Outputs in runtime-library to generate history text data.
 
   BUG FIXES
+  TEZ-2687. (BUG-42947). (2.2) - Tez should release/kill all held containers before stopping services during the shutdown phase
   TEZ-2635. (BUG-42217). Limit number of attempts being downloaded in unordered fetch.
   TEZ-2629. (BUG-41385) LimitExceededException in Tez client when DAG has exceeds the default max counters
   TEZ-2552. (BUG-42823) CRC errors can cause job to run for very long time in large jobs.
