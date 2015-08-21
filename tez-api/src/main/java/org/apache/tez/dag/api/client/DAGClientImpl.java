@@ -86,6 +86,15 @@ public class DAGClientImpl extends DAGClient {
     isATSEnabled = conf.get(TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, "")
             .equals("org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService");
 
+     //TODO: FIXME: Should be asking an API of the pluggable history service
+     //whether to use the ATS rather than check for magic class names.
+     String logSvcClassName = conf.get(
+         TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, "");
+     isATSEnabled = logSvcClassName.equals(
+             "org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService")
+         || logSvcClassName.equals(
+             "org.apache.tez.dag.history.logging.ats.EntityFileLoggingService");
+
     if (UserGroupInformation.isSecurityEnabled()){
       //TODO: enable ATS integration in kerberos secured cluster - see TEZ-1529
       isATSEnabled = false;
