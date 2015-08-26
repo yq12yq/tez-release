@@ -606,7 +606,9 @@ public class TaskSchedulerEventHandler extends AbstractService
     String historyUrlBase = config.get(TezConfiguration.TEZ_HISTORY_URL_BASE, "");
 
 
-    if (loggingClass.equals("org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService") &&
+    // TODO: FIXME for other history logging services
+    if ((loggingClass.equals("org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService")
+          || loggingClass.equals("org.apache.tez.dag.history.logging.ats.EntityFileLoggingService")) &&
         !historyUrlTemplate.isEmpty() &&
         !historyUrlBase.isEmpty()) {
       // replace the placeholders, while tolerating extra or missing "/" in input. replace all

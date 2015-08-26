@@ -311,23 +311,35 @@ public class TezClient {
 
     ///need additional check for historyACLPolicyManager because tests could stub historyACLPolicyManager
     ///before tezclient start. If there is already a stubbed historyACLPolicyManager, we don't overwrite it
-    if (this.amConfig.getTezConfiguration().get(
-        TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, "")
-        .equals(atsHistoryLoggingServiceClassName) && (historyACLPolicyManager == null)) {
-      LOG.info("Using " + atsHistoryACLManagerClassName + " to manage Timeline ACLs");
-      try {
-        historyACLPolicyManager = ReflectionUtils.createClazzInstance(
-            atsHistoryACLManagerClassName);
-        historyACLPolicyManager.setConf(this.amConfig.getYarnConfiguration());
-      } catch (TezUncheckedException e) {
-        if (!amConfig.getTezConfiguration().getBoolean(
-            TezConfiguration.TEZ_AM_ALLOW_DISABLED_TIMELINE_DOMAINS,
-            TezConfiguration.TEZ_AM_ALLOW_DISABLED_TIMELINE_DOMAINS_DEFAULT)) {
-          LOG.warn("Could not instantiate object for " + atsHistoryACLManagerClassName
-                    + ". ACLs cannot be enforced correctly for history data in Timeline", e);
-          throw e;
+    if (historyACLPolicyManager == null) {
+      //TODO: FIXME: The ACL manager should be retrieved either from the
+      //logging service directly or via a pluggable factory that can
+      //instantiate ACL managers and logging services
+      String logSvcClassName = amConfig.getTezConfiguration().get(
+          TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, "");
+      String aclMgrClassName = null;
+      if (logSvcClassName.equals(atsHistoryLoggingServiceClassName)) {
+        aclMgrClassName = atsHistoryACLManagerClassName;
+      } else if (logSvcClassName.equals(
+          "org.apache.tez.dag.history.logging.ats.EntityFileLoggingService")) {
+        aclMgrClassName = "org.apache.tez.dag.history.ats.acls.EntityFileHistoryACLPolicyManager";
+      }
+      if (aclMgrClassName != null) {
+        LOG.info("Using " + aclMgrClassName + " to manage Timeline ACLs");
+        try {
+          historyACLPolicyManager = ReflectionUtils.createClazzInstance(
+              aclMgrClassName);
+          historyACLPolicyManager.setConf(this.amConfig.getYarnConfiguration());
+        } catch (TezUncheckedException e) {
+          if (!amConfig.getTezConfiguration().getBoolean(
+              TezConfiguration.TEZ_AM_ALLOW_DISABLED_TIMELINE_DOMAINS,
+              TezConfiguration.TEZ_AM_ALLOW_DISABLED_TIMELINE_DOMAINS_DEFAULT)) {
+            LOG.warn("Could not instantiate object for " + aclMgrClassName
+                + ". ACLs cannot be enforced correctly for history data in Timeline", e);
+            throw e;
+          }
+          historyACLPolicyManager = null;
         }
-        historyACLPolicyManager = null;
       }
     }
 

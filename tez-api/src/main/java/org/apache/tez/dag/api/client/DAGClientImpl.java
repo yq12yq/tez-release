@@ -88,8 +88,15 @@ public class DAGClientImpl extends DAGClient {
       this.frameworkClient.init(conf, new YarnConfiguration(conf));
       this.frameworkClient.start();
     }
-    isATSEnabled = conf.get(TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, "")
-            .equals("org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService") &&
+    //TODO: FIXME: Should be asking an API of the pluggable history service
+    //whether to use the ATS rather than check for magic class names.
+    String logSvcClassName = conf.get(
+        TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, "");
+    boolean usingATSLogger = logSvcClassName.equals(
+            "org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService")
+        || logSvcClassName.equals(
+            "org.apache.tez.dag.history.logging.ats.EntityFileLoggingService");
+    isATSEnabled = usingATSLogger &&
             conf.getBoolean(TezConfiguration.TEZ_DAG_HISTORY_LOGGING_ENABLED,
                  TezConfiguration.TEZ_DAG_HISTORY_LOGGING_ENABLED_DEFAULT) &&
             conf.getBoolean(TezConfiguration.TEZ_AM_HISTORY_LOGGING_ENABLED,
