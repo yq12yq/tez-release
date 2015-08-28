@@ -55,6 +55,7 @@ import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezConstants;
+import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.records.DAGProtos;
@@ -207,7 +208,8 @@ public class TestTezClientUtils {
         new AMConfiguration(tezConf, new HashMap<String, LocalResource>(), new Credentials());
     ApplicationSubmissionContext appSubmissionContext =
         TezClientUtils.createApplicationSubmissionContext(appId, dag, "amName", amConf,
-            new HashMap<String, LocalResource>(), new Credentials(), false, new TezApiVersionInfo());
+            new HashMap<String, LocalResource>(), new Credentials(), false, new TezApiVersionInfo(),
+            null);
 
     List<String> expectedCommands = new LinkedList<String>();
     expectedCommands.add("-Dlog4j.configuratorClass=org.apache.tez.common.TezLog4jConfigurator");
@@ -242,7 +244,8 @@ public class TestTezClientUtils {
         new AMConfiguration(tezConf, new HashMap<String, LocalResource>(), new Credentials());
     ApplicationSubmissionContext appSubmissionContext =
         TezClientUtils.createApplicationSubmissionContext(appId, dag, "amName", amConf,
-            new HashMap<String, LocalResource>(), new Credentials(), false, new TezApiVersionInfo());
+            new HashMap<String, LocalResource>(), new Credentials(), false, new TezApiVersionInfo(),
+            null);
 
     List<String> expectedCommands = new LinkedList<String>();
     expectedCommands.add("-Dlog4j.configuratorClass=org.apache.tez.common.TezLog4jConfigurator");
@@ -307,7 +310,7 @@ public class TestTezClientUtils {
   }
 
   @Test(timeout = 5000)
-  public void testTaskCommandOpts() {
+  public void testTaskCommandOpts() throws TezException {
     TezConfiguration tezConf = new TezConfiguration();
     String taskCommandOpts = "-Xmx 200m -Dtest.property";
     tezConf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, taskCommandOpts);
@@ -562,5 +565,58 @@ public class TestTezClientUtils {
     Assert.assertTrue(resourceNames.contains("f1.txt"));
     Assert.assertTrue(resourceNames.contains("dir2-f.txt"));
   }
+
+  @Test(timeout = 5000)
+  public void testTaskLaunchCmdOptsSetup() throws TezException {
+    Configuration conf = new Configuration(false);
+    String vOpts = "";
+    String opts = TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vOpts, conf);
+
+    Assert.assertEquals(opts,
+        TezConfiguration.TEZ_TASK_LAUNCH_CLUSTER_DEFAULT_CMD_OPTS_DEFAULT + " "
+            + TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS_DEFAULT + " " + vOpts);
+
+    vOpts = "foo";
+    opts = TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vOpts, conf);
+
+    Assert.assertEquals(opts,
+        TezConfiguration.TEZ_TASK_LAUNCH_CLUSTER_DEFAULT_CMD_OPTS_DEFAULT + "  " + vOpts);
+
+    String taskOpts = "taskOpts";
+    conf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, taskOpts);
+    opts = TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vOpts, conf);
+
+    Assert.assertEquals(opts,
+        TezConfiguration.TEZ_TASK_LAUNCH_CLUSTER_DEFAULT_CMD_OPTS_DEFAULT
+            + " " + taskOpts + " " + vOpts);
+
+  }
+
+  @Test(timeout = 5000)
+  public void testClusterTaskLaunchCmdOptsSetup() throws TezException {
+    Configuration conf = new Configuration(false);
+    String adminOpts = "adminOpts";
+    conf.set(TezConfiguration.TEZ_TASK_LAUNCH_CLUSTER_DEFAULT_CMD_OPTS, adminOpts);
+
+    String vOpts = "";
+    String opts = TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vOpts, conf);
+
+    Assert.assertEquals(opts,
+        adminOpts + " "
+            + TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS_DEFAULT + " " + vOpts);
+
+    vOpts = "foo";
+    opts = TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vOpts, conf);
+
+    Assert.assertEquals(opts, adminOpts + "  " + vOpts);
+
+    String taskOpts = "taskOpts";
+    conf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, taskOpts);
+    opts = TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vOpts, conf);
+
+    Assert.assertEquals(opts, adminOpts + " " + taskOpts + " " + vOpts);
+
+  }
+
 
 }

@@ -41,7 +41,9 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.apache.tez.common.JavaOptsChecker;
 import org.apache.tez.common.RPCUtil;
+import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.common.counters.Limits;
 import org.apache.tez.common.security.JobTokenSecretManager;
 import org.apache.tez.dag.api.DAG;
@@ -111,6 +113,8 @@ public class TezClient {
       new JobTokenSecretManager();
   private Map<String, LocalResource> additionalLocalResources = Maps.newHashMap();
   private TezApiVersionInfo apiVersionInfo;
+
+  private JavaOptsChecker javaOptsChecker = null;
 
   private int preWarmDAGCounter = 0;
 
@@ -296,6 +300,28 @@ public class TezClient {
     frameworkClient.init(amConfig.getTezConfiguration(), amConfig.getYarnConfiguration());
     frameworkClient.start();    
 
+    if (this.amConfig.getTezConfiguration().getBoolean(
+        TezConfiguration.TEZ_CLIENT_JAVA_OPTS_CHECKER_ENABLED,
+        TezConfiguration.TEZ_CLIENT_JAVA_OPTS_CHECKER_ENABLED_DEFAULT)) {
+      String javaOptsCheckerClassName = this.amConfig.getTezConfiguration().get(
+          TezConfiguration.TEZ_CLIENT_JAVA_OPTS_CHECKER_CLASS, "");
+      if (!javaOptsCheckerClassName.isEmpty()) {
+        try {
+          javaOptsChecker = ReflectionUtils.createClazzInstance(javaOptsCheckerClassName);
+        } catch (Exception e) {
+          LOG.warn("Failed to initialize configured Java Opts Checker"
+              + " (" + TezConfiguration.TEZ_CLIENT_JAVA_OPTS_CHECKER_CLASS
+              + ") , checkerClass=" + javaOptsCheckerClassName
+              + ". Disabling checker.", e);
+          javaOptsChecker = null;
+        }
+      } else {
+        javaOptsChecker = new JavaOptsChecker();
+      }
+
+    }
+
+
     if (isSession) {
       LOG.info("Session mode. Starting session.");
       TezClientUtils.processTezLocalCredentialsFile(sessionCredentials,
@@ -320,8 +346,9 @@ public class TezClient {
             TezClientUtils.createApplicationSubmissionContext(
                 sessionAppId,
                 null, clientName, amConfig,
-                tezJarResources, sessionCredentials, usingTezArchiveDeploy, apiVersionInfo);
-  
+                tezJarResources, sessionCredentials, usingTezArchiveDeploy, apiVersionInfo,
+                javaOptsChecker);
+
         // Set Tez Sessions to not retry on AM crashes if recovery is disabled
         if (!amConfig.getTezConfiguration().getBoolean(
             TezConfiguration.DAG_RECOVERY_ENABLED,
@@ -382,7 +409,7 @@ public class TezClient {
     
     Map<String, LocalResource> tezJarResources = getTezJarResources(sessionCredentials);
     DAGPlan dagPlan = TezClientUtils.prepareAndCreateDAGPlan(dag, amConfig, tezJarResources,
-        usingTezArchiveDeploy, sessionCredentials);
+        usingTezArchiveDeploy, sessionCredentials, javaOptsChecker);
 
     SubmitDAGRequestProto.Builder requestBuilder = SubmitDAGRequestProto.newBuilder();
     requestBuilder.setDAGPlan(dagPlan).build();
@@ -714,7 +741,7 @@ public class TezClient {
       ApplicationSubmissionContext appContext = TezClientUtils
           .createApplicationSubmissionContext( 
               appId, dag, dag.getName(), amConfig, tezJarResources, credentials,
-              usingTezArchiveDeploy, apiVersionInfo);
+              usingTezArchiveDeploy, apiVersionInfo, javaOptsChecker);
       LOG.info("Submitting DAG to YARN"
           + ", applicationId=" + appId
           + ", dagName=" + dag.getName());

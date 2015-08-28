@@ -34,6 +34,7 @@ import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualLinkedHashBidiMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.conf.Configuration;
@@ -41,6 +42,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.tez.client.TezClientUtils;
+import org.apache.tez.common.JavaOptsChecker;
 import org.apache.tez.common.security.DAGAccessControls;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezYARNUtils;
@@ -607,8 +609,17 @@ public class DAG {
   // create protobuf message describing DAG
   @Private
   public DAGPlan createDag(Configuration dagConf, Credentials extraCredentials,
+                           Map<String, LocalResource> tezJarResources, LocalResource binaryConfig,
+                           boolean tezLrsAsArchive) {
+    return createDag(dagConf, extraCredentials, tezJarResources, binaryConfig, tezLrsAsArchive,
+        null);
+  }
+
+  // create protobuf message describing DAG
+  @Private
+  public synchronized DAGPlan createDag(Configuration dagConf, Credentials extraCredentials,
       Map<String, LocalResource> tezJarResources, LocalResource binaryConfig,
-      boolean tezLrsAsArchive) {
+      boolean tezLrsAsArchive, JavaOptsChecker javaOptsChecker) {
     verify(true);
 
     DAGPlan.Builder dagBuilder = DAGPlan.newBuilder();
@@ -727,8 +738,15 @@ public class DAG {
       taskConfigBuilder.setNumTasks(vertexParallelism);
       taskConfigBuilder.setMemoryMb(vertexTaskResource.getMemory());
       taskConfigBuilder.setVirtualCores(vertexTaskResource.getVirtualCores());
-      taskConfigBuilder.setJavaOpts(
-          TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vertex.getTaskLaunchCmdOpts(), dagConf));
+
+      try {
+        taskConfigBuilder.setJavaOpts(
+            TezClientUtils.addDefaultsToTaskLaunchCmdOpts(vertex.getTaskLaunchCmdOpts(), dagConf,
+                javaOptsChecker));
+      } catch (TezException e) {
+        throw new TezUncheckedException("Invalid TaskLaunchCmdOpts defined for Vertex "
+            + vertex.getName() + " : " + e.getMessage(), e);
+      }
 
       taskConfigBuilder.setTaskModule(vertex.getName());
       if (!vertexLRs.isEmpty()) {
