@@ -8,6 +8,7 @@ IMPROVEMENTS
   TEZ-2461. tez-history-parser compile fails with hadoop-2.4.
   TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
   BUG-43319. Port initial patch for ATS v1.5 from TEZ-2628
+  TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
   TEZ-2732. (BUG-43010) DefaultSorter throws ArrayIndex exceptions on 2047 Mb size sort buffers
