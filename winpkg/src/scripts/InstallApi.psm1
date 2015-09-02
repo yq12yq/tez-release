@@ -130,6 +130,12 @@ function Install(
         Write-Log "Setting the TEZ_CLASSPATH environment variable at machine scope to `"$tezClassPath`""
         [Environment]::SetEnvironmentVariable("TEZ_CLASSPATH", $tezClassPath, [EnvironmentVariableTarget]::Machine)
         $ENV:TEZ_CLASSPATH = "$tezClassPath"
+        
+        #Configuring the tez.lib.uris
+        Configure "tez" $nodeInstallRoot $serviceCredential @{
+        "tez.lib.uris" = "/apps/tez/$FinalName.tar.gz"
+        }
+
 
 
         Write-Log "Finished installing Apache tez"
