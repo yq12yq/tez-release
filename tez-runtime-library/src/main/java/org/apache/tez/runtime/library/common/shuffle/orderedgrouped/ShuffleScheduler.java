@@ -770,7 +770,6 @@ class ShuffleScheduler {
           }
         }
       } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
         // This handles shutdown of the entire fetch / merge process.
         return;
       } catch (Throwable t) {

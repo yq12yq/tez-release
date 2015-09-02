@@ -182,9 +182,6 @@ class FetcherOrderedGrouped extends Thread {
         fetchNext();
       }
     } catch (InterruptedException ie) {
-      //TODO: might not be respected when fetcher is in progress / server is busy.  TEZ-711
-      //Set the status back
-      Thread.currentThread().interrupt();
       return;
     } catch (Throwable t) {
       shuffle.reportException(t);
@@ -199,9 +196,7 @@ class FetcherOrderedGrouped extends Thread {
     try {
       join(5000);
     } catch (InterruptedException ie) {
-      //Reset the status
-      Thread.currentThread().interrupt();
-      LOG.warn("Got interrupt while joining " + getName());
+      LOG.warn("Got interrupt while joining " + getName(), ie);
     }
   }
 

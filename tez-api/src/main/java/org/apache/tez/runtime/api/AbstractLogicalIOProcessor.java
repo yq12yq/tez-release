@@ -49,8 +49,4 @@ public abstract class AbstractLogicalIOProcessor implements LogicalIOProcessor,
     return context;
   }
 
-  @Override
-  public void abort() {
-  }
-
 }

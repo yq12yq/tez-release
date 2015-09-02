@@ -169,28 +169,28 @@ public class TestValuesIterator {
   }
 
   @Test(timeout = 20000)
-  public void testIteratorWithInMemoryReader() throws IOException, InterruptedException {
+  public void testIteratorWithInMemoryReader() throws IOException {
     ValuesIterator iterator = createIterator(true);
     verifyIteratorData(iterator);
   }
 
   @Test(timeout = 20000)
-  public void testIteratorWithIFileReader() throws IOException, InterruptedException {
+  public void testIteratorWithIFileReader() throws IOException {
     ValuesIterator iterator = createIterator(false);
     verifyIteratorData(iterator);
   }
 
   @Test(timeout = 20000)
-  public void testCountedIteratorWithInmemoryReader() throws IOException, InterruptedException {
+  public void testCountedIteratorWithInmemoryReader() throws IOException {
     verifyCountedIteratorReader(true);
   }
 
   @Test(timeout = 20000)
-  public void testCountedIteratorWithIFileReader() throws IOException, InterruptedException {
+  public void testCountedIteratorWithIFileReader() throws IOException {
     verifyCountedIteratorReader(false);
   }
 
-  private void verifyCountedIteratorReader(boolean inMemory) throws IOException, InterruptedException {
+  private void verifyCountedIteratorReader(boolean inMemory) throws IOException {
     TezCounter keyCounter = new GenericCounter("inputKeyCounter", "y3");
     TezCounter tupleCounter = new GenericCounter("inputValuesCounter", "y4");
     ValuesIterator iterator = createCountedIterator(inMemory, keyCounter,
@@ -207,7 +207,7 @@ public class TestValuesIterator {
   }
 
   @Test(timeout = 20000)
-  public void testIteratorWithIFileReaderEmptyPartitions() throws IOException, InterruptedException {
+  public void testIteratorWithIFileReaderEmptyPartitions() throws IOException {
     ValuesIterator iterator = createEmptyIterator(false);
     assertTrue(iterator.moveToNext() == false);
 
@@ -224,8 +224,7 @@ public class TestValuesIterator {
     }
   }
 
-  private ValuesIterator createEmptyIterator(boolean inMemory)
-      throws IOException, InterruptedException {
+  private ValuesIterator createEmptyIterator(boolean inMemory) throws IOException {
     if (!inMemory) {
       streamPaths = new Path[0];
       //This will return EmptyIterator
@@ -324,7 +323,7 @@ public class TestValuesIterator {
    * @return ValuesIterator
    * @throws IOException
    */
-  private ValuesIterator createIterator(boolean inMemory) throws IOException, InterruptedException {
+  private ValuesIterator createIterator(boolean inMemory) throws IOException {
     if (!inMemory) {
       streamPaths = createFiles();
       //Merge all files to get KeyValueIterator
@@ -354,8 +353,7 @@ public class TestValuesIterator {
    * @return ValuesIterator
    * @throws IOException
    */
-  private ValuesIterator createCountedIterator(boolean inMemory, TezCounter keyCounter, TezCounter tupleCounter)
-      throws IOException, InterruptedException {
+  private ValuesIterator createCountedIterator(boolean inMemory, TezCounter keyCounter, TezCounter tupleCounter) throws IOException {
     if (!inMemory) {
       streamPaths = createFiles();
       //Merge all files to get KeyValueIterator
