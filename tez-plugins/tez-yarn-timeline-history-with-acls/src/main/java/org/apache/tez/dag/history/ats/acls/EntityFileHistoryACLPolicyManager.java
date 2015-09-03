@@ -20,7 +20,6 @@ package org.apache.tez.dag.history.ats.acls;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -79,8 +78,6 @@ public class EntityFileHistoryACLPolicyManager implements
   private static final String DOMAIN_LOG_PREFIX = "domainlog-";
 
   Configuration conf;
-  Map<ApplicationId, DomainWriter> writerMap =
-      new HashMap<ApplicationId, DomainWriter>();
   JsonFactory jsonFactory = new JsonFactory();
   ObjectMapper objMapper = null;
   FileSystem fs = null;
@@ -213,7 +210,7 @@ public class EntityFileHistoryACLPolicyManager implements
     }
   }
 
-  private synchronized void createTimelineDomain(String domainId,
+  private void createTimelineDomain(String domainId,
       Configuration tezConf, ApplicationId appId,
       DAGAccessControls dagAccessControls)
           throws IOException, HistoryACLPolicyException {
@@ -227,13 +224,35 @@ public class EntityFileHistoryACLPolicyManager implements
         dagAccessControls));
     timelineDomain.setWriters(user);
 
+    writeDomain(appId, timelineDomain);
+  }
+
+  private synchronized void writeDomain(ApplicationId appId,
+      TimelineDomain domain) throws IOException, HistoryACLPolicyException {
+    if (objMapper == null) {
+      objMapper = new ObjectMapper();
+      objMapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector());
+      objMapper.setSerializationInclusion(Inclusion.NON_NULL);
+      objMapper.configure(Feature.CLOSE_CLOSEABLE, false);
+    }
+
+    String appIdStr = appId.toString();
+    Path appDir = createAppDir(appIdStr);
+    writeConf(appDir);
+
+    FSDataOutputStream out = null;
     try {
-      DomainWriter writer = getWriter(appId);
-      writer.writeDomain(objMapper, timelineDomain);
-    } catch (Exception e) {
-      LOG.warn("Could not post timeline domain", e);
-      throw new HistoryACLPolicyException(
-          "Fail to create ACL-related domain", e);
+      out = createDomainFile(appDir, appIdStr);
+      JsonGenerator jsonGenerator = jsonFactory.createJsonGenerator(out);
+      jsonGenerator.setPrettyPrinter(new MinimalPrettyPrinter("\n"));
+      objMapper.writeValue(jsonGenerator, domain);
+      jsonGenerator.close();
+      out.close();
+      out = null;
+    } finally {
+      if (out != null) {
+        out.close();
+      }
     }
   }
 
@@ -267,36 +286,25 @@ public class EntityFileHistoryACLPolicyManager implements
         ACLManager.toCommaSeparatedString(viewGroups);
   }
 
-  private DomainWriter getWriter(ApplicationId appId)
-      throws IOException {
-    if (objMapper == null) {
-      objMapper = new ObjectMapper();
-      objMapper.setAnnotationIntrospector(new JaxbAnnotationIntrospector());
-      objMapper.setSerializationInclusion(Inclusion.NON_NULL);
-      objMapper.configure(Feature.CLOSE_CLOSEABLE, false);
-    }
-    DomainWriter writer = writerMap.get(appId);
-    if (writer == null) {
-      writer = new DomainWriter(jsonFactory, createDomainFile(appId));
-      writerMap.put(appId, writer);
-    }
-    return writer;
-  }
-
-  private FSDataOutputStream createDomainFile(ApplicationId appId)
-      throws IOException {
-    String appIdStr = appId.toString();
+  private Path createAppDir(String appIdStr) throws IOException {
     Path appDir = new Path(activePath, appIdStr);
     if (!fs.exists(appDir)) {
       FileSystem.mkdirs(fs, appDir, APP_LOG_DIR_PERMISSION);
     }
+    return appDir;
+  }
 
-    writeConf(appDir);
-
+  private FSDataOutputStream createDomainFile(Path appDir, String appIdStr)
+      throws IOException {
     Path logPath = new Path(appDir, DOMAIN_LOG_PREFIX + appIdStr);
     LOG.info("Writing domains for " + appIdStr + " to " + logPath);
-    FSDataOutputStream stream = fs.create(logPath, false);
-    fs.setPermission(logPath, FILE_LOG_PERMISSION);
+    FSDataOutputStream stream;
+    if (!fs.exists(logPath)) {
+      stream = fs.create(logPath, false);
+      fs.setPermission(logPath, FILE_LOG_PERMISSION);
+    } else {
+      stream = fs.append(logPath);
+    }
     return stream;
   }
 
@@ -310,25 +318,6 @@ public class EntityFileHistoryACLPolicyManager implements
       } finally {
         out.close();
       }
-    }
-  }
-
-  private static class DomainWriter {
-    private JsonGenerator jsonGenerator;
-    private FSDataOutputStream outputStream;
-
-    public DomainWriter(JsonFactory factory, FSDataOutputStream stream)
-        throws IOException {
-      jsonGenerator = factory.createJsonGenerator(stream);
-      jsonGenerator.setPrettyPrinter(new MinimalPrettyPrinter("\n"));
-      outputStream = stream;
-    }
-
-    public void writeDomain(ObjectMapper objMapper, TimelineDomain domain)
-        throws IOException {
-      objMapper.writeValue(jsonGenerator, domain);
-      jsonGenerator.flush();
-      outputStream.hflush();
     }
   }
 }
