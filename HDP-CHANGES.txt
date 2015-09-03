@@ -5,6 +5,7 @@ INCOMPATIBLE CHANGES
 NEW FEATURES
 
 IMPROVEMENTS
+  TEZ-2767. (BUG-41183). Make TezMxBeanResourceCalculator the default resource calculator
   TEZ-2461. tez-history-parser compile fails with hadoop-2.4.
   TEZ-2076. Tez framework to extract/analyze data stored in ATS for specific dag.
   BUG-43319. Port initial patch for ATS v1.5 from TEZ-2628
