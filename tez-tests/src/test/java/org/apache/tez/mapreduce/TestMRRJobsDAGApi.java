@@ -90,7 +90,6 @@ import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
-import org.apache.tez.dag.api.TezReflectionException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
@@ -888,7 +887,7 @@ public class TestMRRJobsDAGApi {
         LOG.info("Class found");
         FileSystem fs = FileSystem.get(conf);
         fs.mkdirs(new Path("/tmp/relocalizationfilefound"));
-      } catch (TezReflectionException e) {
+      } catch (TezUncheckedException e) {
         LOG.info("Class not found");
       }
 

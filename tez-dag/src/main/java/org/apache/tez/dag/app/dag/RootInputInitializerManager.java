@@ -48,7 +48,6 @@ import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.InputInitializerDescriptor;
 import org.apache.tez.dag.api.RootInputLeafOutput;
-import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.event.*;
 import org.apache.tez.dag.api.event.VertexState;
@@ -107,7 +106,7 @@ public class RootInputInitializerManager {
   }
   
   public void runInputInitializers(List<RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>> 
-      inputs) throws TezException {
+      inputs) {
     for (RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor> input : inputs) {
 
       InputInitializerContext context =
@@ -134,7 +133,7 @@ public class RootInputInitializerManager {
 
   @VisibleForTesting
   protected InputInitializer createInitializer(RootInputLeafOutput<InputDescriptor, InputInitializerDescriptor>
-      input, InputInitializerContext context) throws TezException {
+      input, InputInitializerContext context) {
     InputInitializer initializer = ReflectionUtils
         .createClazzInstance(input.getControllerDescriptor().getClassName(),
             new Class[]{InputInitializerContext.class}, new Object[]{context});

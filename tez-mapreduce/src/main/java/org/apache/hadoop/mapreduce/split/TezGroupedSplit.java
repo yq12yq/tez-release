@@ -31,7 +31,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
 
 /**
@@ -109,13 +108,9 @@ public class TezGroupedSplit extends InputSplit
   public void readFields(DataInput in) throws IOException {
     wrappedInputFormatName = Text.readString(in);
     String inputSplitClassName = Text.readString(in);
-    Class<? extends InputSplit> clazz = null;
-    try {
-      clazz = (Class<? extends InputSplit>)
-      TezGroupedSplitsInputFormat.getClassFromName(inputSplitClassName);
-    } catch (TezException e) {
-      throw new IOException(e);
-    }
+    Class<? extends InputSplit> clazz = 
+        (Class<? extends InputSplit>) 
+        TezGroupedSplitsInputFormat.getClassFromName(inputSplitClassName);
     
     int numSplits = in.readInt();
     

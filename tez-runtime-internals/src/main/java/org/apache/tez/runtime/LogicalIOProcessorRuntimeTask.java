@@ -46,7 +46,6 @@ import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.ProcessorDescriptor;
-import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.api.AbstractLogicalIOProcessor;
@@ -445,7 +444,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     return false;
   }
 
-  private void initializeGroupInputs() throws TezException {
+  private void initializeGroupInputs() {
     if (groupInputSpecs != null && !groupInputSpecs.isEmpty()) {
      groupInputsMap = new ConcurrentHashMap<String, MergedLogicalInput>(groupInputSpecs.size());
      for (GroupInputSpec groupInputSpec : groupInputSpecs) {
@@ -516,7 +515,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     return processorContext;
   }
 
-  private LogicalInput createInput(InputSpec inputSpec, InputContext inputContext) throws TezException {
+  private LogicalInput createInput(InputSpec inputSpec, InputContext inputContext) {
     LOG.info("Creating Input");
     InputDescriptor inputDesc = inputSpec.getInputDescriptor();
     Input input = ReflectionUtils.createClazzInstance(inputDesc.getClassName(),
@@ -532,7 +531,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
   private LogicalInput createMergedInput(InputDescriptor inputDesc,
                                          MergedInputContext mergedInputContext,
-                                         List<Input> constituentInputs) throws TezException {
+                                         List<Input> constituentInputs) {
     LogicalInput input = ReflectionUtils.createClazzInstance(inputDesc.getClassName(),
         new Class[]{MergedInputContext.class, List.class},
         new Object[]{mergedInputContext, constituentInputs});
@@ -544,7 +543,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     return input;
   }
 
-  private LogicalOutput createOutput(OutputSpec outputSpec, OutputContext outputContext) throws TezException {
+  private LogicalOutput createOutput(OutputSpec outputSpec, OutputContext outputContext) {
     LOG.info("Creating Output");
     OutputDescriptor outputDesc = outputSpec.getOutputDescriptor();
     Output output = ReflectionUtils.createClazzInstance(outputDesc.getClassName(),
@@ -560,7 +559,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
   }
 
   private AbstractLogicalIOProcessor createProcessor(
-      String processorClassName, ProcessorContext processorContext) throws TezException {
+      String processorClassName, ProcessorContext processorContext) {
     Processor processor = ReflectionUtils.createClazzInstance(processorClassName,
         new Class[]{ProcessorContext.class}, new Object[]{processorContext});
     if (!(processor instanceof AbstractLogicalIOProcessor)) {

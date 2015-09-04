@@ -60,7 +60,6 @@ import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeProperty;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
-import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.VertexLocationHint;
 import org.apache.tez.dag.api.client.DAGStatus;
@@ -1296,16 +1295,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       }
     }
 
-    try {
-      createDAGEdges(this);
-    } catch (TezException e2) {
-      String msg = "Fail to create edges, " + ExceptionUtils.getStackTrace(e2);
-      addDiagnostic(msg);
-      LOG.error(msg);
-      trySetTerminationCause(DAGTerminationCause.INIT_FAILURE);
-      finished(DAGState.FAILED);
-      return DAGState.FAILED;
-    }
+    createDAGEdges(this);
     Map<String,EdgePlan> edgePlans = DagTypeConverters.createEdgePlanMapFromDAGPlan(getJobPlan().getEdgeList());
 
     // setup the dag
@@ -1327,17 +1317,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       }
     }
 
-    try {
-      assignDAGScheduler(this);
-    } catch (TezException e1) {
-      String msg = "Fail to assign DAGScheduler for dag:" + dagName + " due to "
-          + ExceptionUtils.getStackTrace(e1);
-      LOG.error(msg);
-      addDiagnostic(msg);
-      trySetTerminationCause(DAGTerminationCause.INIT_FAILURE);
-      finished(DAGState.FAILED);
-      return DAGState.FAILED;
-    }
+    assignDAGScheduler(this);
 
     for (Map.Entry<String, VertexGroupInfo> entry : vertexGroups.entrySet()) {
       String groupName = entry.getKey();
@@ -1358,7 +1338,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     return DAGState.INITED;
   }
 
-  private void createDAGEdges(DAGImpl dag) throws TezException {
+  private void createDAGEdges(DAGImpl dag) {
     for (EdgePlan edgePlan : dag.getJobPlan().getEdgeList()) {
       EdgeProperty edgeProperty = DagTypeConverters
           .createEdgePropertyMapFromDAGPlan(edgePlan);
@@ -1369,7 +1349,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     }
   }
 
-  private static void assignDAGScheduler(DAGImpl dag) throws TezException {
+  private static void assignDAGScheduler(DAGImpl dag) {
     String dagSchedulerClassName = dag.conf.get(TezConfiguration.TEZ_AM_DAG_SCHEDULER_CLASS,
         TezConfiguration.TEZ_AM_DAG_SCHEDULER_CLASS_DEFAULT);
     LOG.info("Using DAG Scheduler: " + dagSchedulerClassName);

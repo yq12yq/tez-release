@@ -340,7 +340,7 @@ public class TaskSchedulerEventHandler extends AbstractService
   }
   
   @Override
-  public synchronized void serviceStart() throws Exception {
+  public synchronized void serviceStart() {
     InetSocketAddress serviceAddr = clientService.getBindAddress();
     dagAppMaster = appContext.getAppMaster();
     // if web service is enabled then set tracking url. else disable it (value = "").

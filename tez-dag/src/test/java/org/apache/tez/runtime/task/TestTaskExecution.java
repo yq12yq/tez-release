@@ -238,7 +238,7 @@ public class TestTaskExecution {
         assertTrue(cause instanceof TezException);
       }
       assertNull(taskReporter.currentCallable);
-      umbilical.verifyTaskFailedEvent("Failure while running task:org.apache.tez.dag.api.TezReflectionException: "
+      umbilical.verifyTaskFailedEvent("Failure while running task:org.apache.tez.dag.api.TezUncheckedException: "
             + "Unable to load class: NotExitedProcessor");
     } finally {
       executor.shutdownNow();

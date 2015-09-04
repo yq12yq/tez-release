@@ -41,8 +41,6 @@ import org.apache.tez.dag.api.EdgeProperty;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.InputInitializerDescriptor;
 import org.apache.tez.dag.api.RootInputLeafOutput;
-import org.apache.tez.dag.api.TezException;
-import org.apache.tez.dag.api.TezReflectionException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.VertexLocationHint;
@@ -313,7 +311,7 @@ public class VertexManager {
   }
 
   public VertexManager(VertexManagerPluginDescriptor pluginDesc,
-      Vertex managedVertex, AppContext appContext, StateChangeNotifier stateChangeNotifier) throws TezException {
+      Vertex managedVertex, AppContext appContext, StateChangeNotifier stateChangeNotifier) {
     checkNotNull(pluginDesc, "pluginDesc is null");
     checkNotNull(managedVertex, "managedVertex is null");
     checkNotNull(appContext, "appContext is null");
@@ -333,12 +331,8 @@ public class VertexManager {
   public void initialize() throws AMUserCodeException {
     pluginContext = new VertexManagerPluginContextImpl();
     if (pluginDesc != null) {
-      try {
-        plugin = ReflectionUtils.createClazzInstance(pluginDesc.getClassName(),
-            new Class[]{VertexManagerPluginContext.class}, new Object[]{pluginContext});
-      } catch (TezReflectionException e) {
-        throw new AMUserCodeException(Source.VertexManager, e);
-      }
+      plugin = ReflectionUtils.createClazzInstance(pluginDesc.getClassName(),
+          new Class[]{VertexManagerPluginContext.class}, new Object[]{pluginContext});
       payload = pluginDesc.getUserPayload();
     }
     try {

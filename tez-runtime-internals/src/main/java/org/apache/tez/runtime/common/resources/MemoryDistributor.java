@@ -33,7 +33,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.EntityDescriptor;
-import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.runtime.api.MemoryUpdateCallback;
 import org.apache.tez.runtime.api.InputContext;
@@ -101,9 +100,8 @@ public class MemoryDistributor {
   /**
    * Used by the Tez framework to distribute initial memory after components
    * have made their initial requests.
-   * @throws TezException
    */
-  public void makeInitialAllocations() throws TezException {
+  public void makeInitialAllocations() {
     Preconditions.checkState(numInputsSeen.get() == numTotalInputs, "All inputs are expected to ask for memory");
     Preconditions.checkState(numOutputsSeen.get() == numTotalOutputs, "All outputs are expected to ask for memory");
     Iterable<InitialMemoryRequestContext> requestContexts = Iterables.transform(requestList,
