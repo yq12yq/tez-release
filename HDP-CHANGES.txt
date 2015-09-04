@@ -14,6 +14,8 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+
+  TEZ-2745 (BUG-43221). ClassNotFoundException of user code should fail dag
   TEZ-2758 (BUG-44948). Remove append API in RecoveryService after TEZ-1909
   TEZ-1909 (BUG-44948). Remove need to copy over all events from attempt 1 to attempt 2 dir.
   TEZ-2716 (BUG-44776). DefaultSorter.isRleNeeded not thread safe.

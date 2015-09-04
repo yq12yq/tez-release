@@ -33,6 +33,7 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
+import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.VertexLocationHint;
 import org.apache.tez.dag.api.TaskLocationHint;
@@ -77,7 +78,7 @@ public class TestHistoryEventsProtoConversion {
       TestHistoryEventsProtoConversion.class);
 
 
-  private HistoryEvent testProtoConversion(HistoryEvent event) throws IOException {
+  private HistoryEvent testProtoConversion(HistoryEvent event) throws IOException, TezException {
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     HistoryEvent deserializedEvent = null;
     event.toProtoStream(os);
@@ -94,7 +95,7 @@ public class TestHistoryEventsProtoConversion {
   }
 
   private HistoryEvent testSummaryProtoConversion(HistoryEvent historyEvent)
-      throws IOException {
+      throws IOException, TezException {
     SummaryEvent event = (SummaryEvent) historyEvent;
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     HistoryEvent deserializedEvent = null;
