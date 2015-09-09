@@ -12,6 +12,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2766. (BUG-44080) Tez UI: Add vertex in-progress info in DAG details
   TEZ-2761. (BUG-44080) Tez UI: update the progress on the dag and vertices pages with info from AM
   TEZ-2754. (BUG-44080) Tez UI: StartTime & EndTime is not displayed with right format in Graphical View
   TEZ-2211. (BUG-44080) Tez UI: Allow users to configure timezone
