@@ -27,6 +27,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2787. (BUG-46148) Tez AM should have java.io.tmpdir=./tmp to be consistent with tasks.
   TEZ-2538. (BUG-45445) ADDITIONAL_SPILL_COUNT wrongly populated for DefaultSorter with multiple partitions
   TEZ-2885. (BUG-46163) Remove counter logs from AMWebController.
   TEZ-2887. (BUG-45816) Tez build failure due to missing dependency in pom files.
