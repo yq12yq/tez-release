@@ -20,6 +20,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2808. (BUG-45105) Race condition between preemption and container assignment
   TEZ-2853. (BUG-45051) Tez UI: task attempt page is coming empty
   TEZ-2834. (BUG-44763) Make Tez preemption resilient to incorrect free resource reported by YARN
   TEZ-2816. (BUG-44763) Preemption sometimes does not respect heartbeats between preemptions
