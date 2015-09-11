@@ -13,6 +13,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2660. (BUG-44284) Tez UI: need to show application page even if system metrics publish is disabled.
   TEZ-2780. (BUG-43253) Tez UI: Update All Tasks page while in progress
   TEZ-2792. (BUG-43253) addendum fix build failure for java 6
   TEZ-2792. (BUG-43253) Add AM web service API for tasks
