@@ -5,6 +5,7 @@ INCOMPATIBLE CHANGES
 NEW FEATURES
 
 IMPROVEMENTS
+  TEZ-2817. Tez UI: update in progress counter data for the dag vertices and tasks table
   TEZ-2813. Tez UI: add counter data for rest api calls to AM Web Services v2.
   TEZ-2789. (BUG-44090) Backport events added in TEZ-2612 to branch-0.7
   TEZ-2767. (BUG-41183). Make TezMxBeanResourceCalculator the default resource calculator
