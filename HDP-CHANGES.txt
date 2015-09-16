@@ -5,6 +5,7 @@ INCOMPATIBLE CHANGES
 NEW FEATURES
 
 IMPROVEMENTS
+  TEZ-2830. (BUG-44452) Backport TEZ-2774 to branch-0.7. Improvements to logging in the AM and part of the runtime.
   TEZ-2812. Tez UI: Update task & attempt tables while in progress.
   TEZ-2876. Tez UI: Update vertex, task & attempt details page while in progress.
   TEZ-2817. Tez UI: update in progress counter data for the dag vertices and tasks table.
