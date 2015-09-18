@@ -20,6 +20,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-814.  Improve heuristic for determining a task has failed outputs
   TEZ-2847. (BUG-44929) Tez UI: Task details doesn't gets updated on manual refresh after job complete
   TEZ-2483. (BUG-44505) TEZ-2843. Tez UI: Show error if in progress fails due to AM not reachable
   TEZ-2842. (BUG-44895) Tez UI: Update Tez App details page while in-progress
