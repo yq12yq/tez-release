@@ -103,6 +103,7 @@ public class TestHistoryEventTimelineConversion {
   private DAGPlan dagPlan;
   private ContainerId containerId;
   private NodeId nodeId;
+  private String containerLogs = "containerLogs";
 
   @Before
   public void setup() {
@@ -141,7 +142,7 @@ public class TestHistoryEventTimelineConversion {
           break;
         case DAG_SUBMITTED:
           event = new DAGSubmittedEvent(tezDAGID, random.nextInt(), dagPlan, applicationAttemptId,
-              null, user, null);
+              null, user, null, containerLogs);
           break;
         case DAG_INITIALIZED:
           event = new DAGInitializedEvent(tezDAGID, random.nextInt(), user, dagPlan.getName(), null);
@@ -208,7 +209,7 @@ public class TestHistoryEventTimelineConversion {
           break;
         case DAG_RECOVERED:
           event = new DAGRecoveredEvent(applicationAttemptId, tezDAGID, dagPlan.getName(),
-              user, random.nextLong());
+              user, random.nextLong(), containerLogs);
           break;
         default:
           Assert.fail("Unhandled event type " + eventType);
@@ -408,7 +409,7 @@ public class TestHistoryEventTimelineConversion {
     long submitTime = random.nextLong();
 
     DAGSubmittedEvent event = new DAGSubmittedEvent(tezDAGID, submitTime, dagPlan,
-        applicationAttemptId, null, user, null);
+        applicationAttemptId, null, user, null, containerLogs);
 
     TimelineEntity timelineEntity = HistoryEventTimelineConversion.convertToTimelineEntity(event);
     Assert.assertEquals(EntityTypes.TEZ_DAG_ID.name(), timelineEntity.getEntityType());
@@ -443,7 +444,7 @@ public class TestHistoryEventTimelineConversion {
     Assert.assertTrue(
         timelineEntity.getPrimaryFilters().get(ATSConstants.USER).contains(user));
 
-    Assert.assertEquals(7, timelineEntity.getOtherInfo().size());
+    Assert.assertEquals(8, timelineEntity.getOtherInfo().size());
     Assert.assertTrue(timelineEntity.getOtherInfo().containsKey(ATSConstants.DAG_PLAN));
     Assert.assertEquals(applicationId.toString(),
         timelineEntity.getOtherInfo().get(ATSConstants.APPLICATION_ID));
@@ -455,6 +456,9 @@ public class TestHistoryEventTimelineConversion {
         timelineEntity.getOtherInfo().get(ATSConstants.DAG_AM_WEB_SERVICE_VERSION));
     Assert.assertEquals(user,
         timelineEntity.getOtherInfo().get(ATSConstants.USER));
+    Assert.assertEquals(containerLogs,
+        timelineEntity.getOtherInfo().get(ATSConstants.IN_PROGRESS_LOGS_URL + "_"
+            + applicationAttemptId.getAttemptId()));
     Assert.assertEquals(
         timelineEntity.getOtherInfo().get(ATSConstants.CALLER_CONTEXT_ID),
             dagPlan.getCallerContext().getCallerId());
@@ -916,7 +920,7 @@ public class TestHistoryEventTimelineConversion {
     long recoverTime = random.nextLong();
 
     DAGRecoveredEvent event = new DAGRecoveredEvent(applicationAttemptId, tezDAGID,
-        dagPlan.getName(), user, recoverTime);
+        dagPlan.getName(), user, recoverTime, containerLogs);
 
     TimelineEntity timelineEntity = HistoryEventTimelineConversion.convertToTimelineEntity(event);
     Assert.assertEquals(EntityTypes.TEZ_DAG_ID.name(), timelineEntity.getEntityType());
@@ -941,6 +945,9 @@ public class TestHistoryEventTimelineConversion {
         timelineEntity.getPrimaryFilters().get(ATSConstants.DAG_NAME).contains("DAGPlanMock"));
     Assert.assertTrue(
         timelineEntity.getPrimaryFilters().get(ATSConstants.USER).contains(user));
+    Assert.assertEquals(containerLogs,
+        timelineEntity.getOtherInfo().get(ATSConstants.IN_PROGRESS_LOGS_URL + "_"
+            + applicationAttemptId.getAttemptId()));
   }
 
   @Test(timeout = 5000)
@@ -948,7 +955,7 @@ public class TestHistoryEventTimelineConversion {
     long recoverTime = random.nextLong();
 
     DAGRecoveredEvent event = new DAGRecoveredEvent(applicationAttemptId, tezDAGID,
-        dagPlan.getName(), user, recoverTime, DAGState.ERROR, "mock reason");
+        dagPlan.getName(), user, recoverTime, DAGState.ERROR, "mock reason", containerLogs);
 
 
     TimelineEntity timelineEntity = HistoryEventTimelineConversion.convertToTimelineEntity(event);
@@ -978,6 +985,9 @@ public class TestHistoryEventTimelineConversion {
         timelineEntity.getPrimaryFilters().get(ATSConstants.DAG_NAME).contains("DAGPlanMock"));
     Assert.assertTrue(
         timelineEntity.getPrimaryFilters().get(ATSConstants.USER).contains(user));
+    Assert.assertEquals(containerLogs,
+        timelineEntity.getOtherInfo().get(ATSConstants.IN_PROGRESS_LOGS_URL + "_"
+            + applicationAttemptId.getAttemptId()));
   }
 
 
