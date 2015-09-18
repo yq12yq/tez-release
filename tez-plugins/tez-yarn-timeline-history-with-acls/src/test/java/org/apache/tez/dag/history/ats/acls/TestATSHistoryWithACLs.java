@@ -578,7 +578,7 @@ public class TestATSHistoryWithACLs {
     DAGPlan dagPlan = DAGPlan.newBuilder().setName("DAGPlanMock").build();
     DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(tezDAGID,
           1, dagPlan, appAttemptId, null,
-          "usr", tezConf);
+          "usr", tezConf, null);
     submittedEvent.setHistoryLoggingEnabled(false);
     DAGHistoryEvent event = new DAGHistoryEvent(tezDAGID, submittedEvent);
     historyLoggingService.handle(new DAGHistoryEvent(tezDAGID, submittedEvent));
@@ -620,7 +620,7 @@ public class TestATSHistoryWithACLs {
     DAGPlan dagPlan = DAGPlan.newBuilder().setName("DAGPlanMock").build();
     DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(tezDAGID,
             1, dagPlan, appAttemptId, null,
-            "usr", tezConf);
+            "usr", tezConf, null);
     submittedEvent.setHistoryLoggingEnabled(true);
     DAGHistoryEvent event = new DAGHistoryEvent(tezDAGID, submittedEvent);
     historyLoggingService.handle(new DAGHistoryEvent(tezDAGID, submittedEvent));

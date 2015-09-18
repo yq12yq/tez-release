@@ -159,6 +159,8 @@ public class HistoryEventTimelineConversion {
     atsEntity.addPrimaryFilter(ATSConstants.APPLICATION_ID,
         event.getApplicationAttemptId().getApplicationId().toString());
     atsEntity.addPrimaryFilter(ATSConstants.DAG_NAME, event.getDagName());
+    atsEntity.addOtherInfo(ATSConstants.IN_PROGRESS_LOGS_URL + "_"
+        + event.getApplicationAttemptId().getAttemptId(), event.getContainerLogs());
 
     return atsEntity;
   }
@@ -412,6 +414,8 @@ public class HistoryEventTimelineConversion {
             event.getApplicationAttemptId().toString());
     atsEntity.addOtherInfo(ATSConstants.USER, event.getUser());
     atsEntity.addOtherInfo(ATSConstants.DAG_AM_WEB_SERVICE_VERSION, AMWebController.VERSION);
+    atsEntity.addOtherInfo(ATSConstants.IN_PROGRESS_LOGS_URL + "_"
+        + event.getApplicationAttemptId().getAttemptId(), event.getContainerLogs());
     if (event.getDAGPlan().hasCallerContext()
         && event.getDAGPlan().getCallerContext().hasCallerId()
         && event.getDAGPlan().getCallerContext().hasCallerType()) {

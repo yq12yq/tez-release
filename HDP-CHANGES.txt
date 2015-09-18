@@ -57,6 +57,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2097. (BUG-47918) TEZ-UI Add dag logs backend support
   TEZ-2311. (BUG-57517) AM can hang if kill received while recovering from previous attempt
   TEZ-3114. (BUG-54603) Shuffle OOM due to EventMetaData flood (jlowe)
   TEZ-1961. (BUG-30204) Remove misleading exception "No running dag" from AM logs
