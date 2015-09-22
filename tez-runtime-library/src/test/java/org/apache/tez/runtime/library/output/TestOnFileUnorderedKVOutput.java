@@ -47,7 +47,7 @@ import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.dag.records.TezVertexID;
-import org.apache.tez.runtime.RuntimeTask;
+import org.apache.tez.runtime.LogicalIOProcessorRuntimeTask;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.events.DataMovementEvent;
@@ -108,7 +108,7 @@ public class TestOnFileUnorderedKVOutput {
     TezTaskAttemptID taskAttemptID = TezTaskAttemptID.getInstance(taskID, 1);
     TezCounters counters = new TezCounters();
     UserPayload userPayload = TezUtils.createUserPayloadFromConf(conf);
-    RuntimeTask runtimeTask = mock(RuntimeTask.class);
+    LogicalIOProcessorRuntimeTask runtimeTask = mock(LogicalIOProcessorRuntimeTask.class);
     
     int shufflePort = 2112;
     Map<String, String> auxEnv = new HashMap<String, String>();

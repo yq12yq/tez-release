@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,8 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tez.common.counters.TezCounters;
@@ -37,7 +40,7 @@ import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.InputReadyTracker;
-import org.apache.tez.runtime.RuntimeTask;
+import org.apache.tez.runtime.LogicalIOProcessorRuntimeTask;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.InputContext;
@@ -48,12 +51,15 @@ import org.apache.tez.runtime.common.resources.MemoryDistributor;
 public class TezInputContextImpl extends TezTaskContextImpl
     implements InputContext {
 
-  private final UserPayload userPayload;
+  private static final Log LOG = LogFactory.getLog(TezInputContextImpl.class);
+
+  private UserPayload userPayload;
   private final String sourceVertexName;
   private final EventMetaData sourceInfo;
   private final int inputIndex;
   private final Map<String, LogicalInput> inputs;
-  private final InputReadyTracker inputReadyTracker;
+  private InputReadyTracker inputReadyTracker;
+
 
   @Private
   public TezInputContextImpl(Configuration conf, String[] workDirs,
@@ -62,7 +68,7 @@ public class TezInputContextImpl extends TezTaskContextImpl
                              String taskVertexName, String sourceVertexName,
                              int vertexParallelism, TezTaskAttemptID taskAttemptID,
                              TezCounters counters, int inputIndex, @Nullable UserPayload userPayload,
-                             RuntimeTask runtimeTask,
+                             LogicalIOProcessorRuntimeTask runtimeTask,
                              Map<String, ByteBuffer> serviceConsumerMetadata,
                              Map<String, String> auxServiceEnv, MemoryDistributor memDist,
                              InputDescriptor inputDescriptor, Map<String, LogicalInput> inputs,
@@ -130,5 +136,15 @@ public class TezInputContextImpl extends TezTaskContextImpl
   @Override
   public void inputIsReady() {
     inputReadyTracker.setInputIsReady(inputs.get(sourceVertexName));
+  }
+
+
+  @Override
+  public void close() throws IOException {
+    super.close();
+    this.userPayload = null;
+    this.inputReadyTracker = null;
+    inputs.clear();
+    LOG.info("Cleared TezInputContextImpl related information");
   }
 }

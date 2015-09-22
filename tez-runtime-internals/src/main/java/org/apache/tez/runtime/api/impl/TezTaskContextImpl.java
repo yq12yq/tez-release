@@ -20,6 +20,8 @@ package org.apache.tez.runtime.api.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Map;
@@ -35,6 +37,7 @@ import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.EntityDescriptor;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.runtime.RuntimeTask;
+import org.apache.tez.runtime.LogicalIOProcessorRuntimeTask;
 import org.apache.tez.runtime.api.MemoryUpdateCallback;
 import org.apache.tez.runtime.api.ObjectRegistry;
 import org.apache.tez.runtime.api.TaskContext;
@@ -42,31 +45,30 @@ import org.apache.tez.runtime.common.resources.MemoryDistributor;
 
 import com.google.common.base.Preconditions;
 
-public abstract class TezTaskContextImpl implements TaskContext {
+public abstract class TezTaskContextImpl implements TaskContext, Closeable {
 
   private static final AtomicInteger ID_GEN = new AtomicInteger(10000);
-  
-  private final Configuration conf;
+
   protected final String taskVertexName;
   protected final TezTaskAttemptID taskAttemptID;
   private final TezCounters counters;
   private String[] workDirs;
   private String uniqueIdentifier;
-  protected final RuntimeTask runtimeTask;
+  protected LogicalIOProcessorRuntimeTask runtimeTask;
   protected final TezUmbilical tezUmbilical;
   private final Map<String, ByteBuffer> serviceConsumerMetadata;
   private final int appAttemptNumber;
   private final Map<String, String> auxServiceEnv;
-  protected final MemoryDistributor initialMemoryDistributor;
+  protected MemoryDistributor initialMemoryDistributor;
   protected final EntityDescriptor<?> descriptor;
   private final String dagName;
-  private final ObjectRegistry objectRegistry;
+  private ObjectRegistry objectRegistry;
   private final int vertexParallelism;
 
   @Private
   public TezTaskContextImpl(Configuration conf, String[] workDirs, int appAttemptNumber,
       String dagName, String taskVertexName, int vertexParallelism, 
-      TezTaskAttemptID taskAttemptID, TezCounters counters, RuntimeTask runtimeTask,
+      TezTaskAttemptID taskAttemptID, TezCounters counters, LogicalIOProcessorRuntimeTask runtimeTask,
       TezUmbilical tezUmbilical, Map<String, ByteBuffer> serviceConsumerMetadata,
       Map<String, String> auxServiceEnv, MemoryDistributor memDist,
       EntityDescriptor<?> descriptor, ObjectRegistry objectRegistry) {
@@ -79,7 +81,6 @@ public abstract class TezTaskContextImpl implements TaskContext {
     checkNotNull(auxServiceEnv, "auxServiceEnv is null");
     checkNotNull(memDist, "memDist is null");
     checkNotNull(descriptor, "descriptor is null");
-    this.conf = conf;
     this.dagName = dagName;
     this.taskVertexName = taskVertexName;
     this.taskAttemptID = taskAttemptID;
@@ -205,5 +206,12 @@ public abstract class TezTaskContextImpl implements TaskContext {
 
   private int generateId() {
     return ID_GEN.incrementAndGet();
+  }
+
+  @Override
+  public void close() throws IOException {
+    this.runtimeTask = null;
+    this.objectRegistry = null;
+    this.initialMemoryDistributor = null;
   }
 }

@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,8 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tez.common.counters.TezCounters;
@@ -36,7 +39,7 @@ import org.apache.tez.dag.api.OutputDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.records.TezTaskAttemptID;
-import org.apache.tez.runtime.RuntimeTask;
+import org.apache.tez.runtime.LogicalIOProcessorRuntimeTask;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.ObjectRegistry;
 import org.apache.tez.runtime.api.OutputContext;
@@ -46,10 +49,13 @@ import org.apache.tez.runtime.common.resources.MemoryDistributor;
 public class TezOutputContextImpl extends TezTaskContextImpl
     implements OutputContext {
 
-  private final UserPayload userPayload;
+	private static final Log LOG = LogFactory.getLog(TezOutputContextImpl.class);
+
+  private UserPayload userPayload;
   private final String destinationVertexName;
   private final EventMetaData sourceInfo;
   private final int outputIndex;
+
 
   @Private
   public TezOutputContextImpl(Configuration conf, String[] workDirs, int appAttemptNumber,
@@ -58,7 +64,7 @@ public class TezOutputContextImpl extends TezTaskContextImpl
       String destinationVertexName,
       int vertexParallelism,
       TezTaskAttemptID taskAttemptID, TezCounters counters, int outputIndex,
-      @Nullable UserPayload userPayload, RuntimeTask runtimeTask,
+      @Nullable UserPayload userPayload, LogicalIOProcessorRuntimeTask runtimeTask,
       Map<String, ByteBuffer> serviceConsumerMetadata,
       Map<String, String> auxServiceEnv, MemoryDistributor memDist,
       OutputDescriptor outputDescriptor, ObjectRegistry objectRegistry) {
@@ -115,5 +121,13 @@ public class TezOutputContextImpl extends TezTaskContextImpl
   @Override
   public int getOutputIndex() {
     return outputIndex;
+  }
+
+
+  @Override
+  public void close() throws IOException {
+    super.close();
+    this.userPayload = null;
+    LOG.info("Cleared TezOutputContextImpl related information");
   }
 }
