@@ -18,6 +18,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2842. (BUG-44895) Tez UI: Update Tez App details page while in-progress
   TEZ-2663. (BUG-44498) SessionNotRunning exceptions are wrapped in a ServiceException from a dying AM.
   TEZ-2825. (BUG-44401) Report progress in terms of completed tasks to reduce load on AM for Tez UI
   TEZ-2660. (BUG-44284) Tez UI: need to show application page even if system metrics publish is disabled.
