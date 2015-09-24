@@ -20,6 +20,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2853. (BUG-45051) Tez UI: task attempt page is coming empty
   TEZ-2834. (BUG-44763) Make Tez preemption resilient to incorrect free resource reported by YARN
   TEZ-2812. (BUG-44763) Preemption sometimes does not respect heartbeats between preemptions
   TEZ-814.  (BUG-44763) Improve heuristic for determining a task has failed outputs
