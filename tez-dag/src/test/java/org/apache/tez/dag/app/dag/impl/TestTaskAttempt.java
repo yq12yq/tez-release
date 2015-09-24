@@ -1063,21 +1063,18 @@ public class TestTaskAttempt {
 
     @Override
     protected void logJobHistoryAttemptStarted() {
-      taskAttemptStartedEventLogged++;
       super.logJobHistoryAttemptStarted();
     }
 
     @Override
     protected void logJobHistoryAttemptFinishedEvent(
         TaskAttemptStateInternal state) {
-      taskAttemptFinishedEventLogged++;
       super.logJobHistoryAttemptFinishedEvent(state);
     }
 
     @Override
     protected void logJobHistoryAttemptUnsuccesfulCompletion(
         TaskAttemptState state) {
-      taskAttemptFinishedEventLogged++;
       super.logJobHistoryAttemptUnsuccesfulCompletion(state);
     }
     
