@@ -24,6 +24,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2858 (BUG-45554). Stop using System.currentTimeMillis in TestInputReadyTracker.
   TEZ-2857 (BUG-45553). Fix flakey tests in TestDAGImpl.
   TEZ-2662 (BUG-45545). Provide a way to check whether AM or task opts are valid and error if not.
   TEZ-2855 (BUG-45340). Fix a potential NPE while routing VertexManager events.
