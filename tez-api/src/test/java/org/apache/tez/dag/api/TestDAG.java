@@ -19,6 +19,9 @@
 package org.apache.tez.dag.api;
 
 import org.apache.hadoop.yarn.api.records.Resource;
+
+import org.apache.tez.client.CallerContext;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -50,4 +53,28 @@ public class TestDAG {
     dag.createVertexGroup("group_2", v1, v2);
 
   }
+
+  @Test
+  public void testCallerContext() {
+    DAG dag = DAG.create("dag1");
+    try {
+      CallerContext callerContext = CallerContext.create("ctxt", "", "", "desc");
+      Assert.fail("Expected failure for invalid args");
+    } catch (Exception e) {
+      // Expected
+    }
+    try {
+      CallerContext callerContext = CallerContext.create("", "desc");
+      Assert.fail("Expected failure for invalid args");
+    } catch (Exception e) {
+      // Expected
+    }
+
+    CallerContext callerContext;
+    callerContext = CallerContext.create("ctxt", "a", "a", "desc");
+    callerContext = CallerContext.create("ctxt", "desc");
+    callerContext = CallerContext.create("ctxt", null);
+
+  }
+
 }

@@ -32,8 +32,11 @@ import java.util.Stack;
 
 import org.apache.commons.collections4.BidiMap;
 import org.apache.commons.collections4.bidimap.DualLinkedHashBidiMap;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.tez.client.CallerContext;
+import org.apache.tez.common.JavaOptsChecker;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.classification.InterfaceAudience.Public;
@@ -92,6 +95,8 @@ public class DAG {
   private DAGAccessControls dagAccessControls;
   Map<String, LocalResource> commonTaskLocalFiles = Maps.newHashMap();
   String dagInfo;
+
+  CallerContext callerContext;
 
   private Stack<String> topologicalVertexStack = new Stack<String>();
 
@@ -165,9 +170,22 @@ public class DAG {
    *                                In the case of Hive, this could be the SQL query text.
    * @return {@link DAG}
    */
+  @Deprecated
   public synchronized DAG setDAGInfo(String dagInfo) {
     Preconditions.checkNotNull(dagInfo);
     this.dagInfo = dagInfo;
+    return this;
+  }
+
+
+  /**
+   * Set the Context in which Tez is being called.
+   * @param callerContext Caller Context
+   * @return {@link DAG}
+   */
+  public synchronized DAG setCallerContext(CallerContext callerContext) {
+    Preconditions.checkNotNull(callerContext);
+    this.callerContext = callerContext;
     return this;
   }
 
@@ -625,6 +643,10 @@ public class DAG {
     DAGPlan.Builder dagBuilder = DAGPlan.newBuilder();
 
     dagBuilder.setName(this.name);
+
+    if (this.callerContext != null) {
+      dagBuilder.setCallerContext(DagTypeConverters.convertCallerContextToProto(callerContext));
+    }
     if (this.dagInfo != null && !this.dagInfo.isEmpty()) {
       dagBuilder.setDagInfo(this.dagInfo);
     }

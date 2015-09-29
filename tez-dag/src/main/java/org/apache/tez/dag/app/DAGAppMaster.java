@@ -55,8 +55,10 @@ import java.util.regex.Pattern;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.tez.client.CallerContext;
 import org.apache.tez.dag.api.SessionNotRunning;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -2012,7 +2014,14 @@ public class DAGAppMaster extends AbstractService {
       cumulativeAdditionalResources.putAll(lrDiff);
     }
 
-    LOG.info("Running DAG: " + dagPlan.getName());
+    String callerContextStr = "";
+    if (dagPlan.hasCallerContext()) {
+      CallerContext callerContext = DagTypeConverters.convertCallerContextFromProto(
+          dagPlan.getCallerContext());
+      callerContextStr = ", callerContext=" + callerContext.toString();
+    }
+    LOG.info("Running DAG: " + dagPlan.getName() + callerContextStr);
+
     // Job name is the same as the app name until we support multiple dags
     // for an app later
     DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(newDAG.getID(),

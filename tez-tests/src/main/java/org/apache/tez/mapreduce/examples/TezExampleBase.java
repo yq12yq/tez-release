@@ -24,11 +24,13 @@ import java.util.Set;
 
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
+import org.apache.tez.client.CallerContext;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.TezConfiguration;
@@ -81,6 +83,14 @@ public abstract class TezExampleBase extends Configured implements Tool {
   public int runDag(DAG dag, boolean printCounters, Log logger) throws TezException,
       InterruptedException, IOException {
     tezClientInternal.waitTillReady();
+
+    CallerContext callerContext = CallerContext.create("TezExamples",
+        "Tez Example DAG: " + dag.getName());
+    ApplicationId appId = tezClientInternal.getAppMasterApplicationId();
+    if (appId != null) {
+      callerContext.setCallerIdAndType(appId.toString(), "TezExampleApplication");
+    }
+
     DAGClient dagClient = tezClientInternal.submitDAG(dag);
     Set<StatusGetOpts> getOpts = Sets.newHashSet();
     if (printCounters) {
