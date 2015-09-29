@@ -5,6 +5,7 @@ INCOMPATIBLE CHANGES
 NEW FEATURES
 
 IMPROVEMENTS
+  TEZ-2851. (BUG-44456) Support a way for upstream applications to pass in a caller context to Tez. 
   TEZ-2844. (BUG-44767) Backport TEZ-2775 to branch-0.7. Improve and consolidate logging in Runtime components.
   TEZ-2719. (BUG-44767) Consider reducing logs in unordered fetcher with shared-fetch option
   TEZ-2830. (BUG-44452) Backport TEZ-2774 to branch-0.7. Improvements to logging in the AM and part of the runtime.
