@@ -217,7 +217,7 @@ public class RecoveryService extends AbstractService {
         } catch (IOException ioe) {
           if (!recoveryDirFS.exists(recoveryPath)) {
             LOG.warn("Ignoring error while closing summary stream."
-                + " The recovery directory at {} has already been deleted externally", recoveryPath);
+                + " The recovery directory at " + recoveryPath + " has already been deleted externally");
           } else {
             LOG.warn("Error when closing summary stream", ioe);
           }
@@ -231,7 +231,7 @@ public class RecoveryService extends AbstractService {
         } catch (IOException ioe) {
           if (!recoveryDirFS.exists(recoveryPath)) {
             LOG.warn("Ignoring error while closing output stream."
-                + " The recovery directory at {} has already been deleted externally", recoveryPath);
+                + " The recovery directory at " + recoveryPath + " has already been deleted externally");
             // avoid closing other outputStream as the recovery directory has already been deleted.
             break;
           } else {
