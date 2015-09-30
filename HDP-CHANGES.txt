@@ -6,6 +6,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-2758. (BUG-45326) Remove append API in RecoveryService after TEZ-1909
   TEZ-2561. (BUG-45379) Port for TaskAttemptListenerImpTezDag should be configurable
   TEZ-2781. (BUG-43591) Fallback to send only TaskAttemptFailedEvent if taskFailed heartbeat fails
   TEZ-2874. (BUG-44456) Improved logging for caller context.
