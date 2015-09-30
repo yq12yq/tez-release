@@ -6,6 +6,12 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   IMPROVEMENTS
 
+  TEZ-2758 (BUG-44948). Remove append API in RecoveryService after TEZ-1909
+  TEZ-1909 (BUG-44948). Remove need to copy over all events from attempt 1 to attempt 2 dir.
+  TEZ-1961 (BUG-44630). Remove misleading exception "No running dag" from AM logs.
+  TEZ-2511 (BUG-44629). Add exitCode to diagnostics when container fails.
+  TEZ-2474 (BUG-44626). The old taskNum is logged incorrectly when parallelism is changed.
+  TEZ-2460 (BUG-44625). Temporary solution for issue due to YARN-2560.
   TEZ-1687 (BUG-44593). Use logIdentifier of Vertex for logging.
   TEZ-1775 (BUG-29175). Allow setting log level per logger.
   TEZ-1750. Add a DAGScheduler which schedules tasks only when  sources have been scheduled.
@@ -16,18 +22,12 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG FIXES
 
   TEZ-2745 (BUG-43221). ClassNotFoundException of user code should fail dag
-  TEZ-2758 (BUG-44948). Remove append API in RecoveryService after TEZ-1909
-  TEZ-1909 (BUG-44948). Remove need to copy over all events from attempt 1 to attempt 2 dir.
   TEZ-2716 (BUG-44776). DefaultSorter.isRleNeeded not thread safe.
   TEZ-2548 (BUG-44631). TezClient submitDAG can hang if the AM is in the process of shutting down.
   TEZ-2221 (BUG-44623). VertexGroup name should be unqiue
-  TEZ-1961 (BUG-44630). Remove misleading exception "No running dag" from AM logs.
   TEZ-2566 (BUG-44632). Allow TaskAttemptFinishedEvent without TaskAttemptStartedEvent when it is KILLED/FAILED
-  TEZ-2511 (BUG-44629). Add exitCode to diagnostics when container fails.
   TEZ-2304 (BUG-44627). InvalidStateTransitonException TA_SCHEDULE at START_WAIT during recovery
-  TEZ-2474 (BUG-44626). The old taskNum is logged incorrectly when parallelism is changed.
   TEZ-2534 (BUG-44871). Error handling summary event when shutting down AM.
-  TEZ-2460 (BUG-44625). Temporary solution for issue due to YARN-2560.
   TEZ-2383 (BUG-44621). Cleanup input/output/processor contexts in LogicalIOProcessorRuntimeTask.
   TEZ-2379 (BUG-44624). org.apache.hadoop.yarn.state.InvalidStateTransitonException: Invalid event: T_ATTEMPT_KILLED at KILLED.
   TEZ-1521 (BUG-44622). VertexDataMovementEventsGeneratedEvent may be logged twice in recovery log
