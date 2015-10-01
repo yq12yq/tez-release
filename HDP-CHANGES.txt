@@ -22,6 +22,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2860 (BUG-45432). NPE in DAGClientImpl.
   TEZ-2323 (BUG-45432). Fix TestOrderedWordcount to use MR memory configs.
   TEZ-2033 (BUG-45432). Update TestOrderedWordCount to add processor configs as history text and use MR configs correctly.
   TEZ-2299 (BUG-45432). Invalid dag creation in MRRSleepJob post TEZ-2293.
