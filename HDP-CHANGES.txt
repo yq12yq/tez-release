@@ -73,6 +73,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2857. (BUG-62134) Fix flakey tests in TestDAGImpl.
   TEZ-3314. (BUG-52060) Double counting input bytes in MultiMRInput.
   TEZ-3325. (BUG-55372) Flaky test in TestDAGImpl.testCounterLimits.
   TEZ-3293. (BUG-61394) Fetch failures can cause a shuffle hang waiting for memory merge that never starts.
