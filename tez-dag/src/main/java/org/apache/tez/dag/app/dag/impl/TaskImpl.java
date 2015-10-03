@@ -490,7 +490,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         events = Collections.unmodifiableList(new ArrayList<TezEvent>(
             tezEventsForTaskAttempts.subList(fromEventId, toEventId)));
         LOG.info("TaskAttempt:" + attemptID + " sent events: (" + fromEventId
-            + "-" + toEventId + ")");
+            + "-" + toEventId + ").");
         // currently not modifying the events so that we dont have to create
         // copies of events. e.g. if we have to set taskAttemptId into the TezEvent
         // destination metadata then we will need to create a copy of the TezEvent
@@ -729,16 +729,17 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   public boolean canCommit(TezTaskAttemptID taskAttemptID) {
     writeLock.lock();
     try {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Commit go/no-go request from " + taskAttemptID);
+      }
       TaskState state = getState();
       if (state == TaskState.SCHEDULED) {
         // the actual running task ran and is done and asking for commit. we are still stuck 
         // in the scheduled state which indicates a backlog in event processing. lets wait for the
         // backlog to clear. returning false will make the attempt come back to us.
-        if (LOG.isDebugEnabled()) {
-          LOG.debug("Event processing delay. "
-            + "Attempt committing before state machine transitioned to running : Task:" + taskId);
-          return false;
-        }
+        LOG.info("Event processing delay. "
+          + "Attempt committing before state machine transitioned to running : Task:" + taskId);
+        return false;
       }
       // at this point the attempt is no longer in scheduled state or else we would still 
       // have been in scheduled state in task impl.
@@ -767,7 +768,9 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         }
       } else {
         if (commitAttempt.equals(taskAttemptID)) {
-          LOG.info(taskAttemptID + " given a go for committing the task output.");
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(taskAttemptID + " already given a go for committing the task output.");
+          }
           return true;
         }
         // Don't think this can be a pluggable decision, so simply raise an
@@ -775,9 +778,9 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         // Wait for commit attempt to succeed. Dont kill this. If commit
         // attempt fails then choose a different committer. When commit attempt
         // succeeds then this and others will be killed
-        LOG.info(commitAttempt
-            + " is current committer. Commit waiting for:  "
-            + taskAttemptID);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(commitAttempt + " is current committer. Commit waiting for:  " + taskAttemptID);
+        }
         return false;
       }
 
@@ -894,9 +897,11 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
         internalError(event.getType());
       }
       if (oldState != getInternalState()) {
-        LOG.info(taskId + " Task Transitioned from " + oldState + " to "
-            + getInternalState() + " due to event "
-            + event.getType());
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(taskId + " Task Transitioned from " + oldState + " to "
+              + getInternalState() + " due to event "
+              + event.getType());
+        }
       }
     } finally {
       writeLock.unlock();
@@ -1139,7 +1144,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
             //  other reasons.
             !attempt.isFinished()) {
           LOG.info("Issuing kill to other attempt " + attempt.getID() + " as attempt: " +
-            task.successfulAttempt + " has succeeded");
+              task.successfulAttempt + " has succeeded");
           String diagnostics = null;
           TaskAttemptTerminationCause errCause = null;
           if (attempt.getLaunchTime() < successfulAttempt.getLaunchTime()) {
@@ -1527,7 +1532,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
 
   private void killUnfinishedAttempt(TaskAttempt attempt, String logMsg, TaskAttemptTerminationCause errorCause) {
     if (commitAttempt != null && commitAttempt.equals(attempt)) {
-      LOG.info("Removing commit attempt: " + commitAttempt);
+      LOG.info("Unsetting commit attempt: " + commitAttempt + " since attempt is being killed");
       commitAttempt = null;
     }
     if (attempt != null && !attempt.isFinished()) {

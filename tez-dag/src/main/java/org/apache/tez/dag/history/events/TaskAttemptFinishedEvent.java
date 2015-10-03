@@ -132,6 +132,12 @@ public class TaskAttemptFinishedEvent implements HistoryEvent {
 
   @Override
   public String toString() {
+    String counterStr = "";
+    if (state != TaskAttemptState.SUCCEEDED) {
+      counterStr = ", counters=" + ( tezCounters == null ? "null" :
+        tezCounters.toString()
+        .replaceAll("\\n", ", ").replaceAll("\\s+", " "));
+    }
     return "vertexName=" + vertexName
         + ", taskAttemptId=" + taskAttemptId
         + ", startTime=" + startTime
@@ -140,9 +146,7 @@ public class TaskAttemptFinishedEvent implements HistoryEvent {
         + ", status=" + state.name()
         + ", errorEnum=" + (error != null ? error.name() : "")
         + ", diagnostics=" + diagnostics
-        + ", counters=" + (tezCounters == null ? "null" :
-          tezCounters.toString()
-            .replaceAll("\\n", ", ").replaceAll("\\s+", " "));
+        + counterStr;
   }
 
   public TezTaskAttemptID getTaskAttemptID() {

@@ -110,9 +110,7 @@ public class TaskAttemptStartedEvent implements HistoryEvent {
         + ", taskAttemptId=" + taskAttemptId
         + ", startTime=" + startTime
         + ", containerId=" + containerId
-        + ", nodeId=" + nodeId
-        + ", inProgressLogs=" + inProgressLogsUrl
-        + ", completedLogs=" + completedLogsUrl;
+        + ", nodeId=" + nodeId;
   }
 
   public TezTaskAttemptID getTaskAttemptID() {

@@ -145,6 +145,8 @@ public class TezInputContextImpl extends TezTaskContextImpl
     this.userPayload = null;
     this.inputReadyTracker = null;
     inputs.clear();
-    LOG.info("Cleared TezInputContextImpl related information");
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Cleared TezInputContextImpl related information");
+    }
   }
 }

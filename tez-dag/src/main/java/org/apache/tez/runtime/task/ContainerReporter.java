@@ -38,7 +38,7 @@ public class ContainerReporter implements Callable<ContainerTask> {
   private final TezTaskUmbilicalProtocol umbilical;
   private final ContainerContext containerContext;
   private final int getTaskMaxSleepTime;
-  private final long LOG_INTERVAL = 2000l;
+  private final long LOG_INTERVAL = 30000l;
 
   private long nextGetTaskPrintTime;
 

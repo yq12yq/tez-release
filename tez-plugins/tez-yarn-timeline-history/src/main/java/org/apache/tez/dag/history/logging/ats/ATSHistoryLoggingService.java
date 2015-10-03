@@ -74,7 +74,6 @@ public class ATSHistoryLoggingService extends HistoryLoggingService {
 
   @Override
   public void serviceInit(Configuration conf) throws Exception {
-    LOG.info("Initializing ATSService");
     if (conf.getBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED,
       YarnConfiguration.DEFAULT_TIMELINE_SERVICE_ENABLED)) {
       timelineClient = TimelineClient.createTimelineClient();
@@ -97,6 +96,10 @@ public class ATSHistoryLoggingService extends HistoryLoggingService {
     if (maxTimeToWaitOnShutdown < 0) {
       waitForeverOnShutdown = true;
     }
+    LOG.info("Initializing " + ATSHistoryLoggingService.class.getSimpleName() + " with "
+      + "maxEventsPerBatch=" + maxEventsPerBatch
+      + ", maxPollingTime(ms)=" + maxPollingTimeMillis
+      + ", waitTimeForShutdown(ms)=" + maxTimeToWaitOnShutdown);
   }
 
   @Override
@@ -104,7 +107,6 @@ public class ATSHistoryLoggingService extends HistoryLoggingService {
     if (timelineClient == null) {
       return;
     }
-    LOG.info("Starting ATSService");
     timelineClient.start();
 
     eventHandlingThread = new Thread(new Runnable() {

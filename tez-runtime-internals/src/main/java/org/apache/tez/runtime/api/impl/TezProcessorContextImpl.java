@@ -119,7 +119,9 @@ public class TezProcessorContextImpl extends TezTaskContextImpl implements Proce
     super.close();
     this.userPayload = null;
     this.inputReadyTracker = null;
-    LOG.info("Cleared TezProcessorContextImpl related information");
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Cleared TezProcessorContextImpl related information");
+    }
   }
 
 }

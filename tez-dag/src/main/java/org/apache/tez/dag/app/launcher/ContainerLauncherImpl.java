@@ -135,7 +135,7 @@ public class ContainerLauncherImpl extends AbstractService implements
 
     @SuppressWarnings("unchecked")
     public synchronized void launch(NMCommunicatorLaunchRequestEvent event) {
-      LOG.info("Launching Container with Id: " + event.getContainerId());
+      LOG.info("Launching " + event.getContainerId());
       if(this.state == ContainerState.KILLED_BEFORE_LAUNCH) {
         state = ContainerState.DONE;
         sendContainerLaunchFailedMsg(event.getContainerId(),
@@ -199,8 +199,7 @@ public class ContainerLauncherImpl extends AbstractService implements
       if(this.state == ContainerState.PREP) {
         this.state = ContainerState.KILLED_BEFORE_LAUNCH;
       } else {
-        LOG.info("Sending a stop request to the NM for ContainerId: "
-            + containerID);
+        LOG.info("Stopping " + containerID);
 
         ContainerManagementProtocolProxyData proxy = null;
         try {
@@ -366,7 +365,9 @@ public class ContainerLauncherImpl extends AbstractService implements
 
     @Override
     public void run() {
-      LOG.info("Processing the event " + event.toString());
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Processing event: " + event.toString());
+      }
 
       // Load ContainerManager tokens before creating a connection.
       // TODO: Do it only once per NodeManager.

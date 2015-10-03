@@ -748,10 +748,12 @@ public class TaskAttemptImpl implements TaskAttempt,
             );
       }
       if (oldState != getInternalState()) {
-          LOG.info(attemptId + " TaskAttempt Transitioned from "
-           + oldState + " to "
-           + getInternalState() + " due to event "
-           + event.getType());
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(attemptId + " TaskAttempt Transitioned from "
+              + oldState + " to "
+              + getInternalState() + " due to event "
+              + event.getType());
+        }
       }
     } finally {
       writeLock.unlock();
@@ -1074,7 +1076,9 @@ public class TaskAttemptImpl implements TaskAttempt,
       TaskSpec remoteTaskSpec;
       try {
         remoteTaskSpec = ta.createRemoteTaskSpec();
-        LOG.info("remoteTaskSpec:" + remoteTaskSpec);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("remoteTaskSpec:" + remoteTaskSpec);
+        }
       } catch (AMUserCodeException e) {
         String msg = "Exception in " + e.getSource() + ", taskAttempt=" + ta.getTaskID();
         LOG.error(msg, e);

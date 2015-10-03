@@ -181,11 +181,9 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
    * @throws Exception
    */
   public void initialize() throws Exception {
-    LOG.info("Initializing LogicalProcessorIORuntimeTask");
     Preconditions.checkState(this.state == State.NEW, "Already initialized");
     this.state = State.INITED;
 
-    LOG.info("Creating processor" + ", processorClassName=" + processorDescriptor.getClassName());
     this.processorContext = createProcessorContext();
     this.processor = createProcessor(processorDescriptor.getClassName(), processorContext);
 
@@ -373,7 +371,9 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
     @Override
     public Void call() throws Exception {
-      LOG.info("Initializing Input using InputSpec: " + inputSpec);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Initializing Input using InputSpec: " + inputSpec);
+      }
       String edgeName = inputSpec.getSourceVertexName();
       InputContext inputContext = createInputContext(inputsMap, inputSpec, inputIndex);
       LogicalInput input = createInput(inputSpec, inputContext);
@@ -381,12 +381,13 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
       inputsMap.put(edgeName, input);
       inputContextMap.put(edgeName, inputContext);
 
-      LOG.info("Initializing Input with src edge: " + edgeName);
       List<Event> events = ((InputFrameworkInterface)input).initialize();
       sendTaskGeneratedEvents(events, EventProducerConsumerType.INPUT,
           inputContext.getTaskVertexName(), inputContext.getSourceVertexName(),
           taskSpec.getTaskAttemptID());
-      LOG.info("Initialized Input with src edge: " + edgeName);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Initialized Input with src edge: " + edgeName);
+      }
       return null;
     }
   }
@@ -402,7 +403,9 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
     @Override
     public Void call() throws Exception {
-      LOG.info("Starting Input with src edge: " + srcVertexName);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Starting Input with src edge: " + srcVertexName);
+      }
       input.start();
       LOG.info("Started Input with src edge: " + srcVertexName);
       return null;
@@ -421,7 +424,9 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
     @Override
     public Void call() throws Exception {
-      LOG.info("Initializing Output using OutputSpec: " + outputSpec);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Initializing Output using OutputSpec: " + outputSpec);
+      }
       String edgeName = outputSpec.getDestinationVertexName();
       OutputContext outputContext = createOutputContext(outputSpec, outputIndex);
       LogicalOutput output = createOutput(outputSpec, outputContext);
@@ -429,12 +434,13 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
       outputsMap.put(edgeName, output);
       outputContextMap.put(edgeName, outputContext);
 
-      LOG.info("Initializing Output with dest edge: " + edgeName);
       List<Event> events = ((OutputFrameworkInterface)output).initialize();
       sendTaskGeneratedEvents(events, EventProducerConsumerType.OUTPUT,
           outputContext.getTaskVertexName(),
           outputContext.getDestinationVertexName(), taskSpec.getTaskAttemptID());
-      LOG.info("Initialized Output with dest edge: " + edgeName);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Initialized Output with dest edge: " + edgeName);
+      }
       return null;
     }
   }
@@ -451,7 +457,9 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     if (groupInputSpecs != null && !groupInputSpecs.isEmpty()) {
      groupInputsMap = new ConcurrentHashMap<String, MergedLogicalInput>(groupInputSpecs.size());
      for (GroupInputSpec groupInputSpec : groupInputSpecs) {
-        LOG.info("Initializing GroupInput using GroupInputSpec: " + groupInputSpec);
+       if (LOG.isDebugEnabled()) {
+         LOG.debug("Initializing GroupInput using GroupInputSpec: " + groupInputSpec);
+       }
        MergedInputContext mergedInputContext =
            new TezMergedInputContextImpl(groupInputSpec.getMergedInputDescriptor().getUserPayload(),
                groupInputSpec.getGroupName(), groupInputsMap, inputReadyTracker, localDirs);
@@ -470,11 +478,12 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
   }
 
   private void initializeLogicalIOProcessor() throws Exception {
-    LOG.info("Initializing processor" + ", processorClassName="
-        + processorDescriptor.getClassName());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Initializing processor" + ", processorClassName="
+          + processorDescriptor.getClassName());
+    }
     processor.initialize();
-    LOG.info("Initialized processor" + ", processorClassName="
-        + processorDescriptor.getClassName());
+    LOG.info("Initialized processor");
   }
 
   private InputContext createInputContext(Map<String, LogicalInput> inputMap,
@@ -519,7 +528,6 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
   }
 
   private LogicalInput createInput(InputSpec inputSpec, InputContext inputContext) throws TezException {
-    LOG.info("Creating Input");
     InputDescriptor inputDesc = inputSpec.getInputDescriptor();
     Input input = ReflectionUtils.createClazzInstance(inputDesc.getClassName(),
         new Class[]{InputContext.class, Integer.TYPE},
@@ -547,7 +555,6 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
   }
 
   private LogicalOutput createOutput(OutputSpec outputSpec, OutputContext outputContext) throws TezException {
-    LOG.info("Creating Output");
     OutputDescriptor outputDesc = outputSpec.getOutputDescriptor();
     Output output = ReflectionUtils.createClazzInstance(outputDesc.getClassName(),
         new Class[]{OutputContext.class, Integer.TYPE},
@@ -672,7 +679,6 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
             if (e == null) {
               continue;
             }
-            // TODO TODONEWTEZ
             if (!handleEvent(e)) {
               LOG.warn("Stopping Event Router thread as failed to handle"
                   + " event: " + e);

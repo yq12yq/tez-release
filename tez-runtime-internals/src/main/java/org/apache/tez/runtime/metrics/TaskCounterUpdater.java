@@ -147,6 +147,6 @@ public class TaskCounterUpdater {
     pTree = ResourceCalculatorProcessTree.getResourceCalculatorProcessTree(
         System.getenv().get("JVM_PID"), clazz, conf);
 
-    LOG.info(" Using ResourceCalculatorProcessTree : " + pTree);
+    LOG.info("Using ResourceCalculatorProcessTree : " + clazz.getName());
   }
 }
