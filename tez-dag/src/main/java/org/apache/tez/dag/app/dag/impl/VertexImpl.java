@@ -207,6 +207,8 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
   volatile LinkedHashMap<TezTaskID, Task> tasks = new LinkedHashMap<TezTaskID, Task>();
   private Object fullCountersLock = new Object();
   private TezCounters fullCounters = null;
+  private TezCounters cachedCounters = null;
+  private long cachedCountersTimestamp = 0;
   private Resource taskResource;
 
   private Configuration conf;
@@ -924,6 +926,34 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
   }
 
+  @Override
+  public TezCounters getCachedCounters() {
+    readLock.lock();
+
+    try {
+      // FIXME a better lightweight approach for counters is needed
+      if (fullCounters == null && cachedCounters != null
+          && ((cachedCountersTimestamp+10000) > System.currentTimeMillis())) {
+        LOG.info("Asked for counters"
+            + ", cachedCountersTimestamp=" + cachedCountersTimestamp
+            + ", currentTime=" + System.currentTimeMillis());
+        return cachedCounters;
+      }
+
+      cachedCountersTimestamp = System.currentTimeMillis();
+      if (inTerminalState()) {
+        this.mayBeConstructFinalFullCounters();
+        return fullCounters;
+      }
+
+      TezCounters counters = new TezCounters();
+      cachedCounters = incrTaskCounters(counters, tasks.values());
+      return cachedCounters;
+    } finally {
+      readLock.unlock();
+    }
+  }
+
   public VertexStats getVertexStats() {
 
     readLock.lock();
@@ -943,6 +973,14 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
   }
 
+  boolean inTerminalState() {
+    VertexState state = getInternalState();
+    if (state == VertexState.ERROR || state == VertexState.FAILED
+        || state == VertexState.KILLED || state == VertexState.SUCCEEDED) {
+      return true;
+    }
+    return false;
+  }
 
   public static TezCounters incrTaskCounters(
       TezCounters counters, Collection<Task> tasks) {
@@ -2486,7 +2524,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     }
 
   }
-  
+
   private void recoveryCodeSimulatingStart() throws AMUserCodeException {
     vertexManager.onVertexStarted(pendingReportedSrcCompletions);
     // This code is duplicated from startVertex() because recovery does not follow normal
