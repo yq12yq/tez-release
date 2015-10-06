@@ -26,6 +26,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2825 (BUG-44887). Report progress in terms of completed tasks to reduce load on AM for Tez UI
   TEZ-2813 (BUG-44887). Tez UI: add counter data for rest api calls to AM Web Services v2
   TEZ-2792 (BUG-44887). Add AM web service API for tasks
   TEZ-2761 (BUG-44887). Tez UI: update the progress on the dag and vertices pages with info from AM
