@@ -30,7 +30,8 @@ var App = window.App = Em.Application.createWithMixins(Bootstrap, {
   LOG_TRANSITIONS_INTERNAL: true,
 
   env: {
-    isStandalone: true // Can ne set false in the wrapper initializer
+    isStandalone: true, // Can ne set false in the wrapper initializer
+    isIE: navigator.userAgent.indexOf('MSIE') !== -1 || navigator.appVersion.indexOf('Trident/') > 0
   },
 
   setConfigs: function (configs) {
@@ -45,6 +46,23 @@ var App = window.App = Em.Application.createWithMixins(Bootstrap, {
     App.advanceReadiness();
   }
 });
+
+Em.Application.initializer({
+  name: "objectTransforms",
+
+  initialize: function(container, application) {
+    application.register('transform:object', DS.Transform.extend({
+      deserialize: function(serialized) {
+        return Em.none(serialized) ? {} : serialized;
+      },
+
+      serialized: function(deserialized) {
+        return Em.none(deserialized) ? {} : deserialized;
+      }
+    }));
+  }
+});
+
 App.deferReadiness();
 
 App.Helpers = Em.Namespace.create(),
@@ -53,6 +71,11 @@ App.Configs = Em.Namespace.create();
 
 App.ready = function () {
   $.extend(App.env, App.Configs.envDefaults);
+
+  $(document).tooltip({
+    delay: 20,
+    tooltipClass: 'generic-tooltip'
+  });
 
   ["timelineBaseUrl", "RMWebUrl"].forEach(function(item) {
     if (!!App.env[item]) {
@@ -80,6 +103,7 @@ App.ready = function () {
     },
   });
 
+  App.DagVertexAdapter =
   App.VertexAdapter = App.ApplicationAdapter.extend({
     _setInputs: function (store, data) {
       var dagId = Ember.get(data, 'primaryfilters.TEZ_DAG_ID.0'),
@@ -166,25 +190,102 @@ App.ready = function () {
       return typeName + '?dagID=%@&vertexID=%@';
     }
   });
+
+  // v2 version of am web services
+  App.DagInfoAdapter = App.AMInfoAdapter.extend({
+    namespace: App.Configs.restNamespace.aminfoV2,
+    buildURL: function(type, id, record) {
+      var url = this._super(type, null, record);
+      return url.replace('__app_id__', record.get('appId'))
+        .fmt(record.get('dagIdx'));
+    },
+    pathForType: function() {
+      return 'dagInfo?dagID=%@';
+    }
+  });
+
+  App.VertexInfoAdapter = App.AMInfoAdapter.extend({
+    namespace: App.Configs.restNamespace.aminfoV2,
+    findQuery: function(store, type, query) {
+      var record = query.metadata;
+      delete query.metadata;
+      return this.ajax(
+        this.buildURL(Ember.String.pluralize(type.typeKey),
+          record.vertexID, Em.Object.create(record)), 'GET', { data: query});
+    },
+    buildURL: function(type, id, record) {
+      var url = this._super(type, undefined, record);
+      return url.replace('__app_id__', record.get('appID'))
+        .fmt(record.get('dagID'), id, record.get('counters'));
+    },
+    pathForType: function(typeName) {
+      return 'verticesInfo?dagID=%@&vertexID=%@&counters=%@';
+    }
+  });
+
+  App.TaskInfoAdapter = App.AMInfoAdapter.extend({
+    namespace: App.Configs.restNamespace.aminfoV2,
+    findQuery: function(store, type, query) {
+      var record = query.metadata;
+      delete query.metadata;
+      return this.ajax(
+        this.buildURL(Ember.String.pluralize(type.typeKey),
+          record.taskID, Em.Object.create(record)), 'GET', { data: query});
+    },
+    buildURL: function(type, id, record) {
+      var url = this._super(type, undefined, record);
+      return url.replace('__app_id__', record.get('appID'))
+        .fmt(record.get('dagID'), id, record.get('counters'));
+    },
+    pathForType: function(typeName) {
+      return 'tasksInfo?dagID=%@&taskID=%@&counters=%@';
+    }
+  });
+
+  App.AttemptInfoAdapter = App.AMInfoAdapter.extend({
+    namespace: App.Configs.restNamespace.aminfoV2,
+    findQuery: function(store, type, query) {
+      var record = query.metadata;
+      delete query.metadata;
+      return this.ajax(
+        this.buildURL(Ember.String.pluralize(type.typeKey),
+          record.attemptID, Em.Object.create(record)), 'GET', { data: query});
+    },
+    buildURL: function(type, id, record) {
+      var url = this._super(type, undefined, record);
+      return url.replace('__app_id__', record.get('appID'))
+        .fmt(record.get('dagID'), record.get('taskID'), id, record.get('counters'));
+    },
+    pathForType: function(typeName) {
+      return 'attemptsInfo?dagID=%@&taskID=%@&attemptID=%@&counters=%@';
+    }
+  });
+
 };
 
 $.ajaxPrefilter(function(options, originalOptions, jqXHR) {
   jqXHR.requestOptions = originalOptions;
 });
 
+$.ajaxSetup({
+  cache: false
+});
+
 /* Order and include */
 require('scripts/default-configs');
 
 require('scripts/translations');
-require('scripts/mixins/*');
+require('scripts/helpers/pollster');
 require('scripts/helpers/*');
+require('scripts/mixins/*');
 
 require('scripts/router');
 require('scripts/views/**/*');
 require('scripts/models/**/*');
 
+require('scripts/controllers/table-page-controller');
 require('scripts/controllers/**/*');
 
-require('scripts/components/*');
-require('scripts/components/dag-view/*');
+require('scripts/components/basic-table/basic-table-component');
+require('scripts/components/**/*');
 require('scripts/adapters/*');

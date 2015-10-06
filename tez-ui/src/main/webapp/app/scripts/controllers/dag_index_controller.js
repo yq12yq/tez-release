@@ -22,6 +22,154 @@ App.DagIndexController = Em.ObjectController.extend(App.ModelRefreshMixin, {
 
   needs: 'dag',
 
+  liveData: null,
+
+  succeededTasks: null,
+  totalTasks: null,
+  completedVertices: null,
+
+  liveDataObserver: function () {
+    var vertexInfoContent = this.get('amVertexInfo.content'),
+        liveData = null,
+        succeededTasks = null,
+        totalTasks = null,
+        completedVertices = null;
+
+    if(vertexInfoContent && vertexInfoContent.length) {
+      liveData = vertexInfoContent,
+      succeededTasks = 0,
+      totalTasks = 0,
+      completedVertices = 0;
+
+      liveData.forEach(function (vertex) {
+        succeededTasks += parseInt(vertex.get('succeededTasks'));
+        totalTasks += parseInt(vertex.get('totalTasks'));
+        if(vertex.get('progress') >= 1) {
+          completedVertices++;
+        }
+      });
+    }
+
+    this.setProperties({
+      liveData: liveData,
+      succeededTasks: succeededTasks,
+      totalTasks: totalTasks,
+      completedVertices: completedVertices
+    });
+  }.observes('amVertexInfo'),
+
+  dagRunning: function () {
+    var progress = this.get('dagProgress');
+    return progress != null && progress < 1;
+  }.property('dagProgress'),
+
+  actions: {
+    downloadDagJson: function() {
+      var dagID = this.get('id');
+      var downloader = App.Helpers.misc.downloadDAG(this.get('id'), {
+        batchSize: 500,
+        onSuccess: function() {
+          Bootstrap.ModalManager.close('downloadModal');
+        },
+        onFailure: function() {
+          $('#modalMessage').html('<i class="fa fa-lg fa-exclamation-circle margin-small-horizontal" ' +
+          'style="color:red"></i>&nbsp;Error downloading data');
+        }
+      });
+      this.set('tmpDownloader', downloader);
+      var modalDialogView = Ember.View.extend({
+        template: Em.Handlebars.compile(
+          '<p id="modalMessage"><i class="fa fa-lg fa-spinner fa-spin margin-small-horizontal" ' + 
+          'style="color:green"></i>Downloading data for dag %@</p>'.fmt(dagID)
+        )
+      });
+      var buttons = [
+        Ember.Object.create({title: 'Cancel', dismiss: 'modal', clicked: 'cancelDownload'})
+      ];
+      Bootstrap.ModalManager.open('downloadModal', 'Download data',
+        modalDialogView, buttons, this);
+    },
+
+    cancelDownload: function() {
+      var currentDownloader = this.get('tmpDownloader');
+      if (!!currentDownloader) {
+        currentDownloader.cancel();
+      }
+      this.set('tmpDownloader', undefined);
+    }
+
+  },
+
+  liveColumns: function () {
+    var vertexIdToNameMap = this.get('vertexIdToNameMap');
+
+    return App.Helpers.misc.createColumnDescription([
+      {
+        id: 'vertexName',
+        headerCellName: 'Vertex Name',
+        templateName: 'components/basic-table/linked-cell',
+        contentPath: 'name',
+        getCellContent: function(row) {
+          return {
+            linkTo: 'vertex',
+            entityId: row.get('id'),
+            displayText: vertexIdToNameMap[row.get('id')]
+          };
+        }
+      },
+      {
+        id: 'progress',
+        headerCellName: 'Progress',
+        contentPath: 'progress',
+        templateName: 'components/basic-table/progress-cell'
+      },
+      {
+        id: 'status',
+        headerCellName: 'Status',
+        templateName: 'components/basic-table/status-cell',
+        contentPath: 'status',
+        getCellContent: function(row) {
+          var status = row.get('status');
+          return {
+            status: status,
+            statusIcon: App.Helpers.misc.getStatusClassForEntity(status,
+              row.get('hasFailedTaskAttempts'))
+          };
+        }
+      },
+      {
+        id: 'totalTasks',
+        headerCellName: 'Total Tasks',
+        contentPath: 'totalTasks',
+      },
+      {
+        id: 'succeededTasks',
+        headerCellName: 'Succeeded Tasks',
+        contentPath: 'succeededTasks',
+      },
+      {
+        id: 'runningTasks',
+        headerCellName: 'Running Tasks',
+        contentPath: 'runningTasks',
+      },
+      {
+        id: 'pendingTasks',
+        headerCellName: 'Pending Tasks',
+        contentPath: 'pendingTasks',
+      },
+      {
+        id: 'failedTasks',
+        headerCellName: 'Failed Task Attempts',
+        contentPath: 'failedTaskAttempts',
+      },
+      {
+        id: 'killedTasks',
+        headerCellName: 'Killed Task Attempts',
+        contentPath: 'killedTaskAttempts',
+      }
+    ]);
+  }.property('id'),
+
   load: function () {
     var dag = this.get('controllers.dag.model'),
         controller = this.get('controllers.dag'),
@@ -38,12 +186,13 @@ App.DagIndexController = Em.ObjectController.extend(App.ModelRefreshMixin, {
   },
 
   taskIconStatus: function() {
-    return App.Helpers.misc.getStatusClassForEntity(this.get('model.status'));
-  }.property('id', 'status', 'counterGroups'),
+    return App.Helpers.misc.getStatusClassForEntity(this.get('model.status'),
+      this.get('hasFailedTaskAttempts'));
+  }.property('id', 'model.status', 'hasFailedTaskAttempts'),
 
   progressStr: function() {
     var pct;
-    if (Ember.typeOf(this.get('progress')) === 'number') {
+    if (Ember.typeOf(this.get('progress')) === 'number' && this.get('status') == 'RUNNING') {
       pct = App.Helpers.number.fractionToPercentage(this.get('progress'));
     }
     return pct;
@@ -69,13 +218,13 @@ App.DagIndexController = Em.ObjectController.extend(App.ModelRefreshMixin, {
       'org.apache.tez.common.counters.DAGCounter', 'NUM_KILLED_TASKS')
   }.property('id', 'counterGroups'),
 
-  hasFailedTasks: function() {
-    return this.get('failedTasks') > 0;
-  }.property('id', 'counterGroups'),
-
   failedTasksLink: function() {
-    return '#tasks?status=FAILED&parentType=TEZ_DAG_ID&parentID=' + this.get('id');
-  }.property(),
+    return '#/dag/%@/tasks?searchText=Status%3AFAILED'.fmt(this.get('id'));
+  }.property('id'),
+
+  failedTaskAttemptsLink: function() {
+    return '#/dag/%@/taskAttempts?searchText=Status%3AFAILED'.fmt(this.get('id'));
+  }.property('id'),
 
   appContext: function() {
     return this.get('appContextInfo.info')
@@ -97,4 +246,11 @@ App.DagIndexController = Em.ObjectController.extend(App.ModelRefreshMixin, {
     }
   }.property('appContextInfo.appType'),
 
+  updateAMInfo: function() {
+    var status = this.get('amDagInfo.status');
+    if (!Em.isNone(status)) {
+      this.set('status', status);
+      this.set('progress', this.get('amDagInfo.progress'));
+    }
+  }.observes('amDagInfo', 'amDagInfo._amInfoLastUpdatedTime')
 });

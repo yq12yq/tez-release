@@ -41,6 +41,9 @@ In configs.js
   * Visibility of table columns can be controlled using the column selector. Also an optional set
     of file system counters can be made visible as columns for most of the tables. For adding more
     counters refer configs.js.
+  * Timezone defaults to displaying timestamps in local timezone. For configuring to a specific
+    timezone, configure the timezone value referring to http://momentjs.com/timezone/docs/
+    for valid entries.
 
 Building
 ---------
@@ -58,6 +61,22 @@ Manually:
   2. Copy the war to $TOMCAT_HOME/webapps
   3. Restart tomcat and the war will get deployed. The content of the war would be available in
      $TOMCAT_HOME/webapps/tez-ui-x.x.x-SNAPSHOT.
+
+Using the Nodejs webserver
+---------------------------
+This provides an alternative way to host tez_ui. This should be used by
+people who would like to host tez_ui by nodejs.
+  1. Install nodejs by package manager. Instructions for this are available at
+     "https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager"
+  2. Install server dependencies by running 'npm install' within 'tez-ui/tools/server'
+  3. Untar the tez-ui*.war file and copy the resulting directory to the
+     directory designated to be the document root of the web server.
+  4. Specify the document root directory and the port on which you want to run the
+     webserver in nodejs_conf.json. Currently, the conf file should be present in the
+     same directory as the nodejs_webserver).
+     The default values for the document root directory and the port are './public'
+     and 8080 respectively.
+  5. Start the nodejs_webserver.js by 'node nodejs_webserver.js'
 
 Dev setup instructions
 ----------------------

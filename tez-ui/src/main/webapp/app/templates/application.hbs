@@ -16,7 +16,7 @@
  * limitations under the License.
 }}
 
-<div {{bind-attr class="App.env.isStandalone:standalone:wrapped"}}>
+<div {{bind-attr class="App.env.isStandalone:standalone:wrapped App.env.isIE:ie"}}>
   <div class="top-wrapper">
     <div id="top-nav">
       <div class="navbar navbar-static-top">
@@ -40,6 +40,9 @@
   <div class="footer">
     <div class="main-container">
       <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Licensed under the Apache License, Version 2.0</a>.
+      {{#if App.env.timezone}}
+        <span>Timezone: {{App.env.timezone}}</span>
+      {{/if}}
     </div>
   </div>
 </div>

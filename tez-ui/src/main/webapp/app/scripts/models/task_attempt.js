@@ -22,11 +22,17 @@ App.TaskAttempt = App.AbstractEntity.extend({
     return id.indexOf(idPrefix) == 0 ? id.substr(idPrefix.length) : id;
   }.property('id'),
 
+  progress: DS.attr('number'),
+
   // start time of the entity
   startTime: DS.attr('number'),
 
   // end time of the entity
   endTime: DS.attr('number'),
+
+  duration: function () {
+    return App.Helpers.date.duration(this.get('startTime'), this.get('endTime'))
+  }.property('startTime', 'endTime'),
 
   entityType: App.EntityType.TASK_ATTEMPT,
 
@@ -47,5 +53,8 @@ App.TaskAttempt = App.AbstractEntity.extend({
 
   diagnostics: DS.attr('string'),
 
-  counterGroups: DS.hasMany('counterGroup', { inverse: 'parent' })
+  counterGroups: DS.attr('array'),
 });
+App.DagTaskAttempt = App.TaskAttempt.extend({});
+App.VertexTaskAttempt = App.TaskAttempt.extend({});
+App.TaskTaskAttempt = App.TaskAttempt.extend({});

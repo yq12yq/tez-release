@@ -74,6 +74,10 @@ function renderConfigs() {
   this.render('common/configs');
 }
 
+function renderTable() {
+  this.render('common/table');
+}
+
 /*
  * Creates a setupController function
  * @param format Unformatted title string.
@@ -102,6 +106,10 @@ function setupControllerFactory(format) {
     }
 
     this._super(controller, model);
+    if(controller.setup) {
+      controller.setup();
+    }
+
     if(controller.loadData) {
       controller.loadData();
     }
@@ -144,7 +152,13 @@ App.DagRoute = Em.Route.extend({
   afterModel: function(model) {
     return this.controllerFor('dag').loadAdditional(model);
   },
-  setupController: setupControllerFactory('Dag: %@ (%@)', 'name', 'id')
+  setupController: setupControllerFactory('Dag: %@ (%@)', 'name', 'id'),
+  resetController: function() {
+    this.controller.dostopAMInfoUpdateService();
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
+  }
 });
 
 App.DagViewRoute = Em.Route.extend({
@@ -171,16 +185,15 @@ App.TaskRoute = Em.Route.extend({
   afterModel: function(model) {
     return this.controllerFor('task').loadAdditional(model);
   },
+  resetController: function () {
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
+  },
   setupController: setupControllerFactory('Task: %@', 'id')
 });
 
 App.TasksRoute = Em.Route.extend({
-  queryParams: {
-    count: App.Helpers.misc.defaultQueryParamsConfig,
-    status: App.Helpers.misc.defaultQueryParamsConfig,
-    parentType: App.Helpers.misc.defaultQueryParamsConfig,
-    parentID: App.Helpers.misc.defaultQueryParamsConfig
-  },
   setupController: setupControllerFactory()
 });
 
@@ -189,6 +202,11 @@ App.TasksRoute = Em.Route.extend({
 App.VertexRoute = Em.Route.extend({
   model: function(params) {
     return this.store.find('vertex', params.vertex_id);
+  },
+  resetController: function () {
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
   },
   afterModel: function(model) {
     return this.controllerFor('vertex').loadAdditional(model);
@@ -239,14 +257,20 @@ App.TaskAttemptRoute = Em.Route.extend({
   afterModel: function(model) {
     return this.controllerFor('task_attempt').loadAdditional(model);
   },
+  resetController: function () {
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
+  },
   setupController: setupControllerFactory('Task Attempt: %@', 'id')
 });
 
 App.TaskAttemptsRoute = Em.Route.extend({
-  renderTemplate: renderTableWithSpinner,
-  queryParams: {
-    count: App.Helpers.misc.defaultQueryParamsConfig,
-    status: App.Helpers.misc.defaultQueryParamsConfig 
+  renderTemplate: renderTable,
+  resetController: function () {
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
   },
   setupController: setupControllerFactory('Task Attempt: %@', 'id')
 });
@@ -261,20 +285,25 @@ App.TezAppRoute = Em.Route.extend({
       return store.find('appDetail', tezApp.get('appId')).then(function (appDetails){
         tezApp.set('appDetail', appDetails);
         return tezApp;
+      }).catch(function() {
+        return tezApp;
       });
     });
+  },
+  resetController: function () {
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
   },
   setupController: setupControllerFactory('Application: %@', 'id')
 });
 
 App.TezAppDagsRoute = Em.Route.extend({
-  renderTemplate: renderTableWithSpinner,
-  queryParams:  {
-    dagName: App.Helpers.misc.defaultQueryParamsConfig,
-    count: App.Helpers.misc.defaultQueryParamsConfig,
-    fromID: App.Helpers.misc.defaultQueryParamsConfig,
-    user: App.Helpers.misc.defaultQueryParamsConfig,
-    status: App.Helpers.misc.defaultQueryParamsConfig
+  renderTemplate: renderTable,
+  resetController: function () {
+    if(this.controller.reset) {
+      this.controller.reset();
+    }
   },
   setupController: setupControllerFactory()
 });
@@ -284,18 +313,18 @@ App.TezAppConfigsRoute = Em.Route.extend({
 });
 
 /* --- Shared routes --- */
-
 App.DagTasksRoute =
     App.DagVerticesRoute =
     App.DagTaskAttemptsRoute =
     App.VertexTasksRoute =
     App.VertexTaskAttemptsRoute =
     Em.Route.extend({
-      renderTemplate: renderTableWithSpinner,
-      queryParams: {
-        count: App.Helpers.misc.defaultQueryParamsConfig,
-        status: App.Helpers.misc.defaultQueryParamsConfig
+      resetController: function () {
+        if(this.controller.reset) {
+          this.controller.reset();
+        }
       },
+      renderTemplate: renderTable,
       setupController: setupControllerFactory()
     });
 
@@ -304,6 +333,11 @@ App.DagCountersRoute =
     App.TaskCountersRoute =
     App.TaskAttemptCountersRoute =
     Em.Route.extend({
+      resetController: function () {
+        if(this.controller.reset) {
+          this.controller.reset();
+        }
+      },
       renderTemplate: function() {
         this.render('common/counters');
       }

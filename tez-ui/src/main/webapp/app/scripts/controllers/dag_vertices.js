@@ -16,121 +16,128 @@
  * limitations under the License.
  */
 
-App.DagVerticesController = Em.ObjectController.extend(App.PaginatedContentMixin, App.ColumnSelectorMixin, {
+App.DagVerticesController = App.TablePageController.extend({
+  controllerName: 'DagVerticesController',
   needs: "dag",
 
-  controllerName: 'DagVerticesController',
+  entityType: 'dagVertex',
+  filterEntityType: 'dag',
+  filterEntityId: Ember.computed.alias('controllers.dag.id'),
 
-  // required by the PaginatedContentMixin
-  childEntityType: 'vertex',
+  cacheDomain: Ember.computed.alias('controllers.dag.id'),
 
-  count: 50,
+  pollster: {},
+  amInfoUpdateServiceObserver: function () {
+    this.set('pollster.isRunning', !!this.get('amInfoUpdateService'));
+  }.observes('amInfoUpdateService').on('init'),
 
-  queryParams: {
-    status_filter: 'status'
-  },
-
-  status_filter: null,
-
-  loadData: function() {
-    var filters = {
-      primary: {
-        TEZ_DAG_ID: this.get('controllers.dag.id')
-      },
-      secondary: {
-        status: this.status_filter
-      }
-    }
-    this.setFiltersAndLoadEntities(filters);
-  },
-
-  load: function () {
-    var dag = this.get('controllers.dag.model'),
-        controller = this.get('controllers.dag'),
-        t = this;
-    t.set('loading', true);
-    dag.reload().then(function () {
-      return controller.loadAdditional(dag);
-    }).then(function () {
-      t.resetNavigation();
-      t.loadEntities();
-    }).catch(function(error){
-      Em.Logger.error(error);
-      var err = App.Helpers.misc.formatError(error, defaultErrMsg);
-      var msg = 'error code: %@, message: %@'.fmt(err.errCode, err.msg);
-      App.Helpers.ErrorBar.getInstance().show(msg, err.details);
+  beforeLoad: function () {
+    var dagController = this.get('controllers.dag'),
+        model = dagController.get('model');
+    return model.reload().then(function () {
+      return dagController.loadAdditional(model);
     });
-  }.observes('count'),
+  },
 
-  loadAdditional: function() {
-    var defer = Em.RSVP.defer();
+  afterLoad: function () {
+    var data = this.get('data'),
+        runningVerticesIdx,
+        isUnsuccessfulDag = App.Helpers.misc.isStatusInUnsuccessful(
+          this.get('controllers.dag.status')
+        );
 
-    var that = this,
-        vertices = this.get('entities');
-
-    var dagStatus = this.get('controllers.dag.status');
-    if (App.Helpers.misc.isStatusInUnsuccessful(dagStatus)) {
-      vertices.filterBy('status', 'RUNNING')
-        .forEach(function(item) {
-          item.set('status', 'KILLED');
-        });
+    if(isUnsuccessfulDag) {
+      data.filterBy('status', 'RUNNING').forEach(function (vertex) {
+        vertex.set('status', 'KILLED');
+      });
     }
 
-    var runningVerticesIdx = vertices
+    if (this.get('controllers.dag.amWebServiceVersion') == 'v1') {
+      this._loadProgress(data);
+    }
+
+    return this._super();
+  },
+
+  // Load progress in parallel
+  _loadProgress: function (vertices) {
+    var that = this,
+        runningVerticesIdx = vertices
       .filterBy('status', 'RUNNING')
       .map(function(item) {
         return item.get('id').split('_').splice(-1).pop();
       });
+
     if (runningVerticesIdx.length > 0) {
       this.store.unloadAll('vertexProgress');
       this.store.findQuery('vertexProgress', {
         metadata: {
           appId: that.get('applicationId'),
           dagIdx: that.get('idx'),
-          vertexIds: runningVerticesIdx.join(',')
+          vertexIds: runningVerticesIdx.join(','),
+          counters: counters
         }
       }).then(function(vertexProgressInfo) {
-        vertexProgressInfo.forEach(function(item) {
-          var model = vertices.findBy('id', item.get('id')) || Em.Object.create();
-          model.set('progress', item.get('progress'));
-        });
+        that.set('controllers.dag.amVertexInfo', vertexProgressInfo);
       }).catch(function(error) {
         Em.Logger.debug("failed to fetch vertex progress")
-      }).finally(function(){
-        defer.resolve();
-      })
-    } else {
-      defer.resolve();
-    }
-
-    return defer.promise;
-  },
-
-  actions : {
-    filterUpdated: function(filterID, value) {
-      // any validations required goes here.
-      if (!!value) {
-        this.set(filterID, value);
-      } else {
-        this.set(filterID, null);
-      }
-      this.loadData();
+      });
     }
   },
+
+  _onColumnChange: function () {
+    App.set('vertexCounters', App.Helpers.misc.getCounterQueryParam(this.get('columns')));
+  }.observes('columns').on('init'),
+
+  overlayVertexInfo: function(vertex, amVertexInfo) {
+    if (Em.isNone(amVertexInfo) || Em.isNone(vertex)) return;
+    amVertexInfo.set('_amInfoLastUpdatedTime', moment());
+    vertex.setProperties(amVertexInfo.getProperties('status', 'progress', '_amInfoLastUpdatedTime'));
+
+    vertex.set('counterGroups',
+      App.Helpers.misc.mergeCounterInfo(vertex.get('counterGroups'), amVertexInfo.get('counters')).slice(0)
+    );
+  },
+
+  updateVertexInfo: function() {
+    var amVertexInfo = this.get('controllers.dag.amVertexInfo');
+    var vertices = this.get('data');
+    var that = this;
+    if (amVertexInfo && vertices) {
+      amVertexInfo.forEach(function(item) {
+        that.overlayVertexInfo(vertices.findBy('id', item.get('id')), item);
+      });
+    }
+  }.observes('controllers.dag.amVertexInfo', 'data'),
 
   defaultColumnConfigs: function() {
+    function onProgressChange() {
+      var progress = this.get('vertex.progress'),
+          pct,
+          status;
+      status = this.get('vertex.status');
+      if (Ember.typeOf(progress) === 'number' && status == 'RUNNING') {
+        pct = App.Helpers.number.fractionToPercentage(progress);
+      }
+      this.setProperties({
+        progress: pct,
+        status: status,
+        statusIcon: App.Helpers.misc.getStatusClassForEntity(status,
+          this.get('vertex.hasFailedTaskAttempts'))
+      });
+    }
+
     return [
       {
         id: 'vertexName',
         headerCellName: 'Vertex Name',
-        tableCellViewClass: Em.Table.TableCell.extend({
-          template: Em.Handlebars.compile(
-            "{{#link-to 'vertex' view.cellContent.id class='ember-table-content'}}{{view.cellContent.name}}{{/link-to}}")
-        }),
+        templateName: 'components/basic-table/linked-cell',
+        contentPath: 'name',
         getCellContent: function(row) {
           return {
-            id: row.get('id'),
-            name: row.get('name')
+            linkTo: 'vertex',
+            entityId: row.get('id'),
+            displayText: row.get('name')
           };
         }
       },
@@ -140,34 +147,72 @@ App.DagVerticesController = Em.ObjectController.extend(App.PaginatedContentMixin
         contentPath: 'id',
       },
       {
+        id: 'status',
+        headerCellName: 'Status',
+        templateName: 'components/basic-table/status-cell',
+        contentPath: 'status',
+        getCellContent: function(row) {
+          var status = row.get('status'),
+              content = Ember.Object.create({
+                vertex: row,
+              });
+          if(status == 'RUNNING') {
+            row.addObserver('_amInfoLastUpdatedTime', content, onProgressChange);
+            row.addObserver('progress', content, onProgressChange);
+            row.addObserver('status', content, onProgressChange);
+          }
+          onProgressChange.call(content);
+          return content;
+        }
+      },
+      {
+        id: 'progress',
+        headerCellName: 'Progress',
+        contentPath: 'progress',
+        observePath: true,
+        templateName: 'components/basic-table/progress-cell'
+      },
+      {
         id: 'startTime',
         headerCellName: 'Start Time',
+        contentPath: 'startTime',
         getCellContent: function(row) {
+          return App.Helpers.date.dateFormat(row.get('startTime'));
+        },
+        getSearchValue: function(row) {
           return App.Helpers.date.dateFormat(row.get('startTime'));
         }
       },
       {
         id: 'endTime',
         headerCellName: 'End Time',
+        contentPath: 'endTime',
         getCellContent: function(row) {
           return App.Helpers.date.dateFormat(row.get('endTime'));
-        }
+        },
+        getSearchValue: function(row) {
+          return App.Helpers.date.dateFormat(row.get('endTime'));
+        },
       },
       {
         id: 'duration',
         headerCellName: 'Duration',
+        contentPath: 'duration',
         getCellContent: function(row) {
-          var st = row.get('startTime');
-          var et = row.get('endTime');
-          if (st && et) {
-            return App.Helpers.date.durationSummary(st, et);
-          }
+          return App.Helpers.date.timingFormat(row.get('duration'), 1);
+        },
+        getSearchValue: function(row) {
+          return App.Helpers.date.timingFormat(row.get('duration'), 1);
         }
       },
       {
         id: 'firstTaskStartTime',
         headerCellName: 'First Task Start Time',
+        contentPath: 'firstTaskStartTime',
         getCellContent: function(row) {
+          return App.Helpers.date.dateFormat(row.get('firstTaskStartTime'));
+        },
+        getSearchValue: function(row) {
           return App.Helpers.date.dateFormat(row.get('firstTaskStartTime'));
         }
       },
@@ -182,47 +227,10 @@ App.DagVerticesController = Em.ObjectController.extend(App.PaginatedContentMixin
         contentPath: 'processorClassName'
       },
       {
-        id: 'status',
-        headerCellName: 'Status',
-        filterID: 'status_filter',
-        filterType: 'dropdown',
-        dropdownValues: App.Helpers.misc.vertexStatusUIOptions,
-        tableCellViewClass: Em.Table.TableCell.extend({
-          template: Em.Handlebars.compile(
-            '<span class="ember-table-content">&nbsp;\
-            <i {{bind-attr class=":task-status view.cellContent.statusIcon"}}></i>\
-            &nbsp;&nbsp;{{view.cellContent.status}}\
-            {{#if view.cellContent.progress}} {{bs-badge content=view.cellContent.progress}}{{/if}}</span>')
-        }),
-        getCellContent: function(row) {
-          var pct,
-              vertexStatus = row.get('status');
-          if (Ember.typeOf(row.get('progress')) === 'number') {
-            pct = App.Helpers.number.fractionToPercentage(row.get('progress'));
-          }
-
-          return {
-            status: vertexStatus,
-            statusIcon: App.Helpers.misc.getStatusClassForEntity(vertexStatus),
-            progress: pct
-          };
-        }
-      },
-      {
         id: 'configurations',
         headerCellName: 'Source/Sink Configs',
-        tableCellViewClass: Em.Table.TableCell.extend({
-          template: Em.Handlebars.compile(
-            " {{#if view.cellContent.linkToAdditionals}}\
-                {{#link-to 'vertex.additionals' view.cellContent.vertexId class='ember-table-content'}}View sources & sinks{{/link-to}}\
-              {{else}}{{#if view.cellContent.inputId}}\
-                {{#link-to 'input.configs' view.cellContent.vertexId view.cellContent.inputId class='ember-table-content'}}View source configs{{/link-to}}\
-              {{else}}{{#if view.cellContent.outputId}}\
-                {{#link-to 'output.configs' view.cellContent.vertexId view.cellContent.outputId class='ember-table-content'}}View sink configs{{/link-to}}\
-              {{else}}\
-                <span class='ember-table-content'>No source or sink</span>\
-              {{/if}}{{/if}}{{/if}}")
-        }),
+        templateName: 'components/basic-table/vertex-configurations-cell',
+        searchAndSortable: false,
         getCellContent: function(row) {
           var firstInputId = row.get('inputs.content.0.id'),
               firstOutputId = row.get('outputs.content.0.id');
@@ -248,6 +256,6 @@ App.DagVerticesController = Em.ObjectController.extend(App.PaginatedContentMixin
         )
       )
     );
-  }.property(),
+  }.property('defaultColumnConfigs'),
 
 });

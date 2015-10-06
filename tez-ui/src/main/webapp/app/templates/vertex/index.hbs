@@ -65,8 +65,20 @@
             <i {{bind-attr class=':task-status iconStatus'}}></i>
             {{status}}
             {{#if progressStr}} {{bs-badge content=progressStr}}{{/if}}
+            {{#if hasFailedTasks}}
+              [ <a href='{{unbound failedTasksLink}}'>Failed Tasks</a> ]
+            {{/if}}
+            {{#if hasFailedTaskAttempts}}
+              [ <a href='{{unbound failedTaskAttemptsLink}}'>Failed TaskAttempts</a> ]
+            {{/if}}
           </td>
         </tr>
+        {{#if progress}}
+        <tr>
+          <td>Progress</td>
+          <td>{{bs-progress-animated progressDecimal=progress}}</td>
+        </tr>
+        {{/if}}
         <tr>
           <td>{{t 'common.time.start'}}</td>
           <td>{{formatUnixTimestamp startTime}}</td>
@@ -130,23 +142,23 @@
             <td>Failed Tasks</td>
             <td>
               {{failedTasks}}
-            </td>
               {{#if hasFailedTasks}}
                 <a href='{{unbound failedTasksLink}}'>FailedTasks</a>
               {{/if}}
+            </td>
           </tr>
           <tr>
             <td>Killed Tasks</td>
             <td>{{killedTasks}}</td>
           </tr>
 
-          {{#if avgTaskDuration}}
+          {{#if showAvgTaskDuration}}
             <tr>
               <td>Average Duration</td>
               <td>{{formatTimeMillis avgTaskDuration}}</td>
             </tr>
           {{/if}}
-          {{#if minTaskDuration}}
+          {{#if showMinTaskDuration}}
             <tr>
               <td>Minimum Duration</td>
               <td>{{formatTimeMillis minTaskDuration}}
@@ -159,7 +171,7 @@
               </td>
             </tr>
           {{/if}}
-          {{#if maxTaskDuration}}
+          {{#if showMaxTaskDuration}}
             <tr>
               <td>Maximum Duration</td>
               <td>{{formatTimeMillis maxTaskDuration}}

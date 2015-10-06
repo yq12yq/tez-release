@@ -63,7 +63,11 @@ App.Helpers.date = {
         format += ':SSS';
       }
     }
-    return moment.utc(timestamp).local().format(format);
+    var zone = moment.tz.zone(App.get('env.timezone'));
+    if (zone == null)  {
+      return moment.utc(timestamp).local().format(format);
+    }
+    return moment.tz(timestamp, zone.name).format(format);
   },
 
   /**
@@ -207,6 +211,7 @@ App.Helpers.date = {
    * @method duration
    */
   duration: function (startTime, endTime) {
+    if (!startTime || !endTime) return undefined;
     var duration = 0;
     if (startTime && startTime > 0) {
       if (!endTime || endTime < 1) {

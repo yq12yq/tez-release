@@ -132,6 +132,8 @@ App.DagViewComponent.graphView = (function (){
       _scheduledClickId = 0, // Id of scheduled click, used for double click.
 
       _tip,     // Instance of tip.js
+
+      _panZoomValues, // Temporary storage of pan zoom values for fit toggle
       _panZoom; // A closure returned by _attachPanZoom to reset/modify pan and zoom values
 
   function _getName(d) {
@@ -169,6 +171,20 @@ App.DagViewComponent.graphView = (function (){
   }
 
   /**
+   * IE 11 does not support css transforms on svg elements. So manually set the same.
+   * please keep the transform parameters in sync with the ones in dag-view.less
+   * See https://connect.microsoft.com/IE/feedbackdetail/view/920928
+   *
+   * This can be removed once the bug is fixed in all supported IE versions
+   * @param value
+   */
+  function translateIfIE(element, x, y) {
+    if(App.env.isIE) {
+      element.attr('transform', 'translate(%@, %@)'.fmt(x, y));
+    }
+  }
+
+  /**
    * Add task bubble to a vertex node
    * @param node {SVG DOM element} Vertex node
    * @param d {VertexDataNode}
@@ -177,8 +193,10 @@ App.DagViewComponent.graphView = (function (){
     var group = node.append('g');
     group.attr('class', 'task-bubble');
     group.append('use').attr('xlink:href', '#task-bubble');
-    group.append('text')
-        .text(_trimText(d.get('data.numTasks'), 3));
+    translateIfIE(group.append('text')
+        .text(_trimText(d.get('data.numTasks'), 3)), 0, 4);
+
+    translateIfIE(group, 38, -15);
   }
   /**
    * Add IO(source/sink) bubble to a vertex node
@@ -194,8 +212,10 @@ App.DagViewComponent.graphView = (function (){
       group = node.append('g');
       group.attr('class', 'io-bubble');
       group.append('use').attr('xlink:href', '#io-bubble');
-      group.append('text')
-          .text(_trimText('%@/%@'.fmt(inputs, outputs), 3));
+      translateIfIE(group.append('text')
+          .text(_trimText('%@/%@'.fmt(inputs, outputs), 3)), 0, 4);
+
+      translateIfIE(group, -38, -15);
     }
   }
   /**
@@ -210,8 +230,10 @@ App.DagViewComponent.graphView = (function (){
       group = node.append('g');
       group.attr('class', 'group-bubble');
       group.append('use').attr('xlink:href', '#group-bubble');
-      group.append('text')
-          .text(_trimText(d.get('vertexGroup.groupMembers.length'), 2));
+      translateIfIE(group.append('text')
+          .text(_trimText(d.get('vertexGroup.groupMembers.length'), 2)), 0, 4);
+
+      translateIfIE(group, 38, 15);
     }
   }
   /**
@@ -221,7 +243,8 @@ App.DagViewComponent.graphView = (function (){
    */
   function _addStatusBar(node, d) {
     var group = node.append('g'),
-        statusIcon = App.Helpers.misc.getStatusClassForEntity(d.get('data.status'));
+        statusIcon = App.Helpers.misc.getStatusClassForEntity(d.get('data.status'),
+          d.get('data.hasFailedTaskAttempts'));
     group.attr('class', 'status-bar');
 
     group.append('foreignObject')
@@ -248,9 +271,9 @@ App.DagViewComponent.graphView = (function (){
 
     node.attr('class', 'node %@'.fmt(className));
     node.append('use').attr('xlink:href', '#%@-bg'.fmt(className));
-    node.append('text')
+    translateIfIE(node.append('text')
         .attr('class', 'title')
-        .text(_trimText(d.get(titleProperty || 'name'), maxTitleLength || 3));
+        .text(_trimText(d.get(titleProperty || 'name'), maxTitleLength || 12)), 0, 4);
   }
   /**
    * Populates the calling node with the required content.
@@ -261,7 +284,7 @@ App.DagViewComponent.graphView = (function (){
 
     switch(d.type) {
       case 'vertex':
-        _addBasicContents(node, d, 'vertexName', 15);
+        _addBasicContents(node, d, 'vertexName');
         _addStatusBar(node, d);
         _addTaskBubble(node, d);
         _addIOBubble(node, d);
@@ -329,18 +352,29 @@ App.DagViewComponent.graphView = (function (){
     if(rootChildCount % 2 == 0) {
       dummyIndex = rootChildren.indexOf(_treeData.get('dummy'));
       if(dummyIndex >= rootChildCount / 2) {
-        for(var i = dummyIndex - 1; i >= 0; i--) {
+        for(var i = 0; i < dummyIndex; i++) {
           rootChildren[i].x = rootChildren[i + 1].x,
           rootChildren[i].y = rootChildren[i + 1].y;
         }
       }
       else {
-        for(var i = dummyIndex + 1; i < rootChildCount; i++) {
+        for(var i = rootChildCount - 1; i > dummyIndex; i--) {
           rootChildren[i].x = rootChildren[i - 1].x,
           rootChildren[i].y = rootChildren[i - 1].y;
         }
       }
     }
+
+    // Put all single vertex outputs in-line with the vertex node
+    // So that they are directly below the respective vertex in vertical layout
+    nodes.forEach(function (node) {
+      if(node.type == App.DagViewComponent.dataProcessor.types.OUTPUT &&
+          node.get('vertex.outputs.length') == 1 &&
+          node.get('treeParent.x') != node.get('x')
+      ) {
+        node.x = node.get('vertex.x');
+      }
+    });
   }
 
   function _getType(node) {
@@ -369,12 +403,17 @@ App.DagViewComponent.graphView = (function (){
         _component.get('vertexProperties').forEach(function (property) {
           var value = {};
 
-          if(property.contentPath) {
+          if(property.getCellContent && !property.tableCellViewClass) {
+            value = property.getCellContent(d.get('data'));
+            if(value && value.displayText != undefined) {
+              value = value.displayText;
+            }
+          }
+          else if(property.contentPath) {
             value = d.get('data.' + property.contentPath);
           }
-          else if(property.getCellContent && !property.tableCellViewClass) {
-            value = property.getCellContent(d.get('data'));
-          }
+
+          value = App.Helpers.number.formatNumThousands(value);
 
           if(typeof value != 'object') {
             list[property.get('headerCellName')] = value;
@@ -390,7 +429,7 @@ App.DagViewComponent.graphView = (function (){
         var list = {
           "Class": App.Helpers.misc.getClassName(d.get("class")),
           "Initializer": App.Helpers.misc.getClassName(d.get("initializer")),
-          "Configurations": d.get("configs.length")
+          "Configurations": App.Helpers.number.formatNumThousands(d.get("configs.length"))
         };
         tooltipData = {
           title: d.get("name"),
@@ -400,7 +439,7 @@ App.DagViewComponent.graphView = (function (){
       case "output":
         var list = {
           "Class": App.Helpers.misc.getClassName(d.get("class")),
-          "Configurations": d.get("configs.length")
+          "Configurations": App.Helpers.number.formatNumThousands(d.get("configs.length"))
         };
         tooltipData = {
           title: d.get("name"),
@@ -410,7 +449,10 @@ App.DagViewComponent.graphView = (function (){
       case "task":
         var numTasks = d.get('data.numTasks');
         tooltipData.title = (numTasks > 1 ? '%@ Tasks' : '%@ Task').fmt(numTasks);
-        node = d3.event.target;
+
+        if(!App.env.isIE) {
+          node = d3.event.target;
+        }
       break;
       case "io":
         var inputs = d.get('inputs.length'),
@@ -421,7 +463,9 @@ App.DagViewComponent.graphView = (function (){
         title += (outputs > 1 ? '%@ Sinks' : '%@ Sink').fmt(outputs);
         tooltipData.title = title;
 
-        node = d3.event.target;
+        if(!App.env.isIE) {
+          node = d3.event.target;
+        }
       break;
       case "group":
         tooltipData = {
@@ -432,8 +476,8 @@ App.DagViewComponent.graphView = (function (){
       case "path":
         tooltipData = {
           position: {
-            x: event.pageX,
-            y: event.pageY
+            x: event.clientX,
+            y: event.clientY
           },
           title: '%@ - %@'.fmt(
             d.get('source.name') || d.get('source.vertexName'),
@@ -446,8 +490,8 @@ App.DagViewComponent.graphView = (function (){
             "Data Movement Type": d.get("dataMovementType"),
             "Data Source Type": d.get("dataSourceType"),
             "Scheduling Type": d.get("schedulingType"),
-            "Edge Destination Class": App.Helpers.misc.getClassName(d.get("edgeDestinationClass")),
-            "Edge Source Class": App.Helpers.misc.getClassName(d.get("edgeSourceClass"))
+            "Edge Source Class": App.Helpers.misc.getClassName(d.get("edgeSourceClass")),
+            "Edge Destination Class": App.Helpers.misc.getClassName(d.get("edgeDestinationClass"))
           };
         }
         else {
@@ -640,7 +684,12 @@ App.DagViewComponent.graphView = (function (){
         var type = d.get('dataMovementType') || "";
         return 'link ' + type.toLowerCase();
       })
-      .attr("style", "marker-mid: url(#arrow-marker);")
+      /**
+       * IE11 rendering does not work for svg path element with marker set.
+       * See https://connect.microsoft.com/IE/feedback/details/801938
+       * This can be removed once the bug is fixed in all supported IE versions
+       */
+      .attr("style", App.env.isIE ? "" : "marker-mid: url(#arrow-marker);")
       .attr('d', function(d) {
         var node = _getTargetNode(d, "x0") || source;
         var o = {x: node.x0, y: node.y0};
@@ -713,7 +762,9 @@ App.DagViewComponent.graphView = (function (){
 
         panX = PADDING,
         panY = PADDING,
-        scale = 1;
+        scale = 1,
+
+        scheduleId = 0;
 
     /**
      * Transform g to current panX, panY and scale.
@@ -722,6 +773,33 @@ App.DagViewComponent.graphView = (function (){
     function transform(animate) {
       var base = animate ? g.transition().duration(DURATION) : g;
       base.attr('transform', 'translate(%@, %@) scale(%@)'.fmt(panX, panY, scale));
+    }
+
+    /**
+     * Check if the item have moved out of the visible area, and reset if required
+     */
+    function visibilityCheck() {
+      var graphBound = g.node().getBoundingClientRect(),
+          containerBound = container[0].getBoundingClientRect();
+
+      if(graphBound.right < containerBound.left ||
+        graphBound.bottom < containerBound.top ||
+        graphBound.left > containerBound.right ||
+        graphBound.top > containerBound.bottom) {
+          panX = PADDING, panY = PADDING, scale = 1;
+          transform(true);
+      }
+    }
+
+    /**
+     * Schedule a visibility check and reset if required
+     */
+    function scheduleVisibilityCheck() {
+      if(scheduleId) {
+        clearTimeout(scheduleId);
+        scheduleId = 0;
+      }
+      scheduleId = setTimeout(visibilityCheck, 100);
     }
 
     /**
@@ -760,6 +838,7 @@ App.DagViewComponent.graphView = (function (){
       panY += (mouseY - panY) * factor;
 
       transform();
+      scheduleVisibilityCheck();
 
       _tip.reposition();
       event.preventDefault();
@@ -772,9 +851,13 @@ App.DagViewComponent.graphView = (function (){
       prevY = event.pageY;
 
       container.on('mousemove', onMouseMove);
+      container.parent().addClass('panning');
     })
     .mouseup(function (event){
       container.off('mousemove', onMouseMove);
+      container.parent().removeClass('panning');
+
+      scheduleVisibilityCheck();
     })
 
     /**
@@ -783,12 +866,20 @@ App.DagViewComponent.graphView = (function (){
      * @param newPanY {Number}
      * @param newScale {Number}
      */
-    return function (newPanX, newPanY, newScale) {
-      panX = newPanX,
-      panY = newPanY,
-      scale = newScale;
+    return function(newPanX, newPanY, newScale) {
+      var values = {
+        panX: panX,
+        panY: panY,
+        scale: scale
+      };
+
+      panX = newPanX == undefined ? panX : newPanX,
+      panY = newPanY == undefined ? panY : newPanY,
+      scale = newScale == undefined ? scale : newScale;
 
       transform(true);
+
+      return values;
     }
   }
 
@@ -851,8 +942,22 @@ App.DagViewComponent.graphView = (function (){
       var scale = Math.min(
         (_svg.width() - PADDING * 2) / _width,
         (_svg.height() - PADDING * 2) / _height
-      );
-      _panZoom(PADDING, PADDING, scale);
+      ),
+      panZoomValues = _panZoom();
+
+      if(
+        panZoomValues.panX != PADDING ||
+        panZoomValues.panY != PADDING ||
+        panZoomValues.scale != scale
+      ) {
+        _panZoomValues = _panZoom(PADDING, PADDING, scale);
+      }
+      else {
+        _panZoomValues = _panZoom(
+          _panZoomValues.panX,
+          _panZoomValues.panY,
+          _panZoomValues.scale);
+      }
     },
 
     /**

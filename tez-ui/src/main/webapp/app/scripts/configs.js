@@ -32,6 +32,17 @@ App.setConfigs({
      * the following value to point to a different domain.
      */
     // RMWebUrl: 'http://localhost:8088',
+
+    /*
+     * Ensures that some of the UI features work with old versions of Tez
+     */
+    compatibilityMode: false,
+
+    /*
+     * Default time zone for UI display. Set to undefined for local timezone
+     * For configuration see http://momentjs.com/timezone/docs/
+     */
+    //timezone: "UTC",
   },
 
   /*

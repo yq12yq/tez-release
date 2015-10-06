@@ -28,24 +28,50 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
   // query parameters supported through url. The same named variables in this controller get
   // bound automatically to the ones defined in the route.
   queryParams: {
-    fromID: true,
     status_filter: 'status',
     user_filter: 'user',
     appId_filter: 'appid',
+    id_filter: 'id',
     dagName_filter: 'dag_name'
   },
 
   fromID: null,
 
   status_filter: null,
-
   user_filter: null,
-
   appId_filter: null,
-
+  id_filter: null,
   dagName_filter: null,
 
-  fields: 'events,primaryfilters,otherinfo',
+  boundFilterValues: Em.Object.create({
+    status: null
+  }),
+  visibleFilters: null,
+
+  init: function () {
+    this._super();
+    this._filterVisiblilityObserver();
+  },
+
+  _paramObserver: function () {
+    this.set('boundFilterValues', Em.Object.create({
+      status: this.get('status_filter'),
+      user: this.get('user_filter'),
+      appId: this.get('appId_filter'),
+      id: this.get('id_filter'),
+      dagName: this.get('dagName_filter')
+    }));
+  }.observes('status_filter', 'user_filter', 'appId_filter', 'dagName_filter', 'id_filter'),
+
+  _filterVisiblilityObserver: function () {
+    var visibleFilters = Em.Object.create();
+    this.get('columns').forEach(function (column) {
+      if(column.get('enableFilter')) {
+        visibleFilters.set(column.get('id'), true);
+      }
+    });
+    this.set('visibleFilters', visibleFilters);
+  }.observes('columns'),
 
   loadData: function() {
     var filters = {
@@ -55,8 +81,12 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
         user: this.user_filter
       },
       secondary: {
-        status: this.status_filter
       }
+    }
+    if (App.Helpers.misc.isFinalDagStatus(this.status_filter)) {
+      filters.primary['status'] = this.status_filter;
+    } else {
+      filters.secondary['status'] = this.status_filter;
     }
     this.setFiltersAndLoadEntities(filters);
   },
@@ -65,7 +95,7 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
     var that = this,
     store = this.get('store'),
     childEntityType = this.get('childEntityType'),
-    fetcher,
+    finder,
     record;
     var defaultErrMsg = 'Error while loading dag info.';
 
@@ -73,17 +103,39 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
     store.unloadAll(childEntityType);
     store.unloadAll('dagProgress');
 
-    store.findQuery(childEntityType, this.getFilterProperties()).then(function(entities){
-      var loaders = [];
+    if(this.id_filter) {
+      finder = store.find(childEntityType, this.id_filter).then(function (entity) {
+        return (
+          (that.dagName_filter && entity.get('name') != that.dagName_filter) ||
+          (that.appId_filter && entity.get('applicationId') != that.appId_filter) ||
+          (that.user_filter && entity.get('user') != that.user_filter) ||
+          (that.status_filter && entity.get('status') != that.status_filter)
+        ) ? [] : [entity];
+      }).catch(function () {
+        return [];
+      });
+    }
+    else {
+      finder = store.findQuery(childEntityType, this.getFilterProperties());
+    }
+
+    finder.then(function(entities){
+      that.set('entities', entities);
+      that.set('loading', false);
+
       entities.forEach(function (dag) {
         var appId = dag.get('applicationId');
         if(appId) {
-          // Pivot attempt selection logic
           record = store.getById('appDetail', appId);
           if(record && !App.Helpers.misc.isStatusInUnsuccessful(record.get('appState'))) {
             store.unloadRecord(record);
           }
-          fetcher = store.find('appDetail', appId).then(function (app) {
+        }
+      });
+      entities.forEach(function (dag) {
+        var appId = dag.get('applicationId');
+        if(appId) {
+          store.find('appDetail', appId).then(function (app) {
             dag.set('appDetail', app);
             if (dag.get('status') === 'RUNNING') {
               dag.set('status', App.Helpers.misc.getRealStatus(
@@ -91,17 +143,15 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
                 app.get('appState'),
                 app.get('finalAppStatus')
               ));
-              App.Helpers.misc.removeRecord(store, 'tezApp', 'tez_' + appId);
             }
-            return store.find('tezApp', 'tez_' + appId).then(function (app) {
-              dag.set('tezApp', app);
-            });
+          })
+          .catch(function(error) {
+            Em.Logger.error('Failed to fetch appDetail' + error);
           });
-          loaders.push(fetcher);
-          //Load tezApp details
+
           if (dag.get('status') === 'RUNNING') {
             App.Helpers.misc.removeRecord(store, 'dagProgress', dag.get('id'));
-            amInfoFetcher = store.find('dagProgress', dag.get('id'), {
+            store.find('dagProgress', dag.get('id'), {
               appId: dag.get('applicationId'),
               dagIdx: dag.get('idx')
             })
@@ -111,13 +161,8 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
             .catch(function(error) {
               Em.Logger.error('Failed to fetch dagProgress' + error);
             });
-            loaders.push(amInfoFetcher);
           }
         }
-      });
-      Em.RSVP.allSettled(loaders).then(function(){
-        that.set('entities', entities);
-        that.set('loading', false);
       });
     }).catch(function(error){
       Em.Logger.error(error);
@@ -125,18 +170,21 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
       var msg = 'error code: %@, message: %@'.fmt(err.errCode, err.msg);
       App.Helpers.ErrorBar.getInstance().show(msg, err.details);
     });
-  },
+  }.observes('fields'),
 
   actions : {
-    filterUpdated: function(filterID, value) {
-      // any validations required goes here.
-      if (!!value) {
-        this.set(filterID, value);
-      } else {
-        this.set(filterID, null);
-      }
+    filterUpdated: function() {
+      Em.run.later();
+      var filterValues = this.get('boundFilterValues');
+      this.setProperties({
+        status_filter: filterValues.get('status') || null,
+        user_filter: filterValues.get('user') || null,
+        appId_filter: filterValues.get('appId') || null,
+        id_filter: filterValues.get('id') || null,
+        dagName_filter: filterValues.get('dagName') || null,
+      });
       this.loadData();
-    },
+    }
   },
 
   /*
@@ -144,62 +192,78 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
    * @return Array of column configs
    */
   defaultColumnConfigs: function () {
+    var store = this.get('store');
+
+    function onProgressChange() {
+      var progress = this.get('dag.progress'),
+          pct;
+      if (Ember.typeOf(progress) === 'number') {
+        pct = App.Helpers.number.fractionToPercentage(progress);
+        this.set('progress', pct);
+      }
+    }
+
+    function onStatusChange() {
+      var status = this.get('dag.status');
+      this.setProperties({
+        status: status,
+        statusIcon: App.Helpers.misc.getStatusClassForEntity(status,
+          this.get('dag.hasFailedTaskAttempts'))
+      });
+    }
+
     return [
       {
         id: 'dagName',
         headerCellName: 'Dag Name',
-        filterID: 'dagName_filter',
-        tableCellViewClass: Em.Table.TableCell.extend({
-          template: Em.Handlebars.compile(
-            "{{#link-to 'dag.index' view.cellContent.id class='ember-table-content'}}{{view.cellContent.name}}{{/link-to}}")
-        }),
+        templateName: 'components/basic-table/linked-cell',
+        enableFilter: true,
         getCellContent: function(row) {
           return {
-            id: row.get('id'),
-            name: row.get('name')
+            linkTo: 'dag.index',
+            entityId: row.get('id'),
+            displayText: row.get('name')
           };
         }
       },
       {
         id: 'id',
         headerCellName: 'Id',
+        enableFilter: true,
         contentPath: 'id'
       },
       {
         id: 'user',
         headerCellName: 'Submitter',
-        filterID: 'user_filter',
-        contentPath: 'user'
+        contentPath: 'user',
+        enableFilter: true
       },
       {
         id: 'status',
         headerCellName: 'Status',
-        filterID: 'status_filter',
-        filterType: 'dropdown',
-        dropdownValues: App.Helpers.misc.dagStatusUIOptions,
-        tableCellViewClass: Em.Table.TableCell.extend({
-          template: Em.Handlebars.compile(
-            '<span class="ember-table-content">&nbsp;\
-            <i {{bind-attr class=":task-status view.cellContent.statusIcon"}}></i>\
-            &nbsp;&nbsp;{{view.cellContent.status}}\
-            {{#if view.cellContent.progress}} {{bs-badge content=view.cellContent.progress}}{{/if}}</span>')
-        }),
+        templateName: 'components/basic-table/status-cell',
+        enableFilter: true,
         getCellContent: function(row) {
-          var pct;
-          if (Ember.typeOf(row.get('progress')) === 'number') {
-            pct = App.Helpers.number.fractionToPercentage(row.get('progress'));
+          var status = row.get('status'),
+              content = Ember.Object.create({
+                dag: row,
+                status: status,
+                statusIcon: App.Helpers.misc.getStatusClassForEntity(status,
+                  row.get('hasFailedTaskAttempts'))
+              });
+
+          if(status == 'RUNNING') {
+            row.addObserver('progress', content, onProgressChange);
+            row.addObserver('status', content, onStatusChange);
           }
-          var dagStatus = row.get('status');
-          return {
-            status: dagStatus,
-            statusIcon: App.Helpers.misc.getStatusClassForEntity(dagStatus),
-            progress: pct
-          };
+
+          return content;
         }
       },
       {
         id: 'startTime',
         headerCellName: 'Start Time',
+        contentPath: 'startTime',
         getCellContent: function(row) {
           return App.Helpers.date.dateFormat(row.get('startTime'));
         }
@@ -215,37 +279,44 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
         id: 'duration',
         headerCellName: 'Duration',
         getCellContent: function(row) {
-          var st = row.get('startTime');
-          var et = row.get('endTime');
-          if (st && et) {
-            return App.Helpers.date.durationSummary(st, et);
-          }
+          return App.Helpers.date.timingFormat(row.get('duration'), 1);
         }
       },
       {
         id: 'appId',
         headerCellName: 'Application ID',
-        filterID: 'appId_filter',
-        tableCellViewClass: Em.Table.TableCell.extend({
-          template: Em.Handlebars.compile(
-            "{{#if view.cellContent.enableLink}}\
-               {{#link-to 'tez-app' view.cellContent.appId class='ember-table-content'}}{{view.cellContent.appId}}{{/link-to}}\
-             {{else}}\
-               <span class='ember-table-content'>{{view.cellContent.appId}}</span>\
-             {{/if}}")
-        }),
+        templateName: 'components/basic-table/linked-cell',
+        enableFilter: true,
         getCellContent: function(row) {
-          return  {
-            enableLink: row.get('tezApp') && row.get('appDetail'),
-            appId: row.get('applicationId')
+          var appId = row.get('applicationId');
+          if(appId) {
+            return Em.RSVP.allSettled([
+              store.find('appDetail', appId),
+              store.find('tezApp', 'tez_' + appId)
+            ]).then(function (response) {
+              var content = {
+                displayText: row.get('applicationId'),
+                entityId: row.get('applicationId')
+              };
+              if(response.get('0.value') && response.get('1.value')) {
+                content.linkTo = 'tez-app';
+              }
+              return content;
+            });
           }
         }
       },
       {
         id: 'queue',
         headerCellName: 'Queue',
+        templateName: 'components/basic-table/bounded-basic-cell',
         getCellContent: function(row) {
-          return row.get('appDetail.queue') || 'Not Available';
+          var appId = row.get('applicationId');
+          if(appId) {
+            return store.find('appDetail', appId).then(function (app) {
+              return app.get('queue');
+            });
+          }
         }
       }
     ];
@@ -260,6 +331,6 @@ App.DagsController = Em.ObjectController.extend(App.PaginatedContentMixin, App.C
         )
       )
     );
-  }.property(),
+  }.property('defaultColumnConfigs'),
 
 });

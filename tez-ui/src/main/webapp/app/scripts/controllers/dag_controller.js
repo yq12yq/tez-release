@@ -26,19 +26,6 @@ App.DagController = Em.ObjectController.extend(App.Helpers.DisplayHelper, {
     var loaders = [];
     var applicationId = dag.get('applicationId');
 
-    if (dag.get('status') === 'RUNNING') {
-      // update the progress info if available. this need not block the UI
-      App.Helpers.misc.removeRecord(this.store, 'dagProgress', dag.get('id'));
-      var aminfoLoader = that.store.find('dagProgress', dag.get('id'), {
-        appId: applicationId,
-        dagIdx: dag.get('idx')
-      }).then(function(dagProgressInfo) {
-        dag.set('progress', dagProgressInfo.get('progress'));
-      }).catch(function (error) {
-        Em.Logger.error("Failed to fetch dagProgress")
-      });
-      loaders.push(aminfoLoader);
-    }
     App.Helpers.misc.removeRecord(this.store, 'appDetail', applicationId);
     var appDetailLoader = this.store.find('appDetail', applicationId)
       .then(function(app){
@@ -56,35 +43,154 @@ App.DagController = Em.ObjectController.extend(App.Helpers.DisplayHelper, {
       }).catch(function(){});
 
     loaders.push(appDetailLoader);
+    loaders.push(tezAppLoader);
 
     Em.RSVP.allSettled(loaders).then(function(){
       that.set('loading', false);
     });
 
-    if(!dag.get('appContextInfo.info')) {
-      var dagName = dag.get('name') || '';
+    if (!dag.get('appContextInfo.info') && App.get('env.compatibilityMode')) {
+      var dagName = dag.getWithDefault('name', '');
       var hiveQueryId = dagName.replace(/([^:]*):.*/, '$1');
-      if (!!hiveQueryId && dagName != hiveQueryId) { // if string has matched.
-        this.store.find('hiveQuery', hiveQueryId).then(function(hiveQueryData) {
+      if (dagName !=  hiveQueryId && !!hiveQueryId) {
+        this.store.find('hiveQuery', hiveQueryId).then(function (hiveQueryData) {
           var queryInfoStr = Em.get(hiveQueryData || {}, 'query') || '{}';
           var queryInfo = $.parseJSON(queryInfoStr);
           dag.set('appContextInfo', {
-            appType: "Hive",
+            appType: 'Hive',
             info: queryInfo['queryText']
           });
-        }).catch(function(e){
-          //ignore. do nothing.
-          Em.Logger.debug("Hive query load failed: " + e);
+        }).catch(function (e) {
+          // ignore.
         });
       }
     }
 
-    return Em.RSVP.all(loaders);
+    var allLoaders = Em.RSVP.all(loaders);
+    allLoaders.then(function(){
+      ['dagProgress', 'dagInfo', 'vertexInfo'].forEach(function(itemType){
+        that.store.unloadAll(itemType);
+      });
+      if (dag.get('status') === 'RUNNING') {
+        // update the progress info if available. this need not block the UI
+        if (dag.get('amWebServiceVersion') == 'v1') {
+          that.updateInfoFromAM(dag);
+        } else {
+          // if AM version is v2 we keep updating the status, progress etc live.
+          ["loading", "id", "model.status"].forEach(function(item) {
+            Em.addObserver(that, item, that.startAMInfoUpdateService);
+          });
+          that.startAMInfoUpdateService();
+        }
+      }
+    });
+
+    return allLoaders;
+  },
+
+  updateAMDagInfo: function() {
+    var dagId = this.get('id')
+        that = this,
+        dagInfoLoader = null;
+
+    if (!dagId) return;
+
+    if (this.store.recordIsLoaded("dagInfo", dagId)) {
+      var dagInfoRecord = this.store.recordForId("dagInfo", dagId);
+      if (dagInfoRecord.get('isLoading')) return;
+      dagInfoLoader = dagInfoRecord.reload();
+    } else {
+      dagInfoLoader = this.store.find("dagInfo", dagId, {
+        appId: that.get('applicationId'),
+        dagIdx: that.get('idx')
+      })
+    }
+
+    dagInfoLoader.then(function(dagInfo){
+      that.set('amDagInfo', dagInfo);
+      //TODO: find another way to trigger notification
+      that.set('amDagInfo._amInfoLastUpdatedTime', moment());
+      that.set('amProgressInfoSucceededOnce', true);
+    }).catch(function(e){
+      if (that.get('amProgressInfoSucceededOnce') === true) {
+        that.set('amProgressInfoSucceededOnce', false);
+        App.Helpers.ErrorBar.getInstance().show(
+          "Failed to get in-progress status. Manually refresh to get the updated status",
+          "Application Manager either exited or is not running.");
+      }
+    });
+  },
+
+  updateAMVerticesInfo: function() {
+    var dagId = this.get('id')
+        that = this,
+        verticesInfoLoader = null;
+
+    if (!dagId) return;
+
+    verticesInfoLoader = this.store.findQuery('vertexInfo', {
+      metadata: {
+        appID: that.get('applicationId'),
+        dagID: that.get('idx'),
+        counters: App.get('vertexCounters')
+      }
+    });
+
+    verticesInfoLoader.then(function(verticesInfo) {
+      that.set('amVertexInfo', verticesInfo);
+    }).catch(function(e){
+      // do nothing
+    });
+
+  },
+
+  startAMInfoUpdateService: function() {
+    if (this.get('loading') || !this.get('model.id') || this.get('model.status') != 'RUNNING') {
+      return;
+    }
+
+    var amInfoUpdateService = this.get('amInfoUpdateService')
+        that = this;
+
+    if (Em.isNone(amInfoUpdateService)) {
+      amInfoUpdateService = App.Helpers.Pollster.create({
+        onPoll: function() {
+          that.updateAMDagInfo();
+          that.updateAMVerticesInfo();
+        }
+      });
+      that.set('amInfoUpdateService', amInfoUpdateService);
+      amInfoUpdateService.start(true);
+
+      ["loading", "id", "model.status"].forEach(function(item) {
+        Em.addObserver(that, item, that.stopAMInfoUpdateService);
+      });
+    }
+    else {
+      that.updateAMDagInfo();
+      that.updateAMVerticesInfo();
+    }
+  },
+
+  dostopAMInfoUpdateService: function() {
+      var amInfoUpdateService = this.get('amInfoUpdateService');
+      if (!Em.isNone(amInfoUpdateService)) {
+        amInfoUpdateService.stop();
+        this.set('amInfoUpdateService', undefined);
+      }
+  },
+
+  // stop the update service if the status changes. see startAMInfoUpdateService
+  stopAMInfoUpdateService: function() {
+    that.set('amProgressInfoSucceededOnce', false);
+    if (this.get('loading') || this.get('model.status') != 'RUNNING') {
+      this.dostopAMInfoUpdateService();
+    }
   },
 
   enableAppIdLink: function() {
-    return !!(this.get('tezApp') && this.get('appDetail'));
-  }.property('applicationId', 'appDetail', 'tezApp'),
+    return !!this.get('tezApp');
+  }.property('applicationId', 'tezApp'),
 
   childDisplayViews: [
     Ember.Object.create({title: 'DAG Details', linkTo: 'dag.index'}),
@@ -93,8 +199,7 @@ App.DagController = Em.ObjectController.extend(App.Helpers.DisplayHelper, {
     Ember.Object.create({title: 'All Vertices', linkTo: 'dag.vertices'}),
     Ember.Object.create({title: 'All Tasks', linkTo: 'dag.tasks'}),
     Ember.Object.create({title: 'All TaskAttempts', linkTo: 'dag.taskAttempts'}),
-    //disabling swimlanes for BUG-31495
-    //Ember.Object.create({title: 'Swimlane', linkTo: 'dag.swimlane'})
+    //See BUG-36811 Ember.Object.create({title: 'Swimlane', linkTo: 'dag.swimlane'})
   ],
 
 });

@@ -33,6 +33,11 @@
       </thead>
       <tbody>
         <tr>
+          <td colspan="2">
+            {{bs-button icon="fa fa-download" title="Download data" type="info" clicked="downloadDagJson"}}
+          </td>
+        </tr>
+        <tr>
           <td>{{t 'common.applicationId'}}</td>
           <td>
             {{#if controllers.dag.enableAppIdLink}}
@@ -58,6 +63,9 @@
             {{#if hasFailedTasks}}
               [ <a href='{{unbound failedTasksLink}}'>Failed Tasks</a> ]
             {{/if}}
+            {{#if hasFailedTaskAttempts}}
+              [ <a href='{{unbound failedTaskAttemptsLink}}'>Failed TaskAttempts</a> ]
+            {{/if}}
           </td>
         </tr>
         <tr>
@@ -76,6 +84,28 @@
     </table>
   </div>
 </div>
+
+{{#if liveData}}
+  <br/>
+  <h4>DAG Progress
+    ( Vertices {{completedVertices}}/{{liveData.length}} )
+    {{#if totalTasks}}
+      ( Tasks {{succeededTasks}}/{{totalTasks}} )
+    {{/if}}
+    :
+    {{progressStr}}
+  </h4>
+  {{bs-progress-animated progressDecimal=progress}}
+
+  {{basic-table-component
+    columns=liveColumns
+    rows=liveData
+    rowCount=liveData.length
+
+    enableStatus=false
+    enableSort=true
+  }}
+{{/if}}
 
 {{#if diagnostics}}
   <div class="margin-small-vertical">

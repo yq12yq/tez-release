@@ -33,6 +33,7 @@ App.TasksController = Em.ObjectController.extend(App.PaginatedContentMixin, App.
   },
 
   parentName: 'Loading...', // So that a proper message is displayed
+  vertexIdToNameMap: {},
   parentType: null,
   parentID: null,
   status_filter: null,
@@ -53,11 +54,12 @@ App.TasksController = Em.ObjectController.extend(App.PaginatedContentMixin, App.
     return this.store.find('dag', this.get('parentID')).
       then(function (parent) {
         that.set('parentName', parent.get('name'));
+        that.set('vertexIdToNameMap', parent.get('vertexIdToNameMap') || {});
       });
   },
 
   defaultColumnConfigs: function() {
-
+    var vertexIdToNameMap = this.get('vertexIdToNameMap');
     return [
       {
         id: 'taskId',
@@ -69,9 +71,12 @@ App.TasksController = Em.ObjectController.extend(App.PaginatedContentMixin, App.
         })
       },
       {
-        id: 'vertexId',
-        headerCellName: 'Vertex ID',
-        contentPath: 'vertexID'
+        id: 'vertexName',
+        headerCellName: 'Vertex Name',
+        getCellContent: function(row) {
+          var vertexId = row.get('vertexID');
+          return vertexIdToNameMap[vertexId] || vertexId;
+        }
       },
       {
         id: 'submissionTime',
@@ -100,13 +105,13 @@ App.TasksController = Em.ObjectController.extend(App.PaginatedContentMixin, App.
           var taskStatus = row.get('status');
           return {
             status: taskStatus,
-            statusIcon: App.Helpers.misc.getStatusClassForEntity(taskStatus)
+            statusIcon: App.Helpers.misc.getStatusClassForEntity(taskStatus,
+              row.get('hasFailedTaskAttempts'))
           };
         }
       }
     ];
-    
-  }.property(),
+  }.property('vertexIdToNameMap'),
 
   columnConfigs: function() {
     return this.get('defaultColumnConfigs').concat(
@@ -117,6 +122,6 @@ App.TasksController = Em.ObjectController.extend(App.PaginatedContentMixin, App.
         )
       )
     );
-  }.property(),
+  }.property('defaultColumnConfigs'),
 
 });

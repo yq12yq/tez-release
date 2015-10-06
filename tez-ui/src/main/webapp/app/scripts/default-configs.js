@@ -16,18 +16,25 @@
  * limitations under the License.
  */
 
+function constructDefaultUrl(location, port) {
+  var protocol,
+      hostname;
+  if (App.env.isStandalone && location.protocol != 'file:') {
+    protocol = location.protocol;
+    hostname = location.hostname;
+  } else {
+    protocol = 'http:';
+    hostname = 'localhost';
+  }
+  return '%@//%@:%@'.fmt(protocol, hostname, port);
+}
+
 var getDefaultTimelineUrl = function() {
-  var location = window.location;
-  var protocol = App.env.isStandalone ? location.protocol : 'http:';
-  var hostname = App.env.isStandalone ? location.hostname : 'localhost';
-  return '%@//%@:8188'.fmt(protocol, hostname);
+  return constructDefaultUrl(window.location, 8188);
 };
 
 var getDefaultRMWebUrl = function() {
-  var location = window.location;
-  var protocol = App.env.isStandalone ? location.protocol : 'http:';
-  var hostname = App.env.isStandalone ? location.hostname : 'localhost';
-  return '%@//%@:8088'.fmt(protocol, hostname);
+  return constructDefaultUrl(window.location, 8088);
 };
 
 $.extend(true, App.Configs, {
@@ -41,7 +48,8 @@ $.extend(true, App.Configs, {
   restNamespace: {
     timeline: 'ws/v1/timeline',
     applicationHistory: 'ws/v1/applicationhistory',
-    aminfo: 'proxy/__app_id__/ws/v1/tez'
+    aminfo: 'proxy/__app_id__/ws/v1/tez',
+    aminfoV2: 'proxy/__app_id__/ws/v2/tez'
   },
 
   tables: {

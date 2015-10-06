@@ -48,9 +48,13 @@ Em.Handlebars.helper('formatNumThousands', function (value) {
  * @method formatDuration
  */
 Em.Handlebars.helper('formatDuration', function(startTime, endTime) {
+  if (!endTime || !startTime) {
+    return 'Not Available';
+  }
+
 	// unixtimestamp is in seconds. javascript expects milliseconds.
-	if (endTime < startTime || !!endTime) {
-		end = new Date().getTime();
+	if (endTime < startTime) {
+		endTime = new Date().getTime();
 	}
 
 	return App.Helpers.date.durationSummary(startTime, endTime);
@@ -67,8 +71,18 @@ function replaceAll(str, str1, str2, ignore)
 
 //TODO: needs better indendation.
 Em.Handlebars.helper('formatDiagnostics', function(diagnostics) {
-  var x = replaceAll(diagnostics, '[', '<div class="indent"><i>&nbsp;</i>');
-  x = replaceAll(x, '],', '</div><i>&nbsp;</i>');
+  var x = replaceAll(diagnostics, '[', '<div class="log-indent"><i>&nbsp;</i>');
+  x = replaceAll(x, '],', '</div>');
   x = replaceAll(x, ']', '</div>');
+  x = replaceAll(x, '\n', '<br />');
+  x = replaceAll(x, '\t', '<span class="log-indent" /></span>');
   return new Handlebars.SafeString(x);
+});
+
+/**
+ * Returns first-item class if called from inside a loop/each.
+ * @param view Will be _view in hbs
+ */
+Em.Handlebars.helper('firstItemCSS', function(view) {
+  return view && view.contentIndex == 0 ? 'first-item' : '';
 });

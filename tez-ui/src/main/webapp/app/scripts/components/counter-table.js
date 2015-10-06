@@ -19,9 +19,19 @@
 App.CounterTableComponent = Em.Component.extend({
   layoutName: 'components/counter-table',
   nameFilter: null,
+
+  validFilter: function () {
+    try {
+      new RegExp(this.get('nameFilter'), 'i');
+      return true;
+    }
+    catch(e){}
+    return false;
+  }.property('nameFilter'),
+
   filteredData: function() {
     var rawData = this.get('data') || [];
-    if (Em.isEmpty(this.nameFilter)) {
+    if (Em.isEmpty(this.nameFilter) || !this.get('validFilter')) {
       return rawData;
     }
 
@@ -30,14 +40,14 @@ App.CounterTableComponent = Em.Component.extend({
 
     rawData.forEach(function(cg) {
       var tmpcg = {
-        name: cg.get('name'),
-        displayName: cg.get('displayName'),
+        counterGroupName: cg['counterGroupName'],
+        counterGroupDisplayName: cg['counterGroupDisplayName'] || cg['counterGroupName'],
         counters: []
       };
 
-      var counters = cg.get('counters') || [];
+      var counters = cg['counters'] || [];
       counters.forEach(function(counter) {
-        if (filterStringRegex.test(counter.get('displayName'))) {
+        if (filterStringRegex.test(counter['counterDisplayName'] || counter['counterName'])) {
           tmpcg.counters.push(counter);
         }
       });

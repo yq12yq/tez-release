@@ -16,63 +16,91 @@
  * limitations under the License.
  */
 
-App.DagViewController = Em.ObjectController.extend(App.PaginatedContentMixin, App.ColumnSelectorMixin, {
+App.DagViewController = App.TablePageController.extend({
   controllerName: 'DagViewController',
-
-  childEntityType: 'vertex',
-
   needs: ["dag", "dagVertices"],
-  pageTitle: 'Dag View',
+
+  entityType: 'dagVertex',
+  filterEntityType: 'dag',
+  filterEntityId: Ember.computed.alias('controllers.dag.id'),
+
+  cacheDomain: Ember.computed.alias('controllers.dag.id'),
 
   columnSelectorTitle: 'Customize vertex tooltip',
 
-  count: Number.MAX_SAFE_INTEGER - 1,
-
-  loadData: function() {
-    var filters = {
-      primary: {
-        TEZ_DAG_ID: this.get('controllers.dag.id')
-      }
-    }
-    this.setFiltersAndLoadEntities(filters);
-  },
-
-  load: function () {
-    var dag = this.get('controllers.dag.model'),
-        controller = this.get('controllers.dag'),
-        t = this;
-    t.set('loading', true);
-    dag.reload().then(function () {
-      return controller.loadAdditional(dag);
-    }).then(function () {
-      t.resetNavigation();
-      t.loadEntities();
-    }).catch(function(error){
-      Em.Logger.error(error);
-      var err = App.Helpers.misc.formatError(error, defaultErrMsg);
-      var msg = 'error code: %@, message: %@'.fmt(err.errCode, err.msg);
-      App.Helpers.ErrorBar.getInstance().show(msg, err.details);
+  beforeLoad: function () {
+    var dagController = this.get('controllers.dag'),
+        model = dagController.get('model');
+    return model.reload().then(function () {
+      return dagController.loadAdditional(model);
     });
   },
 
+  afterLoad: function () {
+    var data = this.get('data'),
+        runningVerticesIdx,
+        isUnsuccessfulDag = App.Helpers.misc.isStatusInUnsuccessful(
+          this.get('controllers.dag.status')
+        );
+
+    if(isUnsuccessfulDag) {
+      data.filterBy('status', 'RUNNING').forEach(function (vertex) {
+        vertex.set('status', 'KILLED');
+      });
+    }
+
+    return this._super();
+  },
+
+  redirect: function (details) {
+    switch(details.type) {
+      case 'vertex':
+        this.transitionToRoute('vertex', details.d.get('data.id'));
+      break;
+      case 'task':
+        this.transitionToRoute('vertex.tasks', details.d.get('data.id'));
+      break;
+      case 'io':
+        this.transitionToRoute('vertex.additionals', details.d.get('data.id'));
+      break;
+      case 'input':
+        this.transitionToRoute('input.configs', details.d.get('parent.data.id'), details.d.entity);
+      break;
+      case 'output':
+        this.transitionToRoute('output.configs', details.d.get('vertex.data.id'), details.d.entity);
+      break;
+    }
+  },
+
   actions: {
+    modalConfirmed: function () {
+      this.redirect(this.get('redirectionDetails'));
+    },
+    modalCanceled: function () {
+    },
     entityClicked: function (details) {
-      switch(details.type) {
-        case 'vertex':
-          this.transitionToRoute('vertex', details.d.get('data.id'));
-        break;
-        case 'task':
-          this.transitionToRoute('vertex.tasks', details.d.get('data.id'));
-        break;
-        case 'io':
-          this.transitionToRoute('vertex.additionals', details.d.get('data.id'));
-        break;
-        case 'input':
-          this.transitionToRoute('input.configs', details.d.get('parent.data.id'), details.d.entity);
-        break;
-        case 'output':
-          this.transitionToRoute('output.configs', details.d.get('vertex.data.id'), details.d.entity);
-        break;
+
+      /**
+       * In IE 11 under Windows 7, mouse events are not delivered to the page
+       * anymore at all after a SVG use element that was under the mouse is
+       * removed from the DOM in the event listener in response to a mouse click.
+       * See https://connect.microsoft.com/IE/feedback/details/796745
+       *
+       * This condition and related actions must be removed once the bug is fixed
+       * in all supported IE versions
+       */
+      if(App.env.isIE) {
+        this.set('redirectionDetails', details);
+        Bootstrap.ModalManager.confirm(
+          this,
+          'Confirmation Required!',
+          'You will be redirected to %@ page'.fmt(
+            details.type == "io" ? "additionals" : details.type
+          )
+        );
+      }
+      else {
+        this.redirect(details);
       }
     }
   },
@@ -85,13 +113,13 @@ App.DagViewController = Em.ObjectController.extend(App.PaginatedContentMixin, Ap
     var configs = this.get('controllers.dagVertices.columnConfigs');
     return configs.filter(function (config) {
       return (config.contentPath) ||
-          (config.getCellContent && !config.tableCellViewClass);
+          (config.getCellContent && config.searchAndSortable != false);
     });
   }.property(),
 
   viewData: function () {
-    var vertices = this.get('controllers.dag.vertices'),
-        entities = this.get('entities'),
+    var vertices = this.get('controllers.dag.vertices') || [],
+        entities = this.get('data') || [],
         finalVertex,
         dagStatus = this.get('controllers.dag.status'),
         needsStatusFixup = App.Helpers.misc.isStatusInUnsuccessful(dagStatus);
@@ -103,7 +131,7 @@ App.DagViewController = Em.ObjectController.extend(App.PaginatedContentMixin, Ap
 
     vertices.forEach(function (vertex) {
       vertex.data = entities[vertex.vertexName];
-      if (needsStatusFixup && vertex.data.get('status') == 'RUNNING') {
+      if (needsStatusFixup && vertex.data && vertex.data.get('status') == 'RUNNING') {
         vertex.data.set('status', 'KILLED');
       }
     });
@@ -113,5 +141,5 @@ App.DagViewController = Em.ObjectController.extend(App.PaginatedContentMixin, Ap
       edges: this.get('controllers.dag.edges'),
       vertexGroups: this.get('controllers.dag.vertexGroups')
     };
-  }.property('entities')
+  }.property('data', 'controllers.dag.vertices', 'controllers.dag')
 });
