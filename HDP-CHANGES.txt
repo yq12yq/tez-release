@@ -29,6 +29,14 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   TEZ-2834 (BUG-45552). Make Tez preemption resilient to incorrect free resource reported by YARN
   TEZ-814  (BUG-45552). Improve heuristic for determining a task has failed outputs
   TEZ-2816 (BUG-45550). Preemption sometimes does not respect heartbeats between preemptions
+  TEZ-2398 (BUG-45054). Flaky test: TestFaultTolerance (bikas)
+  TEZ-2808 (BUG-45087). Race condition between preemption and container assignment (bikas)
+  TEZ-2752 (BUG-45087). logUnsuccessful completion in Attempt should write original finish time to ATS (bikas)
+  TEZ-2742 (BUG-43266). VertexImpl.finished() terminationCause hides member var of the same name (bikas)
+  TEZ-1929 (BUG-44601). pre-empted tasks should be marked as killed instead of failed (bikas)
+  TEZ-2203 (BUG-44611). Intern strings in tez counters (bikas)
+  TEZ-1773 (BUG-44596). Add attempt failure cause enum to the attempt failed/killed history record (bikaS)
+  TEZ-2011. InputReadyVertexManager not resilient to updates in parallelism (bikas)
   TEZ-2825 (BUG-44887). Report progress in terms of completed tasks to reduce load on AM for Tez UI
   TEZ-2813 (BUG-44887). Tez UI: add counter data for rest api calls to AM Web Services v2
   TEZ-2792 (BUG-44887). Add AM web service API for tasks
