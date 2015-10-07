@@ -5,6 +5,7 @@ INCOMPATIBLE CHANGES
 NEW FEATURES
 
 IMPROVEMENTS
+  TEZ-2868. (BUG-44456) Fix setting Caller Context in Tez Examples.
   TEZ-2851. (BUG-44456) Support a way for upstream applications to pass in a caller context to Tez. 
   TEZ-2844. (BUG-44767) Backport TEZ-2775 to branch-0.7. Improve and consolidate logging in Runtime components.
   TEZ-2719. (BUG-44767) Consider reducing logs in unordered fetcher with shared-fetch option
