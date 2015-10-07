@@ -6,6 +6,8 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   IMPROVEMENTS
 
+  TEZ-2868 (BUG-44456). Fix setting Caller Context in Tez Examples.
+  TEZ-2851 (BUG-44456). Support a way for upstream applications to pass in a caller context to Tez.
   TEZ-2744 (BUG-45549). Improvements and cleanup of logging for the AM and parts of the runtime.
   TEZ-2731 (BUG-45562). Fix Tez GenericCounter performance bottleneck
   TEZ-2767 (BUG-45548) Make TezMxBeanResourceCalculator the default resource calculator.
@@ -26,7 +28,6 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
-  TEZ-2851 (BUG-44456). Support a way for upstream applications to pass in a caller context to Tez.
   TEZ-2311 (BUG-45540). AM can hang if kill received while recovering from previous attempt
   TEZ-2533 (BUG-45559). AM deadlock when shutdown
   TEZ-2834 (BUG-45552). Make Tez preemption resilient to incorrect free resource reported by YARN
