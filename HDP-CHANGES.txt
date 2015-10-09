@@ -143,6 +143,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   TEZ-UI
 
+  TEZ-2436 (BUG-45768) Tez UI: Add cancel button in column selector
   TEZ-2829 (BUG-45681) Tez UI: minor fixes to in-progress update of UI from AM
   BUG-44665. Tez UI: Backport all UI changes into 2.2
   BUG-37223. Tez UI: Backport tez-ui changes to display hive query text to 2.2 maint branch
