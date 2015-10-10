@@ -6,6 +6,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   IMPROVEMENTS
 
+  TEZ-2874 (BUG-44456). Improved logging for caller context.
   TEZ-2868 (BUG-44456). Fix setting Caller Context in Tez Examples.
   TEZ-2851 (BUG-44456). Support a way for upstream applications to pass in a caller context to Tez.
   TEZ-2561 (BUG-45380). Port for TaskAttemptListenerImpTezDag should be configurable
