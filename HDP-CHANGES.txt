@@ -30,6 +30,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   BUG FIXES
 
+  TEZ-2887 (BUG-45816). Tez build failure due to missing dependency in pom files.
   TEZ-1796 (BUG-33845). Use of DeprecationDelta broke build against 2.2 Hadoop.
   TEZ-2311 (BUG-45540). AM can hang if kill received while recovering from previous attempt
   TEZ-2533 (BUG-45559). AM deadlock when shutdown
