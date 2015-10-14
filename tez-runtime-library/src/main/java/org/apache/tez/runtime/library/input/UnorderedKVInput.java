@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.TezRuntimeFrameworkConfigs;
 import org.apache.tez.common.counters.TaskCounter;
@@ -131,7 +132,8 @@ public class UnorderedKVInput extends AbstractLogicalInput {
       ifileBufferSize = conf.getInt("io.file.buffer.size",
           TezRuntimeConfiguration.TEZ_RUNTIME_IFILE_BUFFER_SIZE_DEFAULT);
 
-      this.inputManager = new SimpleFetchedInputAllocator(getContext().getUniqueIdentifier(), conf,
+      this.inputManager = new SimpleFetchedInputAllocator(
+          TezUtilsInternal.cleanVertexName(getContext().getSourceVertexName()), getContext().getUniqueIdentifier(), conf,
           getContext().getTotalMemoryAvailableToTask(),
           memoryUpdateCallbackHandler.getMemoryAssigned());
 
@@ -149,8 +151,10 @@ public class UnorderedKVInput extends AbstractLogicalInput {
       List<Event> pending = new LinkedList<Event>();
       pendingEvents.drainTo(pending);
       if (pending.size() > 0) {
-        LOG.info("NoAutoStart delay in processing first event: "
-            + (System.currentTimeMillis() - firstEventReceivedTime));
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(getContext().getSourceVertexName() + ": " + "NoAutoStart delay in processing first event: "
+              + (System.currentTimeMillis() - firstEventReceivedTime));
+        }
         inputEventHandler.handleEvents(pending);
       }
       isStarted.set(true);
@@ -203,6 +207,10 @@ public class UnorderedKVInput extends AbstractLogicalInput {
 
   @Override
   public synchronized List<Event> close() throws Exception {
+    if (this.inputEventHandler != null) {
+      this.inputEventHandler.logProgress(true);
+    }
+
     if (this.shuffleManager != null) {
       this.shuffleManager.shutdown();
     }

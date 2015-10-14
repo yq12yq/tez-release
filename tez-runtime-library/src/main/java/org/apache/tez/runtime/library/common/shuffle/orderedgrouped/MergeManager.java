@@ -56,13 +56,12 @@ import org.apache.tez.runtime.library.common.Constants;
 import org.apache.tez.runtime.library.common.InputAttemptIdentifier;
 import org.apache.tez.runtime.library.common.combine.Combiner;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
-import org.apache.tez.runtime.library.common.sort.impl.TezMerger;
-import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
 import org.apache.tez.runtime.library.common.sort.impl.IFile.Writer;
+import org.apache.tez.runtime.library.common.sort.impl.TezMerger;
 import org.apache.tez.runtime.library.common.sort.impl.TezMerger.Segment;
+import org.apache.tez.runtime.library.common.sort.impl.TezRawKeyValueIterator;
 import org.apache.tez.runtime.library.common.task.local.output.TezTaskOutputFiles;
 import org.apache.tez.runtime.library.hadoop.compat.NullProgressable;
-
 
 /**
  * Usage. Create instance. setInitialMemoryAvailable(long), configureAndStart()
@@ -217,10 +216,15 @@ public class MergeManager {
     } else {
       this.postMergeMemLimit = maxRedBuffer;
     }
-    
-    LOG.info("InitialRequest: ShuffleMem=" + memLimit + ", postMergeMem=" + maxRedBuffer
-        + ", RuntimeTotalAvailable=" + this.initialMemoryAvailable + ". Updated to: ShuffleMem="
-        + this.memoryLimit + ", postMergeMem: " + this.postMergeMemLimit);
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          inputContext.getSourceVertexName() + ": " + "InitialRequest: ShuffleMem=" + memLimit +
+              ", postMergeMem=" + maxRedBuffer
+              + ", RuntimeTotalAvailable=" + this.initialMemoryAvailable +
+              ". Updated to: ShuffleMem="
+              + this.memoryLimit + ", postMergeMem: " + this.postMergeMemLimit);
+    }
 
     this.ioSortFactor = 
         conf.getInt(
@@ -249,10 +253,11 @@ public class MergeManager {
                conf.getFloat(
                    TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_MERGE_PERCENT, 
                    TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_MERGE_PERCENT_DEFAULT));
-    LOG.info("MergerManager: memoryLimit=" + memoryLimit + ", " +
+    LOG.info(inputContext.getSourceVertexName() + ": MergerManager: memoryLimit=" + memoryLimit + ", " +
              "maxSingleShuffleLimit=" + maxSingleShuffleLimit + ", " +
              "mergeThreshold=" + mergeThreshold + ", " + 
              "ioSortFactor=" + ioSortFactor + ", " +
+             "postMergeMem=" + postMergeMemLimit + ", " +
              "memToMemMergeOutputsThreshold=" + memToMemMergeOutputsThreshold);
     
     if (this.maxSingleShuffleLimit >= this.mergeThreshold) {
@@ -307,8 +312,6 @@ public class MergeManager {
       long memLimit = (long) (conf.getLong(Constants.TEZ_RUNTIME_TASK_MEMORY,
           Math.min(maxAvailableTaskMemory, Integer.MAX_VALUE)) * maxInMemCopyUse);
       
-      LOG.info("Initial Shuffle Memory Required: " + memLimit + ", based on INPUT_BUFFER_factor: " + maxInMemCopyUse);
-
       float maxRedPer = conf.getFloat(TezRuntimeConfiguration.TEZ_RUNTIME_INPUT_POST_MERGE_BUFFER_PERCENT,
           TezRuntimeConfiguration.TEZ_RUNTIME_INPUT_BUFFER_PERCENT_DEFAULT);
       if (maxRedPer > 1.0 || maxRedPer < 0.0) {
@@ -317,7 +320,9 @@ public class MergeManager {
       // TODO maxRedBuffer should be a long.
       int maxRedBuffer = (int) Math.min(maxAvailableTaskMemory * maxRedPer,
           Integer.MAX_VALUE);
-      LOG.info("Initial Memory required for final merged output: " + maxRedBuffer + ", using factor: " + maxRedPer);
+      LOG.info("Initial Memory required for SHUFFLE_BUFFER=" + memLimit +
+          " based on INPUT_BUFFER_FACTOR=" + maxInMemCopyUse + ",  for final merged output=" +
+          maxRedBuffer + ", using factor: " + maxRedPer);
 
       long reqMem = Math.max(maxRedBuffer, memLimit);
       return reqMem;
@@ -366,9 +371,11 @@ public class MergeManager {
                                              int fetcher
                                              ) throws IOException {
     if (!canShuffleToMemory(requestedSize)) {
-      LOG.info(srcAttemptIdentifier + ": Shuffling to disk since " + requestedSize + 
-               " is greater than maxSingleShuffleLimit (" + 
-               maxSingleShuffleLimit + ")");
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(srcAttemptIdentifier + ": Shuffling to disk since " + requestedSize +
+            " is greater than maxSingleShuffleLimit (" +
+            maxSingleShuffleLimit + ")");
+      }
       return MapOutput.createDiskMapOutput(srcAttemptIdentifier, this, compressedLength, conf,
           fetcher, true, mapOutputFile);
     }
@@ -430,8 +437,8 @@ public class MergeManager {
   public synchronized void closeInMemoryFile(MapOutput mapOutput) { 
     inMemoryMapOutputs.add(mapOutput);
     LOG.info("closeInMemoryFile -> map-output of size: " + mapOutput.getSize()
-        + ", inMemoryMapOutputs.size() -> " + inMemoryMapOutputs.size()
-        + ", commitMemory -> " + commitMemory + ", usedMemory ->" + usedMemory);
+          + ", inMemoryMapOutputs.size() -> " + inMemoryMapOutputs.size()
+          + ", commitMemory -> " + commitMemory + ", usedMemory ->" + usedMemory);
 
     commitMemory+= mapOutput.getSize();
 
@@ -453,7 +460,7 @@ public class MergeManager {
   private void startMemToDiskMerge() {
     synchronized (inMemoryMerger) {
       if (!inMemoryMerger.isInProgress()) {
-        LOG.info("Starting inMemoryMerger's merge since commitMemory=" +
+        LOG.info(inputContext.getSourceVertexName() + ": " + "Starting inMemoryMerger's merge since commitMemory=" +
             commitMemory + " > mergeThreshold=" + mergeThreshold +
             ". Current usedMemory=" + usedMemory);
         inMemoryMapOutputs.addAll(inMemoryMergedMapOutputs);
@@ -465,7 +472,7 @@ public class MergeManager {
   
   public synchronized void closeInMemoryMergedFile(MapOutput mapOutput) {
     inMemoryMergedMapOutputs.add(mapOutput);
-    LOG.info("closeInMemoryMergedFile -> size: " + mapOutput.getSize() + 
+    LOG.info("closeInMemoryMergedFile -> size: " + mapOutput.getSize() +
              ", inMemoryMergedMapOutputs.size() -> " + 
              inMemoryMergedMapOutputs.size());
   }
@@ -551,7 +558,7 @@ public class MergeManager {
       Writer writer = 
         new InMemoryWriter(mergedMapOutputs.getArrayStream());
 
-      LOG.info("Initiating Memory-to-Memory merge with " + noInMemorySegments +
+      LOG.info(inputContext.getSourceVertexName() + ": " + "Initiating Memory-to-Memory merge with " + noInMemorySegments +
                " segments of total-size: " + mergeOutputSize);
 
       // Nothing will be materialized to disk because the sort factor is being
@@ -568,7 +575,7 @@ public class MergeManager {
       TezMerger.writeFile(rIter, writer, nullProgressable, TezRuntimeConfiguration.TEZ_RUNTIME_RECORDS_BEFORE_PROGRESS_DEFAULT);
       writer.close();
 
-      LOG.info(inputContext.getUniqueIdentifier() +  
+      LOG.info(inputContext.getSourceVertexName() +
                " Memory-to-Memory merge of the " + noInMemorySegments +
                " files in-memory complete.");
 
@@ -773,7 +780,7 @@ public class MergeManager {
       final long outputLen = localFS.getFileStatus(outputPath).getLen();
       closeOnDiskFile(new FileChunk(outputPath, 0, outputLen));
 
-      LOG.info(inputContext.getUniqueIdentifier() +
+      LOG.info(inputContext.getSourceVertexName() +
           " Finished merging " + inputs.size() + 
           " map output files on disk of total-size " + 
           approxOutputSize + "." + 

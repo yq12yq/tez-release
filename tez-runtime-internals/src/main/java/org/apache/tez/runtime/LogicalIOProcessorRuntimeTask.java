@@ -382,6 +382,16 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
     @Override
     public Void call() throws Exception {
+      String oldThreadName = Thread.currentThread().getName();
+      try {
+        Thread.currentThread().setName(oldThreadName + "{" + inputSpec.getSourceVertexName() + "}");
+        return _call();
+      } finally {
+        Thread.currentThread().setName(oldThreadName);
+      }
+    }
+
+    public Void _call() throws Exception {
       if (LOG.isDebugEnabled()) {
         LOG.debug("Initializing Input using InputSpec: " + inputSpec);
       }
@@ -415,6 +425,17 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
     @Override
     public Void call() throws Exception {
+      String oldThreadName = Thread.currentThread().getName();
+      try {
+        Thread.currentThread().setName(oldThreadName + " Start: {" + srcVertexName + "}");
+        return _call();
+      } finally {
+        Thread.currentThread().setName(oldThreadName);
+      }
+    }
+
+    public Void _call() throws Exception {
+      Thread.currentThread().setName("InitializerStart {" + srcVertexName + "}");
       if (LOG.isDebugEnabled()) {
         LOG.debug("Starting Input with src edge: " + srcVertexName);
       }
@@ -436,6 +457,17 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
 
     @Override
     public Void call() throws Exception {
+      String oldThreadName = Thread.currentThread().getName();
+      try {
+        Thread.currentThread().setName(oldThreadName + "{" + outputSpec.getDestinationVertexName() + "}");
+        return _call();
+      } finally {
+        Thread.currentThread().setName(oldThreadName);
+      }
+    }
+
+    public Void _call() throws Exception {
+      Thread.currentThread().setName("Initializer {" + outputSpec.getDestinationVertexName() + "}");
       if (LOG.isDebugEnabled()) {
         LOG.debug("Initializing Output using OutputSpec: " + outputSpec);
       }
@@ -707,8 +739,8 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
       }
     });
 
-    eventRouterThread.setName("TezTaskEventRouter["
-        + taskSpec.getTaskAttemptID().toString() + "]");
+    eventRouterThread.setName("TezTaskEventRouter{"
+        + taskSpec.getTaskAttemptID().toString() + "}");
     eventRouterThread.start();
   }
 
@@ -750,7 +782,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     } catch (IOException e) {
       LOG.info("Error while cleaning up contexts ", e);
     }
-    LOG.info("Final Counters : " + tezCounters.toShortString());
+    LOG.info("Final Counters for " + taskSpec.getTaskAttemptID() + ": " + tezCounters.toShortString());
     setTaskDone();
     if (eventRouterThread != null) {
       eventRouterThread.interrupt();

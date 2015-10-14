@@ -265,7 +265,7 @@ public class TaskReporter {
       int numEventsReceived = 0;
       if (task.isTaskDone() || task.hadFatalError()) {
         if (response.getEvents() != null && !response.getEvents().isEmpty()) {
-          LOG.warn("Current task already complete, Ignoring all event in"
+          LOG.warn("Current task already complete, Ignoring all events in"
               + " heartbeat response, eventCount=" + response.getEvents().size());
         }
       } else {

@@ -22,6 +22,7 @@ package org.apache.tez.runtime.library.common.shuffle.impl;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.protobuf.ByteString;
 
@@ -55,16 +56,24 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
   private static final Log LOG = LogFactory.getLog(ShuffleInputEventHandlerImpl.class);
   
   private final ShuffleManager shuffleManager;
+  //TODO: unused. Consider removing later?
   private final FetchedInputAllocator inputAllocator;
   private final CompressionCodec codec;
   private final boolean ifileReadAhead;
   private final int ifileReadAheadLength;
   private final boolean useSharedInputs;
+  private final InputContext inputContext;
+
+  private final AtomicInteger nextToLogEventCount = new AtomicInteger(0);
+  private final AtomicInteger numDmeEvents = new AtomicInteger(0);
+  private final AtomicInteger numObsoletionEvents = new AtomicInteger(0);
+  private final AtomicInteger numDmeEventsNoData = new AtomicInteger(0);
 
   public ShuffleInputEventHandlerImpl(InputContext inputContext,
                                       ShuffleManager shuffleManager,
                                       FetchedInputAllocator inputAllocator, CompressionCodec codec,
                                       boolean ifileReadAhead, int ifileReadAheadLength) {
+    this.inputContext = inputContext;
     this.shuffleManager = shuffleManager;
     this.inputAllocator = inputAllocator;
     this.codec = codec;
@@ -84,12 +93,28 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
   
   private void handleEvent(Event event) throws IOException {
     if (event instanceof DataMovementEvent) {
+      numDmeEvents.incrementAndGet();
       processDataMovementEvent((DataMovementEvent)event);
     } else if (event instanceof InputFailedEvent) {
+      numObsoletionEvents.incrementAndGet();
       processInputFailedEvent((InputFailedEvent)event);
     } else {
       throw new TezUncheckedException("Unexpected event type: " + event.getClass().getName());
     }
+    if (numDmeEvents.get() + numObsoletionEvents.get() > nextToLogEventCount.get()) {
+      logProgress(false);
+      // Log every 50 events seen.
+      nextToLogEventCount.addAndGet(50);
+    }
+  }
+
+  @Override
+  public void logProgress(boolean updateOnClose) {
+    LOG.info(inputContext.getSourceVertexName() + ": "
+        + "numDmeEventsSeen=" + numDmeEvents.get()
+        + ", numDmeEventsSeenWithNoData=" + numDmeEventsNoData.get()
+        + ", numObsoletionEventsSeen=" + numObsoletionEvents.get()
+        + (updateOnClose == true ? ", updateOnClose" : ""));
   }
 
   private void processDataMovementEvent(DataMovementEvent dme) throws IOException {
@@ -102,9 +127,11 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
     }
     int srcIndex = dme.getSourceIndex();
     String hostIdentifier = shufflePayload.getHost() + ":" + shufflePayload.getPort();
-    LOG.info("DME srcIdx: " + srcIndex + ", targetIndex: " + dme.getTargetIndex()
-        + ", attemptNum: " + dme.getVersion() + ", payload: " + ShuffleUtils
-        .stringify(shufflePayload));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("DME srcIdx: " + srcIndex + ", targetIndex: " + dme.getTargetIndex()
+          + ", attemptNum: " + dme.getVersion() + ", payload: " + ShuffleUtils
+          .stringify(shufflePayload));
+    }
 
     if (shufflePayload.hasEmptyPartitions()) {
       byte[] emptyPartitions = TezCommonUtils.decompressByteStringToByteArray(shufflePayload
@@ -117,6 +144,7 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
           LOG.debug("Source partition: " + srcIndex + " did not generate any data. SrcAttempt: ["
               + srcAttemptIdentifier + "]. Not fetching.");
         }
+        numDmeEventsNoData.incrementAndGet();
         shuffleManager.addCompletedInputWithNoData(srcAttemptIdentifier);
         return;
       }
@@ -144,7 +172,7 @@ public class ShuffleInputEventHandlerImpl implements ShuffleEventHandler {
     switch (fetchedInput.getType()) {
     case DISK:
       ShuffleUtils.shuffleToDisk(((DiskFetchedInput) fetchedInput).getOutputStream(),
-        hostIdentifier, dataProto.getData().newInput(), dataProto.getCompressedLength(), LOG,
+        hostIdentifier, dataProto.getData().newInput(), dataProto.getCompressedLength(), dataProto.getRawLength(), LOG,
           fetchedInput.getInputAttemptIdentifier().toString());
       break;
     case MEMORY:

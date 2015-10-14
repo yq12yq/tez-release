@@ -86,12 +86,16 @@ public class ShuffleUtils {
       Log LOG, String identifier) throws IOException {
     try {
       IFile.Reader.readToMemory(shuffleData, input, compressedLength, codec,
-        ifileReadAhead, ifileReadAheadLength);
+          ifileReadAhead, ifileReadAheadLength);
       // metrics.inputBytes(shuffleData.length);
-      LOG.info("Read " + shuffleData.length + " bytes from input for "
-          + identifier);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Read " + shuffleData.length + " bytes from input for "
+            + identifier);
+      }
     } catch (IOException ioe) {
       // Close the streams
+      LOG.info("Failed to read data to memory for " + identifier + ". len=" + compressedLength +
+          ", decomp=" + decompressedLength + ". ExceptionMessage=" + ioe.getMessage());
       IOUtils.cleanup(LOG, input);
       // Re-throw
       throw ioe;
@@ -99,7 +103,7 @@ public class ShuffleUtils {
   }
   
   public static void shuffleToDisk(OutputStream output, String hostIdentifier,
-      InputStream input, long compressedLength, Log LOG, String identifier)
+      InputStream input, long compressedLength, long decompressedLength, Log LOG, String identifier)
       throws IOException {
     // Copy data to local-disk
     long bytesLeft = compressedLength;
@@ -117,12 +121,16 @@ public class ShuffleUtils {
         // metrics.inputBytes(n);
       }
 
-      LOG.info("Read " + (compressedLength - bytesLeft)
-          + " bytes from input for " + identifier);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Read " + (compressedLength - bytesLeft)
+            + " bytes from input for " + identifier);
+      }
 
       output.close();
     } catch (IOException ioe) {
       // Close the streams
+      LOG.info("Failed to read data to disk for " + identifier + ". len=" + compressedLength +
+          ", decomp=" + decompressedLength + ". ExceptionMessage=" + ioe.getMessage());
       IOUtils.cleanup(LOG, input, output);
       // Re-throw
       throw ioe;
@@ -234,6 +242,16 @@ public class ShuffleUtils {
       sb.append(", ").append("hasDataInEvent: " + dmProto.hasData());
     }
     sb.append("]");
+    return sb.toString();
+  }
+
+  public static String toShortString(InputAttemptIdentifier inputAttemptIdentifier) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{");
+    sb.append(inputAttemptIdentifier.getInputIdentifier().getInputIndex());
+    sb.append(", ").append(inputAttemptIdentifier.getAttemptNumber());
+    sb.append(", ").append(inputAttemptIdentifier.getPathComponent());
+    sb.append("}");
     return sb.toString();
   }
 }

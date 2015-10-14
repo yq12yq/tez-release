@@ -176,7 +176,7 @@ public class Shuffle implements ExceptionReporter {
     TezCounter bytesShuffedToMem = inputContext.getCounters().findCounter(
         TaskCounter.SHUFFLE_BYTES_TO_MEM);
     
-    LOG.info("Shuffle assigned with " + numInputs + " inputs" + ", codec: "
+    LOG.info(srcNameTrimmed + ": " + "Shuffle assigned with " + numInputs + " inputs" + ", codec: "
         + (codec == null ? "None" : codec.getClass().getName()) + 
         "ifileReadAhead: " + ifileReadAhead);
 
@@ -193,7 +193,8 @@ public class Shuffle implements ExceptionReporter {
           failedShuffleCounter,
           bytesShuffedToDisk,
           bytesShuffedToDiskDirect,
-          bytesShuffedToMem);
+          bytesShuffedToMem,
+          srcNameTrimmed);
 
     merger = new MergeManager(
           this.conf,
@@ -216,14 +217,14 @@ public class Shuffle implements ExceptionReporter {
         sslShuffle);
     
     ExecutorService rawExecutor = Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
-        .setDaemon(true).setNameFormat("ShuffleAndMergeRunner [" + srcNameTrimmed + "]").build());
+        .setDaemon(true).setNameFormat("ShuffleAndMergeRunner {" + srcNameTrimmed + "}").build());
 
     int configuredNumFetchers = 
         conf.getInt(
             TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES, 
             TezRuntimeConfiguration.TEZ_RUNTIME_SHUFFLE_PARALLEL_COPIES_DEFAULT);
     numFetchers = Math.min(configuredNumFetchers, numInputs);
-    LOG.info("Num fetchers being started: " + numFetchers);
+    LOG.info(srcNameTrimmed + ": " + "Num fetchers being started: " + numFetchers);
     fetchers = Lists.newArrayListWithCapacity(numFetchers);
     localDiskFetchEnabled = conf.getBoolean(TezRuntimeConfiguration.TEZ_RUNTIME_OPTIMIZE_LOCAL_FETCH,
         TezRuntimeConfiguration.TEZ_RUNTIME_OPTIMIZE_LOCAL_FETCH_DEFAULT);
@@ -236,7 +237,7 @@ public class Shuffle implements ExceptionReporter {
     if (!isShutDown.get()) {
       eventHandler.handleEvents(events);
     } else {
-      LOG.info("Ignoring events since already shutdown. EventCount: " + events.size());
+      LOG.info(srcNameTrimmed + ": " + "Ignoring events since already shutdown. EventCount: " + events.size());
     }
 
   }
@@ -368,7 +369,7 @@ public class Shuffle implements ExceptionReporter {
       }
 
       inputContext.inputIsReady();
-      LOG.info("merge complete for input vertex : " + inputContext.getSourceVertexName());
+      LOG.info("merge complete for input vertex : " + srcNameTrimmed);
       return kvIter;
     }
   }
@@ -381,16 +382,16 @@ public class Shuffle implements ExceptionReporter {
         for (FetcherOrderedGrouped fetcher : fetchers) {
           try {
             fetcher.shutDown();
-            LOG.info("Shutdown.." + fetcher.getName() + ", status:" + fetcher.isAlive() + ", "
+            LOG.info(srcNameTrimmed + ": " + "Shutdown.." + fetcher.getName() + ", status:" + fetcher.isAlive() + ", "
                 + "isInterrupted:" + fetcher.isInterrupted());
           } catch (InterruptedException e) {
             if (ignoreErrors) {
-              LOG.info("Interrupted while shutting down fetchers. Ignoring.");
+              LOG.info(srcNameTrimmed + ": " + "Interrupted while shutting down fetchers. Ignoring.");
             } else {
               if (ie != null) {
                 ie = e;
               } else {
-                LOG.warn(
+                LOG.warn(srcNameTrimmed + ": " +
                     "Ignoring exception while shutting down fetcher since a previous one was seen and will be thrown "
                         + e);
               }
@@ -413,7 +414,7 @@ public class Shuffle implements ExceptionReporter {
         scheduler.close();
       } catch (InterruptedException e) {
         if (ignoreErrors) {
-          LOG.info("Interrupted while attempting to close the scheduler during cleanup. Ignoring");
+          LOG.info(srcNameTrimmed + ": " + "Interrupted while attempting to close the scheduler during cleanup. Ignoring");
         } else {
           throw e;
         }
@@ -427,7 +428,7 @@ public class Shuffle implements ExceptionReporter {
         merger.close();
       } catch (Throwable e) {
         if (ignoreErrors) {
-          LOG.info("Exception while trying to shutdown merger, Ignoring", e);
+          LOG.info(srcNameTrimmed + ": " + "Exception while trying to shutdown merger, Ignoring", e);
         } else {
           throw e;
         }
@@ -437,11 +438,14 @@ public class Shuffle implements ExceptionReporter {
 
   private void cleanupIgnoreErrors() {
     try {
+      if (eventHandler != null) {
+        eventHandler.logProgress(true);
+      }
       cleanupFetchers(true);
       cleanupShuffleScheduler(true);
       cleanupMerger(true);
     } catch (Throwable t) {
-      LOG.info("Error in cleaning up.., ", t);
+      LOG.info(srcNameTrimmed + ": " + "Error in cleaning up.., ", t);
     }
   }
 
@@ -449,6 +453,8 @@ public class Shuffle implements ExceptionReporter {
   public synchronized void reportException(Throwable t) {
     // RunShuffleCallable onFailure deals with ignoring errors on shutdown.
     if (throwable == null) {
+      LOG.info(srcNameTrimmed + ": " + "Setting throwable in reportException with message [" + t.getMessage() +
+          "] from thread [" + Thread.currentThread().getName());
       throwable = t;
       throwingThreadName = Thread.currentThread().getName();
       // Notify the scheduler so that the reporting thread finds the 
@@ -475,15 +481,15 @@ public class Shuffle implements ExceptionReporter {
   private class ShuffleRunnerFutureCallback implements FutureCallback<TezRawKeyValueIterator> {
     @Override
     public void onSuccess(TezRawKeyValueIterator result) {
-      LOG.info("Shuffle Runner thread complete");
+      LOG.info(srcNameTrimmed + ": " + "Shuffle Runner thread complete");
     }
 
     @Override
     public void onFailure(Throwable t) {
       if (isShutDown.get()) {
-        LOG.info("Already shutdown. Ignoring error: ",  t);
+        LOG.info(srcNameTrimmed + ": " + "Already shutdown. Ignoring error");
       } else {
-        LOG.error("ShuffleRunner failed with error", t);
+        LOG.error(srcNameTrimmed + ": " + "ShuffleRunner failed with error", t);
         inputContext.fatalError(t, "Shuffle Runner Failed");
         cleanupIgnoreErrors();
       }

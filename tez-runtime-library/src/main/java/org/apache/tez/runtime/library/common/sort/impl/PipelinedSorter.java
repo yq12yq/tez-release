@@ -1,4 +1,4 @@
-/**
+  /**
 * Licensed to the Apache Software Foundation (ASF) under one
 * or more contributor license agreements.  See the NOTICE file
 * distributed with this work for additional information
@@ -96,7 +96,9 @@ public class PipelinedSorter extends ExternalSorter {
   public PipelinedSorter(OutputContext outputContext, Configuration conf, int numOutputs,
       long initialMemoryAvailable) throws IOException {
     super(outputContext, conf, numOutputs, initialMemoryAvailable);
-    
+
+    StringBuilder initialSetupLogLine = new StringBuilder("Setting up PipelinedSorter for ")
+        .append(outputContext.getDestinationVertexName()).append(": ");
     partitionBits = bitcount(partitions)+1;
    
     //sanity checks
@@ -118,17 +120,18 @@ public class PipelinedSorter extends ExternalSorter {
                 TezRuntimeConfiguration.TEZ_RUNTIME_SORT_THREADS_DEFAULT);
     sortmaster = Executors.newFixedThreadPool(sortThreads,
         new ThreadFactoryBuilder().setDaemon(true)
-        .setNameFormat("Sorter [" + TezUtilsInternal
-            .cleanVertexName(outputContext.getDestinationVertexName()) + "] #%d")
+        .setNameFormat("Sorter {" + TezUtilsInternal
+            .cleanVertexName(outputContext.getDestinationVertexName()) + "} #%d")
         .build());
 
-    // k/v serialization    
-    if(comparator instanceof ProxyComparator) {
-      hasher = (ProxyComparator)comparator;
+    // k/v serialization
+    if (comparator instanceof ProxyComparator) {
+      hasher = (ProxyComparator) comparator;
       LOG.info("Using the HashComparator");
     } else {
       hasher = null;
-    }    
+    }
+
     valSerializer.open(span.out);
     keySerializer.open(span.out);
     minSpillsForCombine = this.conf.getInt(TezRuntimeConfiguration.TEZ_RUNTIME_COMBINE_MIN_SPILLS, 3);
@@ -255,7 +258,7 @@ public class PipelinedSorter extends ExternalSorter {
 
     try {
       merger.ready(); // wait for all the future results from sort threads
-      LOG.info("Spilling to " + filename.toString());
+      LOG.info(outputContext.getDestinationVertexName() + ": Spilling to " + filename.toString());
       for (int i = 0; i < partitions; ++i) {
         TezRawKeyValueIterator kvIter = merger.filter(i);
         //write merged output to disk
@@ -303,7 +306,7 @@ public class PipelinedSorter extends ExternalSorter {
     Path finalIndexFile =
         mapOutputFile.getOutputIndexFileForWrite(0); //TODO
 
-    LOG.info("Starting flush of map output");
+    LOG.info(outputContext.getDestinationVertexName() + ": Starting flush of map output");
     span.end();
     merger.add(span.sort(sorter, comparator));
     spill();
@@ -495,7 +498,7 @@ public class PipelinedSorter extends ExternalSorter {
       if(length() > 1) {
         sorter.sort(this, 0, length(), nullProgressable);
       }
-      LOG.info("done sorting span=" + index + ", length=" + length() + ", "
+      LOG.info(outputContext.getDestinationVertexName() + ": " + "done sorting span=" + index + ", length=" + length() + ", "
           + "time=" + (System.currentTimeMillis() - start));
       return new SpanIterator(this);
     }
@@ -850,10 +853,10 @@ public class PipelinedSorter extends ExternalSorter {
             total += sp.span.length();
             eq += sp.span.getEq();
         }
-        LOG.info("Heap = " + sb.toString());
+        LOG.info(outputContext.getDestinationVertexName() + ": " + "Heap = " + sb.toString());
         return true;
       } catch(Exception e) {
-        LOG.info(e.toString());
+        LOG.info(outputContext.getDestinationVertexName() + ": " + e.toString());
         return false;
       }
     }

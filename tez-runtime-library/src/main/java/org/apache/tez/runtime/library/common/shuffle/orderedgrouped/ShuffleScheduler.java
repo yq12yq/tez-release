@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -64,6 +65,7 @@ class ShuffleScheduler {
 
   private boolean[] finishedMaps;
   private final int numInputs;
+  private final String srcNameTrimmed;
   private int remainingMaps;
   private Map<String, MapHost> mapLocations = new HashMap<String, MapHost>();
   //TODO Clean this and other maps at some point
@@ -112,12 +114,14 @@ class ShuffleScheduler {
                           TezCounter failedShuffleCounter,
                           TezCounter bytesShuffledToDisk,
                           TezCounter bytesShuffledToDiskDirect,
-                          TezCounter bytesShuffledToMem) {
+                          TezCounter bytesShuffledToMem,
+                          String srcNameTrimmed) {
     this.inputContext = inputContext;
     this.numInputs = numberOfInputs;
     abortFailureLimit = Math.max(30, numberOfInputs / 10);
     remainingMaps = numberOfInputs;
     finishedMaps = new boolean[remainingMaps]; // default init to false
+    this.srcNameTrimmed = srcNameTrimmed;
     this.referee = new Referee();
     this.shuffle = shuffle;
     this.shuffledInputsCounter = shuffledInputsCounter;
@@ -214,7 +218,7 @@ class ShuffleScheduler {
       }
     } else {
       // input is already finished. duplicate fetch.
-      LOG.warn("Duplicate fetch of input no longer needs to be fetched: " + srcAttemptIdentifier);
+      LOG.warn(srcNameTrimmed + ": " + "Duplicate fetch of input no longer needs to be fetched: " + srcAttemptIdentifier);
       // free the resource - specially memory
       
       // If the src does not generate data, output will be null.
@@ -303,7 +307,7 @@ class ShuffleScheduler {
   }
 
   public void reportLocalError(IOException ioe) {
-    LOG.error("Shuffle failed : caused by local error", ioe);
+    LOG.error(srcNameTrimmed + ": " + "Shuffle failed : caused by local error", ioe);
     // Shuffle knows how to deal with failures post shutdown via the onFailure hook
     shuffle.reportException(ioe);
   }
@@ -421,6 +425,9 @@ class ShuffleScheduler {
 
   public synchronized MapHost getHost() throws InterruptedException {
       while(pendingHosts.isEmpty()) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("PendingHosts=" + pendingHosts);
+        }
         wait();
       }
       
@@ -434,7 +441,7 @@ class ShuffleScheduler {
       pendingHosts.remove(host);     
       host.markBusy();
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Assigning " + host + " with " + host.getNumKnownMapOutputs() +
+        LOG.debug(srcNameTrimmed + ": " + "Assigning " + host + " with " + host.getNumKnownMapOutputs() +
             " to " + Thread.currentThread().getName());
       }
       shuffleStart.set(System.currentTimeMillis());
@@ -512,8 +519,10 @@ class ShuffleScheduler {
         notifyAll();
       }
     }
-    LOG.info(host + " freed by " + Thread.currentThread().getName() + " in " + 
-             (System.currentTimeMillis()-shuffleStart.get()) + "ms");
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(host + " freed by " + Thread.currentThread().getName() + " in " +
+          (System.currentTimeMillis() - shuffleStart.get()) + "ms");
+    }
   }
 
   public synchronized void resetKnownMaps() {
@@ -579,8 +588,8 @@ class ShuffleScheduler {
    */
   private class Referee extends Thread {
     public Referee() {
-      setName("ShufflePenaltyReferee ["
-          + TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName()) + "]");
+      setName("ShufflePenaltyReferee {"
+          + TezUtilsInternal.cleanVertexName(inputContext.getSourceVertexName()) + "}");
       setDaemon(true);
     }
 
@@ -607,6 +616,7 @@ class ShuffleScheduler {
   }
   
   public void close() throws InterruptedException {
+    logProgress();
     referee.interrupt();
     referee.join();
   }

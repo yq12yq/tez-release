@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.tez.runtime.library.common.shuffle.ShuffleEventHandler;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.TezUncheckedException;
@@ -40,7 +42,7 @@ import org.apache.tez.runtime.library.shuffle.impl.ShuffleUserPayloads.DataMovem
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class ShuffleInputEventHandlerOrderedGrouped {
+public class ShuffleInputEventHandlerOrderedGrouped implements ShuffleEventHandler {
   
   private static final Log LOG = LogFactory.getLog(ShuffleInputEventHandlerOrderedGrouped.class);
 
@@ -50,6 +52,11 @@ public class ShuffleInputEventHandlerOrderedGrouped {
   private int maxMapRuntime = 0;
   private final boolean sslShuffle;
 
+  private final AtomicInteger nextToLogEventCount = new AtomicInteger(0);
+  private final AtomicInteger numDmeEvents = new AtomicInteger(0);
+  private final AtomicInteger numObsoletionEvents = new AtomicInteger(0);
+  private final AtomicInteger numDmeEventsNoData = new AtomicInteger(0);
+
   public ShuffleInputEventHandlerOrderedGrouped(InputContext inputContext,
                                                 ShuffleScheduler scheduler, boolean sslShuffle) {
     this.inputContext = inputContext;
@@ -57,18 +64,34 @@ public class ShuffleInputEventHandlerOrderedGrouped {
     this.sslShuffle = sslShuffle;
   }
 
+  @Override
   public void handleEvents(List<Event> events) throws IOException {
     for (Event event : events) {
       handleEvent(event);
     }
   }
-  
+
+  @Override
+  public void logProgress(boolean updateOnClose) {
+    LOG.info(inputContext.getSourceVertexName() + ": "
+        + "numDmeEventsSeen=" + numDmeEvents.get()
+        + ", numDmeEventsSeenWithNoData=" + numDmeEventsNoData.get()
+        + ", numObsoletionEventsSeen=" + numObsoletionEvents.get()
+        + (updateOnClose == true ? ", updateOnClose" : ""));
+  }
   
   private void handleEvent(Event event) throws IOException {
     if (event instanceof DataMovementEvent) {
+      numDmeEvents.incrementAndGet();
       processDataMovementEvent((DataMovementEvent) event);      
     } else if (event instanceof InputFailedEvent) {
+      numObsoletionEvents.incrementAndGet();
       processTaskFailedEvent((InputFailedEvent) event);
+    }
+    if (numDmeEvents.get() + numObsoletionEvents.get() > nextToLogEventCount.get()) {
+      logProgress(false);
+      // Log every 50 events seen.
+      nextToLogEventCount.addAndGet(50);
     }
   }
 
@@ -80,8 +103,11 @@ public class ShuffleInputEventHandlerOrderedGrouped {
       throw new TezUncheckedException("Unable to parse DataMovementEvent payload", e);
     } 
     int partitionId = dmEvent.getSourceIndex();
-    LOG.info("DME srcIdx: " + partitionId + ", targetIdx: " + dmEvent.getTargetIndex()
-        + ", attemptNum: " + dmEvent.getVersion() + ", payload: " + ShuffleUtils.stringify(shufflePayload));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("DME srcIdx: " + partitionId + ", targetIdx: " + dmEvent.getTargetIndex()
+          + ", attemptNum: " + dmEvent.getVersion() + ", payload: " +
+          ShuffleUtils.stringify(shufflePayload));
+    }
     // TODO NEWTEZ See if this duration hack can be removed.
     int duration = shufflePayload.getRunDuration();
     if (duration > maxMapRuntime) {
@@ -100,6 +126,7 @@ public class ShuffleInputEventHandlerOrderedGrouped {
                 "Source partition: " + partitionId + " did not generate any data. SrcAttempt: ["
                     + srcAttemptIdentifier + "]. Not fetching.");
           }
+          numDmeEventsNoData.incrementAndGet();
           scheduler.copySucceeded(srcAttemptIdentifier, null, 0, 0, 0, null);
           return;
         }
@@ -121,10 +148,11 @@ public class ShuffleInputEventHandlerOrderedGrouped {
   private void processTaskFailedEvent(InputFailedEvent ifEvent) {
     InputAttemptIdentifier taIdentifier = new InputAttemptIdentifier(ifEvent.getTargetIndex(), ifEvent.getVersion());
     scheduler.obsoleteInput(taIdentifier);
-    LOG.info("Obsoleting output of src-task: " + taIdentifier);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Obsoleting output of src-task: " + taIdentifier);
+    }
   }
 
-  // TODO NEWTEZ Handle encrypted shuffle
   @VisibleForTesting
   URI getBaseURI(String host, int port, int partitionId) {
     StringBuilder sb = ShuffleUtils.constructBaseURIForShuffleHandler(host, port,
