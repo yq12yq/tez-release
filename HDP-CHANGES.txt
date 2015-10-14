@@ -29,7 +29,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
-
+  TEZ-2885 (BUG-46163). Remove counter logs from AMWebController.
   TEZ-2887 (BUG-45816). Tez build failure due to missing dependency in pom files.
   TEZ-1796 (BUG-33845). Use of DeprecationDelta broke build against 2.2 Hadoop.
   TEZ-2311 (BUG-45540). AM can hang if kill received while recovering from previous attempt
