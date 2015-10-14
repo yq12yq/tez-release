@@ -24,6 +24,7 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+  TEZ-2885. (BUG-46163) Remove counter logs from AMWebController.
   TEZ-2887. (BUG-45816) Tez build failure due to missing dependency in pom files.
   TEZ-2829. (BUG-45682) Tez UI: minor fixes to in-progress update of UI from AM
   TEZ-2436. (BUG-45768) Tez UI: Add cancel button in column selector
