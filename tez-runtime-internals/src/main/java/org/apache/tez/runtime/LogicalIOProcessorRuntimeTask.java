@@ -175,7 +175,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     this.initializerExecutor = Executors.newFixedThreadPool(
         numInitializers,
         new ThreadFactoryBuilder().setDaemon(true)
-            .setNameFormat("Initializer %d").build());
+            .setNameFormat("I/O Setup %d").build());
     this.initializerCompletionService = new ExecutorCompletionService<Void>(
         this.initializerExecutor);
     this.groupInputSpecs = taskSpec.getGroupInputs();
@@ -384,7 +384,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     public Void call() throws Exception {
       String oldThreadName = Thread.currentThread().getName();
       try {
-        Thread.currentThread().setName(oldThreadName + "{" + inputSpec.getSourceVertexName() + "}");
+        Thread.currentThread().setName(oldThreadName + " Initialize: {" + inputSpec.getSourceVertexName() + "}");
         return _call();
       } finally {
         Thread.currentThread().setName(oldThreadName);
@@ -435,7 +435,6 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     }
 
     public Void _call() throws Exception {
-      Thread.currentThread().setName("InitializerStart {" + srcVertexName + "}");
       if (LOG.isDebugEnabled()) {
         LOG.debug("Starting Input with src edge: " + srcVertexName);
       }
@@ -459,7 +458,7 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     public Void call() throws Exception {
       String oldThreadName = Thread.currentThread().getName();
       try {
-        Thread.currentThread().setName(oldThreadName + "{" + outputSpec.getDestinationVertexName() + "}");
+        Thread.currentThread().setName(oldThreadName + " Initialize: {" + outputSpec.getDestinationVertexName() + "}");
         return _call();
       } finally {
         Thread.currentThread().setName(oldThreadName);
@@ -467,7 +466,6 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     }
 
     public Void _call() throws Exception {
-      Thread.currentThread().setName("Initializer {" + outputSpec.getDestinationVertexName() + "}");
       if (LOG.isDebugEnabled()) {
         LOG.debug("Initializing Output using OutputSpec: " + outputSpec);
       }

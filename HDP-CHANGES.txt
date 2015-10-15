@@ -6,6 +6,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
 
   IMPROVEMENTS
 
+  TEZ-2896.(BUG-46222). Fix thread names used during Input/Output initialization.
   TEZ-2775 (BUG-45551). Improve and consolidate logging in Runtime components.
   TEZ-2781 (BUG-43591). Fallback to send only TaskAttemptFailedEvent if taskFailed heartbeat fails
   TEZ-2874 (BUG-44456). Improved logging for caller context.
