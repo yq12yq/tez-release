@@ -844,7 +844,6 @@ public final class DefaultSorter extends ExternalSorter implements IndexedSortab
           writer.close();
           if (numSpills > 0) {
             additionalSpillBytesWritten.increment(writer.getCompressedLength());
-            numAdditionalSpills.increment(1);
             // Reset the value will be set during the final merge.
             outputBytesWithOverheadCounter.setValue(0);
           } else {
@@ -878,6 +877,10 @@ public final class DefaultSorter extends ExternalSorter implements IndexedSortab
       }
       LOG.info(outputContext.getDestinationVertexName() + ": " + "Finished spill " + numSpills);
       ++numSpills;
+      if (numSpills > 1) {
+        //Increment only when there was atleast one previous spill
+        numAdditionalSpills.increment(1);
+      }
     } finally {
       if (out != null) out.close();
     }
@@ -919,7 +922,6 @@ public final class DefaultSorter extends ExternalSorter implements IndexedSortab
 
           if (numSpills > 0) {
             additionalSpillBytesWritten.increment(writer.getCompressedLength());
-            numAdditionalSpills.increment(1);
             outputBytesWithOverheadCounter.setValue(0);
           } else {
             // Set this up for the first write only. Subsequent ones will be handled in the final merge.
@@ -952,6 +954,9 @@ public final class DefaultSorter extends ExternalSorter implements IndexedSortab
           spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
       }
       ++numSpills;
+      if (numSpills > 1) {
+        numAdditionalSpills.increment(1);
+      }
     } finally {
       if (out != null) out.close();
     }
