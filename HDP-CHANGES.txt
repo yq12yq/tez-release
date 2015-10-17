@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2886. (BUG-54426) Ability to merge AM credentials with DAG credentials.
   TEZ-2963. (BUG-54425) RecoveryService#handleSummaryEvent exception with HDFS transparent encryption + kerberos authentication.
   TEZ-3066. (BUG-54431) TaskAttemptFinishedEvent ConcurrentModificationException in recovery or history logging services.
   TEZ-3128. (BUG-53461) Avoid stopping containers on the AM shutdown thread.
