@@ -55,6 +55,7 @@ import org.apache.tez.client.CallerContext;
 import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.common.TezUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSourceDescriptor;
 import org.apache.tez.dag.api.Edge;
@@ -379,6 +380,9 @@ public class TestOrderedWordCount extends Configured implements Tool {
     TezClient tezSession = TezClient.create("OrderedWordCountSession", tezConf,
         null, instance.credentials);
     tezSession.start();
+    if (tezSession.getAppMasterApplicationId() != null) {
+      TezUtilsInternal.setHadoopCallerContext(tezSession.getAppMasterApplicationId());
+    }
 
     DAGStatus dagStatus = null;
     DAGClient dagClient = null;

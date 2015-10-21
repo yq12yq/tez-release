@@ -32,6 +32,7 @@ import org.apache.hadoop.util.GenericOptionsParser;
 import org.apache.hadoop.util.Tool;
 import org.apache.tez.client.CallerContext;
 import org.apache.tez.client.TezClient;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
@@ -88,6 +89,7 @@ public abstract class TezExampleBase extends Configured implements Tool {
         "Tez Example DAG: " + dag.getName());
     ApplicationId appId = tezClientInternal.getAppMasterApplicationId();
     if (appId != null) {
+      TezUtilsInternal.setHadoopCallerContext(appId);
       callerContext.setCallerIdAndType(appId.toString(), "TezExampleApplication");
     }
     dag.setCallerContext(callerContext);

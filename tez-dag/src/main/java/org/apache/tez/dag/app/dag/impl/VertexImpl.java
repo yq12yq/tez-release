@@ -60,6 +60,7 @@ import org.apache.hadoop.yarn.util.Clock;
 import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.common.ATSConstants;
 import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
@@ -1777,15 +1778,20 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
                 } else {
                   firstCommit = false;
                 }
-                vertex.dagUgi.doAs(new PrivilegedExceptionAction<Void>() {
-                  @Override
-                  public Void run() throws Exception {
+                try {
+                  TezUtilsInternal.setHadoopCallerContext(vertex.vertexId);
+                  vertex.dagUgi.doAs(new PrivilegedExceptionAction<Void>() {
+                    @Override
+                    public Void run() throws Exception {
                       LOG.info("Invoking committer commit for output=" + outputName
                           + ", vertexId=" + vertex.logIdentifier);
                       committer.commitOutput();
-                    return null;
-                  }
-                });
+                      return null;
+                    }
+                  });
+                } finally {
+                  TezUtilsInternal.clearHadoopCallerContext();
+                }
               }
             }
           }
@@ -2001,13 +2007,20 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
               LOG.debug("Invoking committer init for output=" + outputName
                   + ", vertex=" + logIdentifier);
             }
-            outputCommitter.initialize();
-            outputCommitters.put(outputName, outputCommitter);
-            if (LOG.isDebugEnabled()) {
-              LOG.debug("Invoking committer setup for output=" + outputName
-                  + ", vertex=" + logIdentifier);
+
+            try {
+              TezUtilsInternal.setHadoopCallerContext(vertexId);
+              outputCommitter.initialize();
+              outputCommitters.put(outputName, outputCommitter);
+              if (LOG.isDebugEnabled()) {
+                LOG.debug("Invoking committer setup for output=" + outputName
+                    + ", vertex=" + logIdentifier);
+              }
+              outputCommitter.setupOutput();
+            } finally {
+              TezUtilsInternal.clearHadoopCallerContext();
             }
-            outputCommitter.setupOutput();
+
             return null;
           }
         });
@@ -3450,6 +3463,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
     LOG.info("Invoking committer abort for vertex, vertexId=" + logIdentifier);
     if (outputCommitters != null) {
       try {
+        TezUtilsInternal.setHadoopCallerContext(vertexId);
         dagUgi.doAs(new PrivilegedExceptionAction<Void>() {
           @Override
           public Void run() {
@@ -3468,6 +3482,8 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex,
         });
       } catch (Exception e) {
         throw new TezUncheckedException("Unknown error while attempting VertexCommitter(s) abort", e);
+      } finally {
+        TezUtilsInternal.clearHadoopCallerContext();
       }
     }
     if (finishTime == 0) {

@@ -59,6 +59,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.tez.client.CallerContext;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.SessionNotRunning;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -1203,7 +1204,7 @@ public class DAGAppMaster extends AbstractService {
     }
   }
 
-  private List<URL> processAdditionalResources(Map<String, LocalResource> lrDiff)
+  private List<URL> processAdditionalResources(TezDAGID dagId, Map<String, LocalResource> lrDiff)
       throws TezException {
     if (lrDiff == null || lrDiff.isEmpty()) {
       return Collections.emptyList();
@@ -1211,6 +1212,7 @@ public class DAGAppMaster extends AbstractService {
       LOG.info("Localizing additional local resources for AM : " + lrDiff);
       List<URL> downloadedURLs;
       try {
+        TezUtilsInternal.setHadoopCallerContext(dagId);
         downloadedURLs = RelocalizationUtils.processAdditionalResources(
             Maps.transformValues(lrDiff, new Function<LocalResource, URI>() {
 
@@ -1221,6 +1223,8 @@ public class DAGAppMaster extends AbstractService {
             }), getConfig());
       } catch (IOException e) {
         throw new TezException(e);
+      } finally {
+        TezUtilsInternal.clearHadoopCallerContext();
       }
       LOG.info("Done downloading additional AM resources");
       return downloadedURLs;
@@ -1573,14 +1577,19 @@ public class DAGAppMaster extends AbstractService {
 
   private RecoveredDAGData recoverDAG() throws IOException, TezException {
     if (recoveryEnabled) {
-      if (this.appAttemptID.getAttemptId() > 1) {
-        LOG.info("Recovering data from previous attempts"
-            + ", currentAttemptId=" + this.appAttemptID.getAttemptId());
-        this.state = DAGAppMasterState.RECOVERING;
-        RecoveryParser recoveryParser = new RecoveryParser(
-            this, recoveryFS, recoveryDataDir, appAttemptID.getAttemptId());
-        RecoveredDAGData recoveredDAGData = recoveryParser.parseRecoveryData();
-        return recoveredDAGData;
+      try {
+        TezUtilsInternal.setHadoopCallerContext(this.getAppID());
+        if (this.appAttemptID.getAttemptId() > 1) {
+          LOG.info("Recovering data from previous attempts"
+              + ", currentAttemptId=" + this.appAttemptID.getAttemptId());
+          this.state = DAGAppMasterState.RECOVERING;
+          RecoveryParser recoveryParser = new RecoveryParser(
+              this, recoveryFS, recoveryDataDir, appAttemptID.getAttemptId());
+          RecoveredDAGData recoveredDAGData = recoveryParser.parseRecoveryData();
+          return recoveredDAGData;
+        }
+      } finally {
+        TezUtilsInternal.clearHadoopCallerContext();
       }
     }
     return null;
@@ -1634,7 +1643,8 @@ public class DAGAppMaster extends AbstractService {
     if (recoveredDAGData != null) {
       List<URL> classpathUrls = null;
       if (recoveredDAGData.cumulativeAdditionalResources != null) {
-        classpathUrls = processAdditionalResources(recoveredDAGData.cumulativeAdditionalResources);
+        classpathUrls = processAdditionalResources(recoveredDAGData.recoveredDagID,
+            recoveredDAGData.cumulativeAdditionalResources);
         amResources.putAll(recoveredDAGData.cumulativeAdditionalResources);
         cumulativeAdditionalResources.putAll(recoveredDAGData.cumulativeAdditionalResources);
       }
@@ -2050,7 +2060,7 @@ public class DAGAppMaster extends AbstractService {
       additionalUrlsForClasspath = dag.getDagUGI().doAs(new PrivilegedExceptionAction<List<URL>>() {
         @Override
         public List<URL> run() throws Exception {
-          return processAdditionalResources(additionalAmResources);
+          return processAdditionalResources(currentDAG.getID(), additionalAmResources);
         }
       });
     } catch (IOException e) {

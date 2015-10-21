@@ -62,7 +62,6 @@ import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.utils.RelocalizationUtils;
-import org.apache.tez.runtime.api.impl.TaskSpec;
 import org.apache.tez.runtime.common.objectregistry.ObjectRegistryImpl;
 import org.apache.tez.runtime.library.common.shuffle.ShuffleUtils;
 
@@ -208,6 +207,7 @@ public class TezChild {
       } else {
         String loggerAddend = containerTask.getTaskSpec().getTaskAttemptID().toString();
         taskCount++;
+        TezUtilsInternal.setHadoopCallerContext(containerTask.getTaskSpec().getTaskAttemptID());
         TezUtilsInternal.updateLoggers(loggerAddend);
         FileSystem.clearStatistics();
 
@@ -294,7 +294,7 @@ public class TezChild {
       List<URL> downloadedUrls = RelocalizationUtils.processAdditionalResources(
           Maps.transformValues(additionalResources, new Function<TezLocalResource, URI>() {
             @Override
-           public URI apply(TezLocalResource input) {
+            public URI apply(TezLocalResource input) {
               return input.getUri();
             }
           }), defaultConf);

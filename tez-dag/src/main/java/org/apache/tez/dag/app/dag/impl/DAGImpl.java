@@ -55,6 +55,7 @@ import org.apache.hadoop.yarn.state.StateMachineFactory;
 import org.apache.hadoop.yarn.util.Clock;
 import org.apache.tez.common.ATSConstants;
 import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeProperty;
@@ -75,7 +76,6 @@ import org.apache.tez.dag.api.records.DAGProtos.PlanGroupInputEdgeInfo;
 import org.apache.tez.dag.api.records.DAGProtos.PlanVertexGroupInfo;
 import org.apache.tez.dag.api.records.DAGProtos.VertexPlan;
 import org.apache.tez.dag.app.AppContext;
-import org.apache.tez.dag.app.DAGAppMasterState;
 import org.apache.tez.dag.app.TaskAttemptListener;
 import org.apache.tez.dag.app.TaskHeartbeatHandler;
 import org.apache.tez.dag.app.dag.DAG;
@@ -875,13 +875,18 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
         if (!groupInfo.outputs.isEmpty()) {
           groupInfo.committed = true;
           Vertex v = getVertex(groupInfo.groupMembers.iterator().next());
-          for (String outputName : groupInfo.outputs) {
-            OutputCommitter committer = v.getOutputCommitters().get(outputName);
-            LOG.info("Committing output: " + outputName + " for group: " + groupInfo.groupName);
-            if (!commitOutput(outputName, committer)) {
-              failedWhileCommitting = true;
-              break;
+          try {
+            TezUtilsInternal.setHadoopCallerContext(v.getVertexId());
+            for (String outputName : groupInfo.outputs) {
+              OutputCommitter committer = v.getOutputCommitters().get(outputName);
+              LOG.info("Committing output: " + outputName + " for group: " + groupInfo.groupName);
+              if (!commitOutput(outputName, committer)) {
+                failedWhileCommitting = true;
+                break;
+              }
             }
+          } finally {
+            TezUtilsInternal.clearHadoopCallerContext();
           }
         }
       }
@@ -913,17 +918,22 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
           LOG.info("No exclusive output committers for vertex: " + vertex.getLogIdentifier());
           continue;
         }
-        for (Map.Entry<String, OutputCommitter> entry : outputCommitters.entrySet()) {
-          LOG.info("Committing output: " + entry.getKey() + " for vertex: "
-              + vertex.getLogIdentifier());
-          if (vertex.getState() != VertexState.SUCCEEDED) {
-            throw new TezUncheckedException("Vertex: " + vertex.getLogIdentifier() +
-                " not in SUCCEEDED state. State= " + vertex.getState());
+        try {
+          TezUtilsInternal.setHadoopCallerContext(vertex.getVertexId());
+          for (Map.Entry<String, OutputCommitter> entry : outputCommitters.entrySet()) {
+            LOG.info("Committing output: " + entry.getKey() + " for vertex: "
+                + vertex.getLogIdentifier());
+            if (vertex.getState() != VertexState.SUCCEEDED) {
+              throw new TezUncheckedException("Vertex: " + vertex.getLogIdentifier() +
+                  " not in SUCCEEDED state. State= " + vertex.getState());
+            }
+            if (!commitOutput(entry.getKey(), entry.getValue())) {
+              failedWhileCommitting = true;
+              break;
+            }
           }
-          if (!commitOutput(entry.getKey(), entry.getValue())) {
-            failedWhileCommitting = true;
-            break;
-          }
+        } finally {
+          TezUtilsInternal.clearHadoopCallerContext();
         }
       }
     }
