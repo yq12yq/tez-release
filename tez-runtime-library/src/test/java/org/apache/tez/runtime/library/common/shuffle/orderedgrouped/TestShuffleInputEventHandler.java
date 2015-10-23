@@ -123,7 +123,7 @@ public class TestShuffleInputEventHandler {
 
     InputAttemptIdentifier expectedIdentifier = new InputAttemptIdentifier(targetIdx, 0);
     verify(scheduler).copySucceeded(eq(expectedIdentifier), any(MapHost.class), eq(0l),
-        eq(0l), eq(0l), any(MapOutput.class));
+        eq(0l), eq(0l), any(MapOutput.class), eq(true));
   }
 
   @Test
@@ -139,7 +139,7 @@ public class TestShuffleInputEventHandler {
     InputAttemptIdentifier expectedIdentifier = new InputAttemptIdentifier(targetIdx, 0);
 
     verify(scheduler).copySucceeded(eq(expectedIdentifier), any(MapHost.class), eq(0l),
-        eq(0l), eq(0l), any(MapOutput.class));
+        eq(0l), eq(0l), any(MapOutput.class), eq(true));
   }
 
   @Test
