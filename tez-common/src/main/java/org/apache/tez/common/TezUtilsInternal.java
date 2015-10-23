@@ -38,9 +38,14 @@ import com.google.protobuf.TextFormat;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.ipc.CallerContext;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.log4j.Appender;
 import org.apache.tez.dag.api.DagTypeConverters;
+import org.apache.tez.dag.records.TezDAGID;
+import org.apache.tez.dag.records.TezTaskAttemptID;
+import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.api.TezConstants;
 import org.apache.tez.dag.api.records.DAGProtos;
 import org.apache.tez.dag.api.records.DAGProtos.ConfigurationProto;
@@ -226,6 +231,33 @@ public class TezUtilsInternal {
       }
     }
     return sb.toString();
+  }
+
+  @Private
+  public static void setHadoopCallerContext(TezTaskAttemptID attemptID) {
+    CallerContext.setCurrent(new CallerContext.Builder("tez_ta:" + attemptID.toString()).build());
+  }
+
+  @Private
+  public static void setHadoopCallerContext(TezVertexID vertexID) {
+    CallerContext.setCurrent(new CallerContext.Builder("tez_v:" + vertexID.toString()).build());
+  }
+
+  @Private
+  public static void setHadoopCallerContext(TezDAGID dagID) {
+    CallerContext.setCurrent(new CallerContext.Builder("tez_dag:" + dagID.toString()).build());
+  }
+
+  @Private
+  public static void setHadoopCallerContext(ApplicationId appID) {
+    CallerContext.setCurrent(new CallerContext.Builder("tez_app:" + appID.toString()).build());
+  }
+
+
+  final static CallerContext nullCallerContext = new CallerContext.Builder("").build();
+  @Private
+  public static void clearHadoopCallerContext() {
+    CallerContext.setCurrent(nullCallerContext);
   }
 
 }

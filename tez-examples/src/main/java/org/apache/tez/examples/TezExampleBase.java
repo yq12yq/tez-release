@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.tez.client.CallerContext;
+import org.apache.tez.common.TezUtilsInternal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -131,6 +132,7 @@ public abstract class TezExampleBase extends Configured implements Tool {
         "Tez Example DAG: " + dag.getName());
     ApplicationId appId = tezClientInternal.getAppMasterApplicationId();
     if (appId != null) {
+      TezUtilsInternal.setHadoopCallerContext(appId);
       callerContext.setCallerIdAndType(appId.toString(), "TezExampleApplication");
     }
     dag.setCallerContext(callerContext);

@@ -45,6 +45,7 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.event.EventHandler;
 import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.InputInitializerDescriptor;
 import org.apache.tez.dag.api.RootInputLeafOutput;
@@ -112,7 +113,14 @@ public class RootInputInitializerManager {
 
       InputInitializerContext context =
           new TezRootInputInitializerContextImpl(input, vertex, appContext, this);
-      InputInitializer initializer = createInitializer(input, context);
+
+      InputInitializer initializer;
+      try {
+        TezUtilsInternal.setHadoopCallerContext(vertex.getVertexId());
+        initializer = createInitializer(input, context);
+      } finally {
+        TezUtilsInternal.clearHadoopCallerContext();
+      }
 
       InitializerWrapper initializerWrapper =
           new InitializerWrapper(input, initializer, context, vertex, entityStateTracker, appContext);
@@ -243,6 +251,7 @@ public class RootInputInitializerManager {
           LOG.info(
               "Starting InputInitializer for Input: " + initializerWrapper.getInput().getName() +
                   " on vertex " + initializerWrapper.getVertexLogIdentifier());
+          TezUtilsInternal.setHadoopCallerContext(initializerWrapper.vertexId);
           return initializerWrapper.getInitializer().initialize();
         }
       });

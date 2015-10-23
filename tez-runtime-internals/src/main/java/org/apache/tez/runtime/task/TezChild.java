@@ -234,6 +234,7 @@ public class TezChild {
             containerTask.getTaskSpec().getTaskAttemptID().toString());
         System.out.println(timeStamp + " Starting to run new task attempt: " +
             containerTask.getTaskSpec().getTaskAttemptID().toString());
+        TezUtilsInternal.setHadoopCallerContext(containerTask.getTaskSpec().getTaskAttemptID());
         TezUtilsInternal.updateLoggers(loggerAddend);
         FileSystem.clearStatistics();
 

@@ -6,6 +6,8 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  
+  TEZ-2910. (BUG-46552) Tez should invoke HDFS Client API to set up caller context.
   TEZ-2896. (BUG-46223) Fix thread names used during Input/Output initialization.
   TEZ-2758. (BUG-45326) Remove append API in RecoveryService after TEZ-1909
   TEZ-2561. (BUG-45379) Port for TaskAttemptListenerImpTezDag should be configurable
