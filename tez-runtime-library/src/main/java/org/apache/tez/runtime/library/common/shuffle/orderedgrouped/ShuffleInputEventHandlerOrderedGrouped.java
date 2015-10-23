@@ -49,6 +49,7 @@ public class ShuffleInputEventHandlerOrderedGrouped implements ShuffleEventHandl
   private final ShuffleScheduler scheduler;
   private final InputContext inputContext;
 
+  private int maxMapRuntime = 0;
   private final boolean sslShuffle;
 
   private final AtomicInteger nextToLogEventCount = new AtomicInteger(0);
@@ -107,6 +108,12 @@ public class ShuffleInputEventHandlerOrderedGrouped implements ShuffleEventHandl
           + ", attemptNum: " + dmEvent.getVersion() + ", payload: " +
           ShuffleUtils.stringify(shufflePayload));
     }
+    // TODO NEWTEZ See if this duration hack can be removed.
+    int duration = shufflePayload.getRunDuration();
+    if (duration > maxMapRuntime) {
+      maxMapRuntime = duration;
+      scheduler.informMaxMapRunTime(maxMapRuntime);
+    }
     if (shufflePayload.hasEmptyPartitions()) {
       try {
         byte[] emptyPartitions = TezCommonUtils.decompressByteStringToByteArray(shufflePayload.getEmptyPartitions());
@@ -120,7 +127,7 @@ public class ShuffleInputEventHandlerOrderedGrouped implements ShuffleEventHandl
                     + srcAttemptIdentifier + "]. Not fetching.");
           }
           numDmeEventsNoData.incrementAndGet();
-          scheduler.copySucceeded(srcAttemptIdentifier, null, 0, 0, 0, null, true);
+          scheduler.copySucceeded(srcAttemptIdentifier, null, 0, 0, 0, null);
           return;
         }
       } catch (IOException e) {
