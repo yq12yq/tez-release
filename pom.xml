@@ -138,6 +138,12 @@
       </dependency>
       <dependency>
         <groupId>org.apache.tez</groupId>
+        <artifactId>tez-tests</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tez</groupId>
         <artifactId>tez-dag</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -145,6 +151,17 @@
         <groupId>org.apache.tez</groupId>
         <artifactId>tez-plugins</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tez</groupId>
+        <artifactId>tez-yarn-timeline-history</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.tez</groupId>
+        <artifactId>tez-yarn-timeline-history</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
       </dependency>
       <dependency>
         <groupId>log4j</groupId>
@@ -404,6 +421,11 @@
             <artifactId>jaxb-api</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-yarn-server-timeline-plugins</artifactId>
+        <version>${hadoop.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>

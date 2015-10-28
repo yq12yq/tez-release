@@ -1060,4 +1060,14 @@ public class TezConfiguration extends Configuration {
       TEZ_PREFIX + "java.opts.checker.enabled";
   public static final boolean TEZ_CLIENT_JAVA_OPTS_CHECKER_ENABLED_DEFAULT = true;
 
+  /**
+   * Boolean value. Default false.
+   * By default, configured values for the Summary Entity Types for Timeline will
+   * not be respected and be overridden by the Timeline History Service.
+   */
+  @Private
+  public static final String TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES =
+      TEZ_PREFIX + "am.ats.v15.override.summary-types";
+  public static final boolean TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES_DEFAULT = false;
+
 }

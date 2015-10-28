@@ -153,6 +153,9 @@ public class TezVertexID extends TezID {
   public static TezVertexID fromString(String taskIdStr) {
     try {
       String[] split = taskIdStr.split("_");
+      if (split.length != 5 || !split[0].equals(VERTEX)) {
+        return null;
+      }
       String rmId = split[1];
       int appId = TezDAGID.tezAppIdFormat.get().parse(split[2]).intValue();
       int dagId = TezDAGID.tezDagIdFormat.get().parse(split[3]).intValue();

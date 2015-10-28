@@ -172,6 +172,9 @@ public class TezDAGID extends TezID {
   public static TezDAGID fromString(String dagId) {
     try {
       String[] split = dagId.split("_");
+      if (split.length != 4 || !split[0].equals(DAG)) {
+        return null;
+      }
       String rmId = split[1];
       int appId = tezAppIdFormat.get().parse(split[2]).intValue();
       int id;

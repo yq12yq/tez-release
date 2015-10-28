@@ -206,7 +206,9 @@ public class MiniTezCluster extends MiniYARNCluster {
 
   @Override
   protected void serviceStop() throws Exception {
+    LOG.info("Waiting for apps to complete before stopping MiniTezCluster");
     waitForAppsToFinish();
+    LOG.info("Stopping MiniTezCluster");
     super.serviceStop();
   }
 
