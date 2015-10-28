@@ -243,6 +243,8 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
       case VERTEX_COMMIT_STARTED:
       case VERTEX_GROUP_COMMIT_STARTED:
       case VERTEX_GROUP_COMMIT_FINISHED:
+        return CacheId.newInstance(event.getDagID().getApplicationId(),
+            event.getDagID().toString());
       case APP_LAUNCHED:
       case AM_LAUNCHED:
       case AM_STARTED:
