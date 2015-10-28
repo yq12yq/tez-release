@@ -171,6 +171,9 @@ public class TezTaskID extends TezID {
   public static TezTaskID fromString(String taskIdStr) {
     try {
       String[] split = taskIdStr.split("_");
+      if (split.length != 6 || !split[0].equals(TASK)) {
+        return null;
+      }
       String rmId = split[1];
       int appId = TezDAGID.tezAppIdFormat.get().parse(split[2]).intValue();
       int dagId = TezDAGID.tezDagIdFormat.get().parse(split[3]).intValue();

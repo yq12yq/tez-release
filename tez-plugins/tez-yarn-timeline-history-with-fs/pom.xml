@@ -21,7 +21,7 @@
     <artifactId>tez-plugins</artifactId>
     <version>0.7.1-SNAPSHOT</version>
   </parent>
-  <artifactId>tez-yarn-timeline-history</artifactId>
+  <artifactId>tez-yarn-timeline-history-with-fs</artifactId>
 
   <dependencies>
     <dependency>
@@ -35,6 +35,16 @@
     <dependency>
       <groupId>org.apache.tez</groupId>
       <artifactId>tez-dag</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.tez</groupId>
+      <artifactId>tez-yarn-timeline-history</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.tez</groupId>
+      <artifactId>tez-yarn-timeline-history</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.tez</groupId>
@@ -62,10 +72,6 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-yarn-client</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-yarn-server-timeline-plugins</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -139,17 +145,5 @@
     </plugins>
   </build>
 
-  <profiles>
-    <profile>
-      <id>hadoop26</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.tez</groupId>
-          <artifactId>tez-yarn-timeline-history</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-      </dependencies>
-    </profile>
-  </profiles>
-
 </project>
+

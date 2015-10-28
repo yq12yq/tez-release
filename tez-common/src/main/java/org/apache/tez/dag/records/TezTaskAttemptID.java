@@ -164,6 +164,9 @@ public class TezTaskAttemptID extends TezID {
   public static TezTaskAttemptID fromString(String taIdStr) {
     try {
       String[] split = taIdStr.split("_");
+      if (split.length != 7 || !split[0].equals(ATTEMPT)) {
+        return null;
+      }
       String rmId = split[1];
       int appId = TezDAGID.tezAppIdFormat.get().parse(split[2]).intValue();
       int dagId = TezDAGID.tezDagIdFormat.get().parse(split[3]).intValue();

@@ -124,6 +124,10 @@ public class TezClient {
       "org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService";
   private static final String atsHistoryACLManagerClassName =
       "org.apache.tez.dag.history.ats.acls.ATSHistoryACLPolicyManager";
+  private static final String atsv15HistoryLoggingServiceClassName =
+      "org.apache.tez.dag.history.logging.ats.ATSV15HistoryLoggingService";
+  private static final String atsV15HistoryACLManagerClassName =
+      "org.apache.tez.dag.history.ats.acls.ATSV15HistoryACLPolicyManager";
 
   private TezClient(String name, TezConfiguration tezConf) {
     this(name, tezConf, tezConf.getBoolean(
@@ -324,8 +328,8 @@ public class TezClient {
       if (logSvcClassName.equals(atsHistoryLoggingServiceClassName)) {
         aclMgrClassName = atsHistoryACLManagerClassName;
       } else if (logSvcClassName.equals(
-          "org.apache.tez.dag.history.logging.ats.EntityFileLoggingService")) {
-        aclMgrClassName = "org.apache.tez.dag.history.ats.acls.EntityFileHistoryACLPolicyManager";
+          atsv15HistoryLoggingServiceClassName)) {
+        aclMgrClassName = atsV15HistoryACLManagerClassName;
       }
       if (aclMgrClassName != null) {
         LOG.info("Using " + aclMgrClassName + " to manage Timeline ACLs");

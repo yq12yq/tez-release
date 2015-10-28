@@ -52,6 +52,18 @@
         <module>tez-yarn-timeline-history-with-acls</module>
       </modules>
     </profile>
+    <profile>
+      <id>ATSv15</id>
+      <activation>
+        <property>
+          <name>!skipATSv15</name>
+        </property>
+      </activation>
+      <modules>
+        <module>tez-yarn-timeline-cache-plugin</module>
+        <module>tez-yarn-timeline-history-with-fs</module>
+      </modules>
+    </profile>
   </profiles>
 
   <build>

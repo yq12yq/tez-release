@@ -6,7 +6,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
-  
+  BUG-46603. Support HDFS-based Timeline writer. 
   TEZ-2910. (BUG-46552) Tez should invoke HDFS Client API to set up caller context.
   TEZ-2896. (BUG-46223) Fix thread names used during Input/Output initialization.
   TEZ-2758. (BUG-45326) Remove append API in RecoveryService after TEZ-1909
