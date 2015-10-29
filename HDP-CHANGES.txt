@@ -30,6 +30,8 @@ IMPROVEMENTS
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
 
 BUG FIXES
+
+  TEZ-2899. (BUG-46926) Backport graphical view fix from TEZ-2899 to 2.3 maint
   TEZ-2882. (BUG-45880) Consider improving fetch failure handling.
   TEZ-2907. (BUG-46604) NPE in IFile.Reader.getLength during final merge operation.
   TEZ-2850. (BUG-46495) Tez MergeManager OOM for small Map Outputs.
