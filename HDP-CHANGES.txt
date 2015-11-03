@@ -31,6 +31,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2866. (BUG-45394) Tez UI: Newly added columns wont be displayed by default in tables
   TEZ-2909. (BUG-46654) Tez UI: Application link in All DAGs table is disable when applicationhistory is unavailable
   TEZ-2553. (BUG-46924) Tez UI: Tez UI Nits
   TEZ-2899. (BUG-46926) Backport graphical view fix from TEZ-2899 to 2.3 maint
