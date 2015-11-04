@@ -1068,6 +1068,6 @@ public class TezConfiguration extends Configuration {
   @Private
   public static final String TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES =
       TEZ_PREFIX + "am.ats.v15.override.summary-types";
-  public static final boolean TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES_DEFAULT = false;
+  public static final boolean TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES_DEFAULT = true;
 
 }
