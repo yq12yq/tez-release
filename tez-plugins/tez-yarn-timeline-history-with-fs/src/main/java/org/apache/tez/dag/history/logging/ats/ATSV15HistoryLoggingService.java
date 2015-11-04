@@ -85,7 +85,7 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
     // Ensure that summary entity types are defined properly for Tez.
     if (conf.getBoolean(TezConfiguration.TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES,
         TezConfiguration.TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES_DEFAULT)) {
-      conf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYFILE_SUMMARY_ENTITY_TYPES,
+      conf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYFILE_CACHE_SUMMARY_ENTITY_TYPES,
           summaryEntityTypesStr);
     }
 
