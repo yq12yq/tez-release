@@ -31,6 +31,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2927. (BUG-45378) Tez UI: Graciously fail when system-metrics-publisher is disabled
   TEZ-2915. (BUG-45266) Tez UI: Getting back to the DAG details page is difficult
   TEZ-2895. (BUG-45385) Tez UI: Add option to enable and disable in-progress
   TEZ-2894. (BUG-45386) Tez UI: Disable sorting for few columns while in progress. Display an alert on trying to sort them
