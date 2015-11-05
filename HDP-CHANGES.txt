@@ -31,6 +31,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2895. (BUG-45385) Tez UI: Add option to enable and disable in-progress
   TEZ-2894. (BUG-45386) Tez UI: Disable sorting for few columns while in progress. Display an alert on trying to sort them
   TEZ-2893. (BUG-45384) Tez UI: Retain vertex info displayed in DAG details page even after completion
   TEZ-2878. (BUG-45378) Tez UI: AM error handling - Make the UI handle cases in which AM returns unexpected/no data
