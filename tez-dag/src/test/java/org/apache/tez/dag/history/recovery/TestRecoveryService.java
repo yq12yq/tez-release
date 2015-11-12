@@ -48,6 +48,7 @@ public class TestRecoveryService {
       + TestRecoveryService.class.getName() + "-tmpDir";
 
   private Configuration conf;
+  private final ApplicationId appId = ApplicationId.newInstance(System.currentTimeMillis(), 1);
 
   @Before
   public void setUp() throws IllegalArgumentException, IOException {
@@ -62,6 +63,7 @@ public class TestRecoveryService {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(TEST_ROOT_DIR));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     MockRecoveryService recoveryService = new MockRecoveryService(appContext);
     conf.setBoolean(RecoveryService.TEZ_TEST_RECOVERY_DRAIN_EVENTS_WHEN_STOPPED, true);
@@ -85,6 +87,7 @@ public class TestRecoveryService {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(TEST_ROOT_DIR));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     MockRecoveryService recoveryService = new MockRecoveryService(appContext);
     conf.setBoolean(RecoveryService.TEZ_TEST_RECOVERY_DRAIN_EVENTS_WHEN_STOPPED, true);
@@ -119,6 +122,7 @@ public class TestRecoveryService {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(TEST_ROOT_DIR));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     MockRecoveryService recoveryService = new MockRecoveryService(appContext);
     conf.setBoolean(RecoveryService.TEZ_TEST_RECOVERY_DRAIN_EVENTS_WHEN_STOPPED, true);
@@ -143,6 +147,7 @@ public class TestRecoveryService {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(TEST_ROOT_DIR));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     MockRecoveryService recoveryService = new MockRecoveryService(appContext);
     conf.setBoolean(RecoveryService.TEZ_TEST_RECOVERY_DRAIN_EVENTS_WHEN_STOPPED, true);

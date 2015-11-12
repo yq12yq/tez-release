@@ -127,6 +127,7 @@ public class TestRecoveryParser {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(recoveryPath+"/1"));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     DAGPlan dagPlan = TestDAGImpl.createTestDAGPlan();
     // write data in attempt_1
@@ -172,6 +173,7 @@ public class TestRecoveryParser {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(recoveryPath+"/1"));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     DAGPlan dagPlan = TestDAGImpl.createTestDAGPlan();
     // write data in attempt_1
@@ -218,6 +220,7 @@ public class TestRecoveryParser {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(recoveryPath+"/1"));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     DAGPlan dagPlan = TestDAGImpl.createTestDAGPlan();
     // write data in attempt_1
@@ -262,6 +265,7 @@ public class TestRecoveryParser {
     AppContext appContext = mock(AppContext.class);
     when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(recoveryPath+"/1"));
     when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
 
     // write data in attempt_1
     RecoveryService rService = new RecoveryService(appContext);
