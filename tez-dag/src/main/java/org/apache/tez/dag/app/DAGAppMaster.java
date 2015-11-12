@@ -272,10 +272,6 @@ public class DAGAppMaster extends AbstractService {
   private ExecutorService rawExecutor;
   private ListeningExecutorService execService;
   
-  /**
-   * set of already executed dag names.
-   */
-  Set<String> dagNames = new HashSet<String>();
   Set<String> dagIDs = new HashSet<String>();
 
   protected boolean isLastAMRetry = false;
@@ -2166,10 +2162,6 @@ public class DAGAppMaster extends AbstractService {
     long submitTime = this.clock.getTime();
     this.state = DAGAppMasterState.RUNNING;
     this.appName = dagPlan.getName();
-    if (dagNames.contains(dagPlan.getName())) {
-      throw new TezException("Duplicate dag name '" + dagPlan.getName() + "'");
-    }
-    dagNames.add(dagPlan.getName());
 
     // /////////////////// Create the job itself.
     DAG newDAG = createDAG(dagPlan);
