@@ -24,9 +24,9 @@ import java.util.Set;
 import java.util.SortedSet;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.CacheId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
 import org.apache.hadoop.yarn.server.timeline.NameValuePair;
-import org.apache.hadoop.yarn.server.timeline.TimelineCacheIdPlugin;
+import org.apache.hadoop.yarn.server.timeline.TimelineEntityGroupPlugin;
 import org.apache.tez.dag.history.logging.EntityTypes;
 import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
@@ -35,7 +35,7 @@ import org.apache.tez.dag.records.TezVertexID;
 
 import com.google.common.collect.Sets;
 
-public class TimelineCachePluginImpl extends TimelineCacheIdPlugin {
+public class TimelineCachePluginImpl extends TimelineEntityGroupPlugin {
 
   private static Set<String> summaryEntityTypes;
   private static Set<String> knownEntityTypes;
@@ -56,7 +56,7 @@ public class TimelineCachePluginImpl extends TimelineCacheIdPlugin {
   public TimelineCachePluginImpl() {
   }
 
-  private CacheId convertToCacheId(String entityType, String entityId) {
+  private TimelineEntityGroupId convertToTimelineEntityGroupId(String entityType, String entityId) {
     if (entityType == null || entityType.isEmpty()
         || entityId == null || entityId.isEmpty()) {
       return null;
@@ -64,25 +64,25 @@ public class TimelineCachePluginImpl extends TimelineCacheIdPlugin {
     if (entityType.equals(EntityTypes.TEZ_DAG_ID.name())) {
       TezDAGID dagId = TezDAGID.fromString(entityId);
       if (dagId != null) {
-        return CacheId.newInstance(dagId.getApplicationId(), dagId.toString());
+        return TimelineEntityGroupId.newInstance(dagId.getApplicationId(), dagId.toString());
       }
     } else if (entityType.equals(EntityTypes.TEZ_VERTEX_ID.name())) {
       TezVertexID vertexID = TezVertexID.fromString(entityId);
       if (vertexID != null) {
-        return CacheId.newInstance(vertexID.getDAGId().getApplicationId(),
+        return TimelineEntityGroupId.newInstance(vertexID.getDAGId().getApplicationId(),
             vertexID.getDAGId().toString());
       }
 
     } else if (entityType.equals(EntityTypes.TEZ_TASK_ID.name())) {
       TezTaskID taskID = TezTaskID.fromString(entityId);
       if (taskID != null) {
-        return CacheId.newInstance(taskID.getVertexID().getDAGId().getApplicationId(),
+        return TimelineEntityGroupId.newInstance(taskID.getVertexID().getDAGId().getApplicationId(),
             taskID.getVertexID().getDAGId().toString());
       }
     } else if (entityType.equals(EntityTypes.TEZ_TASK_ATTEMPT_ID.name())) {
       TezTaskAttemptID taskAttemptID = TezTaskAttemptID.fromString(entityId);
       if (taskAttemptID != null) {
-        return CacheId.newInstance(
+        return TimelineEntityGroupId.newInstance(
             taskAttemptID.getTaskID().getVertexID().getDAGId().getApplicationId(),
             taskAttemptID.getTaskID().getVertexID().getDAGId().toString());
       }
@@ -90,9 +90,8 @@ public class TimelineCachePluginImpl extends TimelineCacheIdPlugin {
     return null;
   }
 
-
   @Override
-  public Set<CacheId> getCacheId(String entityType,
+  public Set<TimelineEntityGroupId> getTimelineEntityGroupId(String entityType,
       NameValuePair primaryFilter,
       Collection<NameValuePair> secondaryFilters) {
     if (!knownEntityTypes.contains(entityType)
@@ -101,52 +100,54 @@ public class TimelineCachePluginImpl extends TimelineCacheIdPlugin {
         || summaryEntityTypes.contains(entityType)) {
       return null;
     }
-    CacheId cacheId = convertToCacheId(primaryFilter.getName(),
+    TimelineEntityGroupId groupId = convertToTimelineEntityGroupId(primaryFilter.getName(),
         primaryFilter.getValue().toString());
-    if (cacheId != null) {
-      CacheId appCacheId = CacheId.newInstance(cacheId.getApplicationId(),
-          cacheId.getApplicationId().toString());
-      return Sets.newHashSet(cacheId, appCacheId);
+    if (groupId != null) {
+      TimelineEntityGroupId appGroupId =
+          TimelineEntityGroupId.newInstance(groupId.getApplicationId(),
+              groupId.getApplicationId().toString());
+      return Sets.newHashSet(groupId, appGroupId);
     }
     return null;
   }
 
   @Override
-  public Set<CacheId> getCacheId(String entityId, String entityType) {
+  public Set<TimelineEntityGroupId> getTimelineEntityGroupId(String entityId, String entityType) {
     if (!knownEntityTypes.contains(entityType) || summaryEntityTypes.contains(entityType)) {
       return null;
     }
-    CacheId cacheId = convertToCacheId(entityType, entityId);
-    if (cacheId != null) {
-      CacheId appCacheId = CacheId.newInstance(cacheId.getApplicationId(),
-          cacheId.getApplicationId().toString());
-      return Sets.newHashSet(cacheId, appCacheId);
+    TimelineEntityGroupId groupId = convertToTimelineEntityGroupId(entityType, entityId);
+    if (groupId != null) {
+      TimelineEntityGroupId appGroupId =
+          TimelineEntityGroupId.newInstance(groupId.getApplicationId(),
+              groupId.getApplicationId().toString());
+      return Sets.newHashSet(groupId, appGroupId);
     }
     return null;
   }
 
   @Override
-  public Set<CacheId> getCacheId(String entityType, SortedSet<String> entityIds,
-      Set<String> eventTypes) {
+  public Set<TimelineEntityGroupId> getTimelineEntityGroupId(String entityType,
+      SortedSet<String> entityIds, Set<String> eventTypes) {
     if (!knownEntityTypes.contains(entityType)
         || summaryEntityTypes.contains(entityType)
         || entityIds == null || entityIds.isEmpty()) {
       return null;
     }
-    Set<CacheId> cacheIds = new HashSet<CacheId>();
+    Set<TimelineEntityGroupId> groupIds = new HashSet<TimelineEntityGroupId>();
     Set<ApplicationId> appIdSet = new HashSet<ApplicationId>();
 
     for (String entityId : entityIds) {
-      CacheId cacheId = convertToCacheId(entityType, entityId);
-      if (cacheId != null) {
-        cacheIds.add(cacheId);
-        appIdSet.add(cacheId.getApplicationId());
+      TimelineEntityGroupId groupId = convertToTimelineEntityGroupId(entityType, entityId);
+      if (groupId != null) {
+        groupIds.add(groupId);
+        appIdSet.add(groupId.getApplicationId());
       }
     }
     for (ApplicationId appId : appIdSet) {
-      cacheIds.add(CacheId.newInstance(appId, appId.toString()));
+      groupIds.add(TimelineEntityGroupId.newInstance(appId, appId.toString()));
     }
-    return cacheIds;
+    return groupIds;
   }
 
 }
