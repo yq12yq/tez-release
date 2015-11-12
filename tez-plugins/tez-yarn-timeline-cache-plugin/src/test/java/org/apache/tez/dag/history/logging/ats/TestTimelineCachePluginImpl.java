@@ -29,7 +29,7 @@ import java.util.TreeSet;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.CacheId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
 import org.apache.hadoop.yarn.server.timeline.NameValuePair;
 import org.apache.tez.dag.history.logging.EntityTypes;
 import org.apache.tez.dag.records.TezDAGID;
@@ -90,100 +90,108 @@ public class TestTimelineCachePluginImpl {
   }
 
   @Test
-  public void testGetCacheIdByPrimaryFilter() {
+  public void testGetTimelineEntityGroupIdByPrimaryFilter() {
     for (Entry<String, String> entry : typeIdMap1.entrySet()) {
       NameValuePair primaryFilter = new NameValuePair(entry.getKey(), entry.getValue());
-      Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_APPLICATION.name(), primaryFilter, null));
-      Set<CacheId> cacheIds = plugin.getCacheId(entry.getKey(), primaryFilter, null);
+      Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_APPLICATION.name(),
+          primaryFilter, null));
+      Set<TimelineEntityGroupId> groupIds = plugin.getTimelineEntityGroupId(entry.getKey(), primaryFilter, null);
       if (entry.getKey().equals(EntityTypes.TEZ_DAG_ID.name())) {
-        Assert.assertNull(cacheIds);
+        Assert.assertNull(groupIds);
         continue;
       }
-      Assert.assertEquals(2, cacheIds.size());
-      Iterator<CacheId> iter = cacheIds.iterator();
+      Assert.assertEquals(2, groupIds.size());
+      Iterator<TimelineEntityGroupId> iter = groupIds.iterator();
       while (iter.hasNext()) {
-        CacheId cacheId = iter.next();
-        Assert.assertEquals(appId1, cacheId.getApplicationId());
-        Assert.assertTrue((dagID1.toString().equals(cacheId.getCacheId()))
-            || (appId1.toString().equals(cacheId.getCacheId())));
+        TimelineEntityGroupId groupId = iter.next();
+        Assert.assertEquals(appId1, groupId.getApplicationId());
+        Assert.assertTrue((dagID1.toString().equals(groupId.getTimelineEntityGroupId()))
+            || (appId1.toString().equals(groupId.getTimelineEntityGroupId())));
       }
     }
   }
 
   @Test
-  public void testGetCacheIdById() {
+  public void testGetTimelineEntityGroupIdById() {
     for (Entry<String, String> entry : typeIdMap1.entrySet()) {
-      Set<CacheId> cacheIds = plugin.getCacheId(entry.getValue(), entry.getKey());
+      Set<TimelineEntityGroupId> groupIds = plugin.getTimelineEntityGroupId(entry.getValue(), entry.getKey());
       if (entry.getKey().equals(EntityTypes.TEZ_DAG_ID.name())) {
-        Assert.assertNull(cacheIds);
+        Assert.assertNull(groupIds);
         continue;
       }
-      Assert.assertEquals(2, cacheIds.size());
-      Iterator<CacheId> iter = cacheIds.iterator();
+      Assert.assertEquals(2, groupIds.size());
+      Iterator<TimelineEntityGroupId> iter = groupIds.iterator();
       while (iter.hasNext()) {
-        CacheId cacheId = iter.next();
-        Assert.assertEquals(appId1, cacheId.getApplicationId());
-        Assert.assertTrue((dagID1.toString().equals(cacheId.getCacheId()))
-            || (appId1.toString().equals(cacheId.getCacheId())));
+        TimelineEntityGroupId groupId = iter.next();
+        Assert.assertEquals(appId1, groupId.getApplicationId());
+        Assert.assertTrue((dagID1.toString().equals(groupId.getTimelineEntityGroupId()))
+            || (appId1.toString().equals(groupId.getTimelineEntityGroupId())));
       }
     }
   }
 
   @Test
-  public void testGetCacheIdByIds() {
+  public void testGetTimelineEntityGroupIdByIds() {
     for (Entry<String, String> entry : typeIdMap1.entrySet()) {
       SortedSet<String> entityIds = new TreeSet<String>();
       entityIds.add(entry.getValue());
       entityIds.add(typeIdMap2.get(entry.getKey()));
-      Set<CacheId> cacheIds = plugin.getCacheId(entry.getKey(), entityIds, null);
+      Set<TimelineEntityGroupId> groupIds = plugin.getTimelineEntityGroupId(entry.getKey(),
+          entityIds, null);
       if (entry.getKey().equals(EntityTypes.TEZ_DAG_ID.name())) {
-        Assert.assertNull(cacheIds);
+        Assert.assertNull(groupIds);
         continue;
       }
-      Assert.assertEquals(4, cacheIds.size());
+      Assert.assertEquals(4, groupIds.size());
       int found = 0;
-      Iterator<CacheId> iter = cacheIds.iterator();
+      Iterator<TimelineEntityGroupId> iter = groupIds.iterator();
       while (iter.hasNext()) {
-        CacheId cacheId = iter.next();
-        if (cacheId.getApplicationId().equals(appId1)
-            && cacheId.getCacheId().equals(dagID1.toString())) {
+        TimelineEntityGroupId groupId = iter.next();
+        if (groupId.getApplicationId().equals(appId1)
+            && groupId.getTimelineEntityGroupId().equals(dagID1.toString())) {
           ++found;
-        } else if (cacheId.getApplicationId().equals(appId2)
-            && cacheId.getCacheId().equals(dagID2.toString())) {
+        } else if (groupId.getApplicationId().equals(appId2)
+            && groupId.getTimelineEntityGroupId().equals(dagID2.toString())) {
           ++found;
-        } else if (cacheId.getApplicationId().equals(appId1)
-            && cacheId.getCacheId().equals(appId1.toString())) {
+        } else if (groupId.getApplicationId().equals(appId1)
+            && groupId.getTimelineEntityGroupId().equals(appId1.toString())) {
           ++found;
-        } else if (cacheId.getApplicationId().equals(appId2)
-            && cacheId.getCacheId().equals(appId2.toString())) {
+        } else if (groupId.getApplicationId().equals(appId2)
+            && groupId.getTimelineEntityGroupId().equals(appId2.toString())) {
           ++found;
         }
       }
-      Assert.assertEquals("All cacheIds not returned", 4, found);
+      Assert.assertEquals("All groupIds not returned", 4, found);
     }
   }
 
   @Test
   public void testInvalidIds() {
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_DAG_ID.name(), vertexID1.toString()));
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_VERTEX_ID.name(), taskID1.toString()));
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_TASK_ID.name(), attemptID1.toString()));
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_TASK_ATTEMPT_ID.name(), dagID1.toString()));
-    Assert.assertNull(plugin.getCacheId("", ""));
-    Assert.assertNull(plugin.getCacheId(null, null));
-    Assert.assertNull(plugin.getCacheId("adadasd", EntityTypes.TEZ_DAG_ID.name()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_DAG_ID.name(),
+        vertexID1.toString()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_VERTEX_ID.name(),
+        taskID1.toString()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_TASK_ID.name(),
+        attemptID1.toString()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_TASK_ATTEMPT_ID.name(),
+        dagID1.toString()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId("", ""));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(null, null));
+    Assert.assertNull(plugin.getTimelineEntityGroupId("adadasd", EntityTypes.TEZ_DAG_ID.name()));
   }
 
   @Test
   public void testInvalidTypeRequests() {
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_APPLICATION.name(), appId1.toString()));
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_APPLICATION_ATTEMPT.name(),
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_APPLICATION.name(),
+        appId1.toString()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_APPLICATION_ATTEMPT.name(),
         appAttemptId1.toString()));
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_CONTAINER_ID.name(), appId1.toString()));
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_CONTAINER_ID.name(),
+        appId1.toString()));
 
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_TASK_ID.name(), null,
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_TASK_ID.name(), null,
         new HashSet<String>()));
-    Assert.assertNull(plugin.getCacheId(EntityTypes.TEZ_TASK_ID.name(), null,
+    Assert.assertNull(plugin.getTimelineEntityGroupId(EntityTypes.TEZ_TASK_ID.name(), null,
         new HashSet<NameValuePair>()));
 
   }

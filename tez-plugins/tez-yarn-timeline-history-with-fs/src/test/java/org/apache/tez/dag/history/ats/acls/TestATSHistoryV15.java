@@ -144,12 +144,12 @@ public class TestATSHistoryV15 {
       remoteFs.mkdirs(atsDonePath);
 
       tezConf.setInt(DFSConfigKeys.DFS_REPLICATION_KEY, 1);
-      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYFILE_CACHE_ACTIVE_DIR,
+      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_ACTIVE_DIR,
           remoteFs.resolvePath(atsActivePath).toString());
-      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYFILE_CACHE_DONE_DIR,
+      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_DONE_DIR,
           remoteFs.resolvePath(atsDonePath).toString());
-      tezConf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_PLUGIN_ENABLED, true);
-      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYFILE_CACHE_SUMMARY_ENTITY_TYPES,
+      tezConf.setDouble(YarnConfiguration.TIMELINE_SERVICE_VERSION, 1.5);
+      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_SUMMARY_ENTITY_TYPES,
           "TEZ_DAG_ID");
 
       tezConf.set(TezConfiguration.TEZ_AM_VIEW_ACLS, viewAcls);

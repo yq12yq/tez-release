@@ -23,7 +23,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hadoop.yarn.api.records.CacheId;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
 import org.apache.tez.dag.history.logging.EntityTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,6 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
   private long maxTimeToWaitOnShutdown;
   private boolean waitForeverOnShutdown = false;
 
-  private int maxEventsPerBatch;
   private long maxPollingTimeMillis;
 
   private static final String atsHistoryLoggingServiceClassName =
@@ -85,7 +84,7 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
     // Ensure that summary entity types are defined properly for Tez.
     if (conf.getBoolean(TezConfiguration.TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES,
         TezConfiguration.TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES_DEFAULT)) {
-      conf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYFILE_CACHE_SUMMARY_ENTITY_TYPES,
+      conf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_SUMMARY_ENTITY_TYPES,
           summaryEntityTypesStr);
     }
 
@@ -206,7 +205,6 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
               handleEvents(event);
             } catch (Exception e) {
               LOG.warn("Error handling event", e);
-              continue;
             }
           } catch (InterruptedException e) {
             LOG.info("ATSService interrupted while shutting down. Exiting."
@@ -222,7 +220,7 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
     timelineClient.stop();
   }
 
-  private CacheId getCacheId(DAGHistoryEvent event) {
+  private TimelineEntityGroupId getGroupId(DAGHistoryEvent event) {
     // Changing this function will impact TimelineCachePluginImpl and should be done very
     // carefully to account for handling different versions of Tez
     switch (event.getHistoryEvent().getEventType()) {
@@ -243,14 +241,14 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
       case VERTEX_COMMIT_STARTED:
       case VERTEX_GROUP_COMMIT_STARTED:
       case VERTEX_GROUP_COMMIT_FINISHED:
-        return CacheId.newInstance(event.getDagID().getApplicationId(),
+        return TimelineEntityGroupId.newInstance(event.getDagID().getApplicationId(),
             event.getDagID().toString());
       case APP_LAUNCHED:
       case AM_LAUNCHED:
       case AM_STARTED:
       case CONTAINER_LAUNCHED:
       case CONTAINER_STOPPED:
-        return CacheId.newInstance(appContext.getApplicationID(),
+        return TimelineEntityGroupId.newInstance(appContext.getApplicationID(),
             appContext.getApplicationID().toString());
     }
     return null;
@@ -298,9 +296,9 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
         HistoryEventTimelineConversion.convertToTimelineEntity(event.getHistoryEvent());
 
     try {
-      CacheId cacheId = getCacheId(event);
-      TimelinePutResponse response = timelineClient.putEntities(cacheId,
-          appContext.getApplicationAttemptId(), entity);
+      TimelineEntityGroupId groupId = getGroupId(event);
+      TimelinePutResponse response = timelineClient.putEntities(
+          appContext.getApplicationAttemptId(), groupId, entity);
       if (response != null
           && !response.getErrors().isEmpty()) {
         int count = response.getErrors().size();
