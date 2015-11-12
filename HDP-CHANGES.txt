@@ -31,6 +31,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2930. (BUG-47756) Tez UI: Parent controller is not polling at times
   TEZ-2929. (BUG-47407) Tez UI: Dag details page displays vertices to be running even when dag have completed
   TEZ-2927. (BUG-45378) Tez UI: Graciously fail when system-metrics-publisher is disabled
   TEZ-2915. (BUG-45266) Tez UI: Getting back to the DAG details page is difficult
