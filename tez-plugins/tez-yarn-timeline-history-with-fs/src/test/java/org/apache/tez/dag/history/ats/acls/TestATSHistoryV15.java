@@ -88,13 +88,14 @@ public class TestATSHistoryV15 {
   protected static MiniTezClusterWithTimeline mrrTezCluster = null;
   protected static MiniDFSCluster dfsCluster = null;
   private static String timelineAddress;
-  private Random random = new Random();
+  private static Random random = new Random();
 
   private static Configuration conf = new Configuration();
   private static FileSystem remoteFs;
 
   private static String TEST_ROOT_DIR = "target" + Path.SEPARATOR
       + TestATSHistoryV15.class.getName() + "-tmpDir";
+  private static Path atsActivePath;
 
   private static String user;
 
@@ -117,6 +118,20 @@ public class TestATSHistoryV15 {
         conf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true);
         conf.set("fs.defaultFS", remoteFs.getUri().toString()); // use HDFS
         conf.setInt("yarn.nodemanager.delete.debug-delay-sec", 20000);
+        atsActivePath = new Path("/tmp/ats/active/" + random.nextInt(100000));
+        Path atsDonePath = new Path("/tmp/ats/done/" + random.nextInt(100000));
+        conf.setDouble(YarnConfiguration.TIMELINE_SERVICE_VERSION, 1.5);
+
+        remoteFs.mkdirs(atsActivePath);
+        remoteFs.mkdirs(atsDonePath);
+
+        conf.setInt(DFSConfigKeys.DFS_REPLICATION_KEY, 1);
+        conf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_ACTIVE_DIR,
+            remoteFs.resolvePath(atsActivePath).toString());
+        conf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_DONE_DIR,
+            remoteFs.resolvePath(atsDonePath).toString());
+
+
         mrrTezCluster.init(conf);
         mrrTezCluster.start();
       } catch (Throwable e) {
@@ -162,18 +177,6 @@ public class TestATSHistoryV15 {
 
       TezConfiguration tezConf = new TezConfiguration(mrrTezCluster.getConfig());
 
-      Path atsActivePath = new Path("/tmp/ats/active/" + random.nextInt(100000));
-      Path atsDonePath = new Path("/tmp/ats/done/" + random.nextInt(100000));
-
-      remoteFs.mkdirs(atsActivePath);
-      remoteFs.mkdirs(atsDonePath);
-
-      tezConf.setInt(DFSConfigKeys.DFS_REPLICATION_KEY, 1);
-      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_ACTIVE_DIR,
-          remoteFs.resolvePath(atsActivePath).toString());
-      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_DONE_DIR,
-          remoteFs.resolvePath(atsDonePath).toString());
-      tezConf.setDouble(YarnConfiguration.TIMELINE_SERVICE_VERSION, 1.5);
       tezConf.set(YarnConfiguration.TIMELINE_SERVICE_ENTITYGROUP_FS_STORE_SUMMARY_ENTITY_TYPES,
           "TEZ_DAG_ID");
 

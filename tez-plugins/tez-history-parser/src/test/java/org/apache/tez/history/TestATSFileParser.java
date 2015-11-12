@@ -164,6 +164,7 @@ public class TestATSFileParser {
     conf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true);
     conf.set(TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS, ATSHistoryLoggingService
         .class.getName());
+    conf.setDouble(YarnConfiguration.TIMELINE_SERVICE_VERSION, 1);
 
     miniTezCluster =
         new MiniTezClusterWithTimeline(TEZ_BASE_DIR, 1, 1, 1, true);

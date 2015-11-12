@@ -87,6 +87,7 @@ public class TestATSHistoryWithMiniCluster {
         conf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true);
         conf.set("fs.defaultFS", remoteFs.getUri().toString()); // use HDFS
         conf.setInt("yarn.nodemanager.delete.debug-delay-sec", 20000);
+        conf.setDouble(YarnConfiguration.TIMELINE_SERVICE_VERSION, 1);
         mrrTezCluster.init(conf);
         mrrTezCluster.start();
       } catch (Throwable e) {
