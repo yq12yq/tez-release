@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.SortedSet;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
 import org.apache.hadoop.yarn.server.timeline.NameValuePair;
 import org.apache.hadoop.yarn.server.timeline.TimelineEntityGroupPlugin;
@@ -45,7 +46,8 @@ public class TimelineCachePluginImpl extends TimelineEntityGroupPlugin {
         EntityTypes.TEZ_DAG_ID.name(),
         EntityTypes.TEZ_VERTEX_ID.name(),
         EntityTypes.TEZ_TASK_ID.name(),
-        EntityTypes.TEZ_TASK_ATTEMPT_ID.name());
+        EntityTypes.TEZ_TASK_ATTEMPT_ID.name(),
+        EntityTypes.TEZ_CONTAINER_ID.name());
     summaryEntityTypes = Sets.newHashSet(
         EntityTypes.TEZ_DAG_ID.name(),
         EntityTypes.TEZ_APPLICATION_ATTEMPT.name(),
@@ -85,6 +87,17 @@ public class TimelineCachePluginImpl extends TimelineEntityGroupPlugin {
         return TimelineEntityGroupId.newInstance(
             taskAttemptID.getTaskID().getVertexID().getDAGId().getApplicationId(),
             taskAttemptID.getTaskID().getVertexID().getDAGId().toString());
+      }
+    } else if (entityType.equals(EntityTypes.TEZ_CONTAINER_ID.name())) {
+      String cId = entityId;
+      if (cId.startsWith("tez_")) {
+        cId = cId.substring(4);
+      }
+      ContainerId containerId = ContainerId.fromString(cId);
+      if (containerId != null) {
+        return TimelineEntityGroupId.newInstance(
+            containerId.getApplicationAttemptId().getApplicationId(),
+            containerId.getApplicationAttemptId().getApplicationId().toString());
       }
     }
     return null;
