@@ -29,6 +29,7 @@ import java.util.TreeSet;
 
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
 import org.apache.hadoop.yarn.server.timeline.NameValuePair;
 import org.apache.tez.dag.history.logging.EntityTypes;
@@ -39,6 +40,8 @@ import org.apache.tez.dag.records.TezVertexID;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.google.common.collect.Sets;
 
 public class TestTimelineCachePluginImpl {
 
@@ -53,6 +56,8 @@ public class TestTimelineCachePluginImpl {
   static TezVertexID vertexID2;
   static TezTaskID taskID2;
   static TezTaskAttemptID attemptID2;
+  static ContainerId cId1;
+  static ContainerId cId2;
   static Map<String, String> typeIdMap1;
   static Map<String, String> typeIdMap2;
 
@@ -74,6 +79,9 @@ public class TestTimelineCachePluginImpl {
     vertexID2 = TezVertexID.getInstance(dagID2, 121);
     taskID2 = TezTaskID.getInstance(vertexID2, 113344);
     attemptID2 = TezTaskAttemptID.getInstance(taskID2, 14);
+
+    cId1 = ContainerId.newContainerId(appAttemptId1, 1);
+    cId2 = ContainerId.newContainerId(ApplicationAttemptId.newInstance(appId2, 1), 22);
 
     typeIdMap1 = new HashMap<String, String>();
     typeIdMap1.put(EntityTypes.TEZ_DAG_ID.name(), dagID1.toString());
@@ -196,4 +204,57 @@ public class TestTimelineCachePluginImpl {
 
   }
 
+  @Test
+  public void testContainerIdConversion() {
+
+    String entityType = EntityTypes.TEZ_CONTAINER_ID.name();
+    SortedSet<String> entityIds = new TreeSet<String>();
+    entityIds.add("tez_" + cId1.toString());
+    entityIds.add("tez_" + cId2.toString());
+    Set<TimelineEntityGroupId> groupIds = plugin.getTimelineEntityGroupId(entityType,
+        entityIds, null);
+    Assert.assertEquals(2, groupIds.size());
+    int found = 0;
+    Iterator<TimelineEntityGroupId> iter = groupIds.iterator();
+    while (iter.hasNext()) {
+      TimelineEntityGroupId groupId = iter.next();
+      if (groupId.getApplicationId().equals(appId1)
+          && groupId.getTimelineEntityGroupId().equals(appId1.toString())) {
+        ++found;
+      } else if (groupId.getApplicationId().equals(appId2)
+          && groupId.getTimelineEntityGroupId().equals(appId2.toString())) {
+        ++found;
+      }
+    }
+    Assert.assertEquals("All groupIds not returned", 2, found);
+
+    groupIds.clear();
+    groupIds = plugin.getTimelineEntityGroupId(cId1.toString(), entityType);
+    Assert.assertEquals(1, groupIds.size());
+    found = 0;
+    iter = groupIds.iterator();
+    while (iter.hasNext()) {
+      TimelineEntityGroupId groupId = iter.next();
+      if (groupId.getApplicationId().equals(appId1)
+          && groupId.getTimelineEntityGroupId().equals(appId1.toString())) {
+        ++found;
+      }
+    }
+    Assert.assertEquals("All groupIds not returned", 1, found);
+
+    groupIds.clear();
+    groupIds = plugin.getTimelineEntityGroupId("tez_" + cId2.toString(), entityType);
+    Assert.assertEquals(1, groupIds.size());
+    found = 0;
+    iter = groupIds.iterator();
+    while (iter.hasNext()) {
+      TimelineEntityGroupId groupId = iter.next();
+      if (groupId.getApplicationId().equals(appId2)
+          && groupId.getTimelineEntityGroupId().equals(appId2.toString())) {
+        ++found;
+      }
+    }
+    Assert.assertEquals("All groupIds not returned", 1, found);
+
+  }
 }
