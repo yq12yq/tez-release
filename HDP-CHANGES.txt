@@ -32,6 +32,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2923. (BUG-45381) Tez Live UI counters view empty for vertices, tasks, attempts
   TEZ-2933. (BUG-47675) Tez UI: Load application details from RM when available
   TEZ-2908. (BUG-46445) Tez UI: Errors are logged, but not displayed in the UI when AM fetch fails
   TEZ-2930. (BUG-47756) Tez UI: Parent controller is not polling at times
