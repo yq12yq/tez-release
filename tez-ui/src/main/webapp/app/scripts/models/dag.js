@@ -48,7 +48,7 @@ App.Dag = App.AbstractEntity.extend({
   }.property('id'),
 
   tezApp: DS.belongsTo('tezApp'),
-  appDetail: DS.belongsTo('appDetail'),
+  appDetail: DS.attr('object'),
 
   progress: DS.attr('number'),
 
@@ -318,8 +318,8 @@ App.AppDetail = App.AbstractEntity.extend({
   queue: DS.attr('string'),
   type: DS.attr('string'),
 
-  appState: DS.attr('string'),
-  finalAppStatus: DS.attr('string'),
+  status: DS.attr('string'),
+  finalStatus: DS.attr('string'),
   progress: DS.attr('string'),
 
   startedTime: DS.attr('number'),
@@ -338,7 +338,7 @@ App.TezApp = App.AbstractEntity.extend({
 
   startedTime: DS.attr('number'),
 
-  appDetail: DS.belongsTo('appDetail', { async: true }),
+  appDetail: DS.attr('object'),
   dags: DS.hasMany('dag', { async: true }),
 
   configs: DS.hasMany('kVData', { async: false }),
@@ -351,6 +351,18 @@ App.TezApp = App.AbstractEntity.extend({
 App.ClusterApp = App.AbstractEntity.extend({
   status: DS.attr('string'),
   finalStatus: DS.attr('string'),
+
+  user: DS.attr('string'),
+  name: DS.attr('string'),
+  queue: DS.attr('string'),
+  type: DS.attr('string'),
+
+  startedTime: DS.attr('number'),
+  elapsedTime: DS.attr('number'),
+  finishedTime: DS.attr('number'),
+  submittedTime: DS.attr('number'),
+
+  progress: DS.attr('number'),
 
   isComplete: function () {
     var status = this.get('status');
