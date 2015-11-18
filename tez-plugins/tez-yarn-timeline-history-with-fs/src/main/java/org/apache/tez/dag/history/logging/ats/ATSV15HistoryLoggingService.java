@@ -25,19 +25,18 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
-import org.apache.tez.dag.history.events.DAGRecoveredEvent;
-import org.apache.tez.dag.history.logging.EntityTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.timeline.TimelineEntity;
+import org.apache.hadoop.yarn.api.records.timeline.TimelineEntityGroupId;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse;
 import org.apache.hadoop.yarn.api.records.timeline.TimelinePutResponse.TimelinePutError;
 import org.apache.hadoop.yarn.client.api.TimelineClient;
-import org.apache.tez.common.ReflectionUtils;
-import org.apache.tez.common.security.HistoryACLPolicyManager;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.tez.common.ReflectionUtils;
+import org.apache.tez.common.TezUtilsInternal;
+import org.apache.tez.common.security.HistoryACLPolicyManager;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezConstants;
 import org.apache.tez.dag.api.TezReflectionException;
@@ -45,6 +44,8 @@ import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.events.DAGSubmittedEvent;
 import org.apache.tez.dag.history.logging.HistoryLoggingService;
+import org.apache.tez.dag.history.events.DAGRecoveredEvent;
+import org.apache.tez.dag.history.logging.EntityTypes;
 import org.apache.tez.dag.records.TezDAGID;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -163,6 +164,7 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
       @Override
       public void run() {
         boolean interrupted = false;
+        TezUtilsInternal.setHadoopCallerContext(appContext.getApplicationID());
         while (!stopped.get() && !Thread.currentThread().isInterrupted()
               && !interrupted) {
 
@@ -217,35 +219,40 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
     if (eventHandlingThread != null) {
       eventHandlingThread.interrupt();
     }
-    synchronized (lock) {
-      if (!eventQueue.isEmpty()) {
-        LOG.warn("ATSService being stopped"
-            + ", eventQueueBacklog=" + eventQueue.size()
-            + ", maxTimeLeftToFlush=" + maxTimeToWaitOnShutdown
-            + ", waitForever=" + waitForeverOnShutdown);
-        long startTime = appContext.getClock().getTime();
-        long endTime = startTime + maxTimeToWaitOnShutdown;
-        while (waitForeverOnShutdown || (endTime >= appContext.getClock().getTime())) {
-          try {
-            DAGHistoryEvent event = eventQueue.poll(maxPollingTimeMillis, TimeUnit.MILLISECONDS);
-            if (event == null) {
-              LOG.info("Event queue empty, stopping ATS Service");
-              break;
-            }
-            if (!isValidEvent(event)) {
-              continue;
-            }
+    try {
+      TezUtilsInternal.setHadoopCallerContext(appContext.getApplicationID());
+      synchronized (lock) {
+        if (!eventQueue.isEmpty()) {
+          LOG.warn("ATSService being stopped"
+              + ", eventQueueBacklog=" + eventQueue.size()
+              + ", maxTimeLeftToFlush=" + maxTimeToWaitOnShutdown
+              + ", waitForever=" + waitForeverOnShutdown);
+          long startTime = appContext.getClock().getTime();
+          long endTime = startTime + maxTimeToWaitOnShutdown;
+          while (waitForeverOnShutdown || (endTime >= appContext.getClock().getTime())) {
             try {
-              handleEvents(event);
-            } catch (Exception e) {
-              LOG.warn("Error handling event", e);
+              DAGHistoryEvent event = eventQueue.poll(maxPollingTimeMillis, TimeUnit.MILLISECONDS);
+              if (event == null) {
+                LOG.info("Event queue empty, stopping ATS Service");
+                break;
+              }
+              if (!isValidEvent(event)) {
+                continue;
+              }
+              try {
+                handleEvents(event);
+              } catch (Exception e) {
+                LOG.warn("Error handling event", e);
+              }
+            } catch (InterruptedException e) {
+              LOG.info("ATSService interrupted while shutting down. Exiting."
+                  + " EventQueueBacklog=" + eventQueue.size());
             }
-          } catch (InterruptedException e) {
-            LOG.info("ATSService interrupted while shutting down. Exiting."
-                + " EventQueueBacklog=" + eventQueue.size());
           }
         }
       }
+    } finally {
+      TezUtilsInternal.clearHadoopCallerContext();
     }
     if (!eventQueue.isEmpty()) {
       LOG.warn("Did not finish flushing eventQueue before stopping ATSService"
