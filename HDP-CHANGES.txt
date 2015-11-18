@@ -6,6 +6,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-2949. (BUG-47794) Allow duplicate dag names within session for Tez.
   TEZ-2936. (BUG-46603) Support HDFS-based Timeline writer. 
   TEZ-2910. (BUG-46552) Tez should invoke HDFS Client API to set up caller context.
   TEZ-2896. (BUG-46223) Fix thread names used during Input/Output initialization.
