@@ -19,7 +19,7 @@
   <groupId>org.apache.tez</groupId>
   <artifactId>tez</artifactId>
   <packaging>pom</packaging>
-  <version>0.5.2-SNAPSHOT</version>
+  <version>0.5.2.2.2.9.0-3393</version>
   <name>tez</name>
 
   <licenses>
@@ -37,7 +37,7 @@
   <properties>
     <maven.test.redirectTestOutputToFile>true</maven.test.redirectTestOutputToFile>
     <clover.license>${user.home}/clover.license</clover.license>
-    <hadoop.version>2.4.0</hadoop.version>
+    <hadoop.version>2.6.0.2.2.9.0-3393</hadoop.version>
     <jetty.version>6.1.26.hwx</jetty.version>
     <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
     <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
