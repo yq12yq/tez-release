@@ -1779,7 +1779,7 @@ public class DAGAppMaster extends AbstractService {
         if (recoveredDAGData.nonRecoverable) {
           DAGEventRecoverEvent recoverDAGEvent =
               new DAGEventRecoverEvent(recoveredDAGData.recoveredDAG.getID(),
-                  DAGState.FAILED, classpathUrls);
+                  DAGState.FAILED, classpathUrls, recoveredDAGData.reason);
           DAGRecoveredEvent dagRecoveredEvent = new DAGRecoveredEvent(this.appAttemptID,
               recoveredDAGData.recoveredDAG.getID(), recoveredDAGData.recoveredDAG.getName(),
               recoveredDAGData.recoveredDAG.getUserName(),
@@ -1795,7 +1795,7 @@ public class DAGAppMaster extends AbstractService {
         } else {
           DAGEventRecoverEvent recoverDAGEvent =
               new DAGEventRecoverEvent(recoveredDAGData.recoveredDAG.getID(),
-                  recoveredDAGData.dagState, classpathUrls);
+                  recoveredDAGData.dagState, classpathUrls, null);
           DAGRecoveredEvent dagRecoveredEvent = new DAGRecoveredEvent(this.appAttemptID,
               recoveredDAGData.recoveredDAG.getID(), recoveredDAGData.recoveredDAG.getName(),
               recoveredDAGData.recoveredDAG.getUserName(), this.clock.getTime(),

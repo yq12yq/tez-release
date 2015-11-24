@@ -610,10 +610,11 @@ public class TestHistoryEventsProtoConversion {
 
   private void testDAGCommitStartedEvent() throws Exception {
     DAGCommitStartedEvent event = new DAGCommitStartedEvent(
-        TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 100l);
+        TezDAGID.getInstance(ApplicationId.newInstance(0, 1), 1), 100l, true);
     DAGCommitStartedEvent deserializedEvent =
-        (DAGCommitStartedEvent) testProtoConversion(event);
+        (DAGCommitStartedEvent) testSummaryProtoConversion(event);
     Assert.assertEquals(event.getDagID(), deserializedEvent.getDagID());
+    Assert.assertEquals(event.isCommitRepeatable(), deserializedEvent.isCommitRepeatable());
     logEvents(event, deserializedEvent);
   }
 

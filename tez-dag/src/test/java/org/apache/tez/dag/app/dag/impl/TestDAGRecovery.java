@@ -122,7 +122,7 @@ public class TestDAGRecovery {
 
   private void restoreFromDAGCommitStartedEvent() {
     DAGState recoveredState =
-        dag.restoreFromEvent(new DAGCommitStartedEvent(dagId, commitStartTime));
+        dag.restoreFromEvent(new DAGCommitStartedEvent(dagId, commitStartTime, true));
     assertTrue(dag.recoveryCommitInProgress);
     assertEquals(DAGState.RUNNING, recoveredState);
   }
@@ -367,25 +367,19 @@ public class TestDAGRecovery {
     restoreFromDAGCommitStartedEvent();
 
     dag.handle(new DAGEventRecoverEvent(dagId, new ArrayList<URL>()));
-    assertEquals(DAGState.FAILED, dag.getState());
+    assertEquals(DAGState.RUNNING, dag.getState());
 
     // recover all the vertices to SUCCEEDED
     ArgumentCaptor<Event> eventCaptor = ArgumentCaptor.forClass(Event.class);
-    verify(mockEventHandler, times(7)).handle(eventCaptor.capture());
+    verify(mockEventHandler, times(2)).handle(eventCaptor.capture());
     List<Event> events = eventCaptor.getAllValues();
     int i = 0;
-    for (; i < 6; ++i) {
+    for (; i < 2; ++i) {
       assertTrue(events.get(i) instanceof VertexEventRecoverVertex);
       VertexEventRecoverVertex recoverEvent =
           (VertexEventRecoverVertex) events.get(i);
-      assertEquals(VertexState.SUCCEEDED, recoverEvent.getDesiredState());
+      assertEquals(VertexState.RUNNING, recoverEvent.getDesiredState());
     }
-
-    // send DAGAppMasterEventDAGFinished at last
-    assertTrue(events.get(i) instanceof DAGAppMasterEventDAGFinished);
-    DAGAppMasterEventDAGFinished dagFinishedEvent =
-        (DAGAppMasterEventDAGFinished) events.get(i);
-    assertEquals(DAGState.FAILED, dagFinishedEvent.getDAGState());
   }
 
   /**

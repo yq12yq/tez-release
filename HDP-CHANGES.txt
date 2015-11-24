@@ -4,6 +4,8 @@ INCOMPATIBLE CHANGES
 
 NEW FEATURES
 
+  RMP-4813. Better handling of AM failures in Tez Job Commit stage
+
 IMPROVEMENTS
 
   TEZ-2949. (BUG-47794) Allow duplicate dag names within session for Tez.

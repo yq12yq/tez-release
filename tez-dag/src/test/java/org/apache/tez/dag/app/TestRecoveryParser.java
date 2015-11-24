@@ -36,6 +36,7 @@ import org.apache.tez.dag.app.RecoveryParser.RecoveredDAGData;
 import org.apache.tez.dag.app.dag.DAGState;
 import org.apache.tez.dag.app.dag.impl.DAGImpl;
 import org.apache.tez.dag.app.dag.impl.TestDAGImpl;
+import org.apache.tez.dag.app.dag.impl.VertexImpl;
 import org.apache.tez.dag.history.DAGHistoryEvent;
 import org.apache.tez.dag.history.events.DAGCommitStartedEvent;
 import org.apache.tez.dag.history.events.DAGFinishedEvent;
@@ -44,6 +45,7 @@ import org.apache.tez.dag.history.events.DAGStartedEvent;
 import org.apache.tez.dag.history.events.DAGSubmittedEvent;
 import org.apache.tez.dag.history.recovery.RecoveryService;
 import org.apache.tez.dag.records.TezDAGID;
+import org.apache.tez.dag.records.TezVertexID;
 import org.junit.*;
 
 import static org.junit.Assert.*;
@@ -61,6 +63,7 @@ public class TestRecoveryParser {
   private Path recoveryPath;
   private DAGAppMaster mockAppMaster;
   private DAGImpl mockDAGImpl;
+  private VertexImpl mockVertexImpl;
 
   @Before
   public void setUp() throws IllegalArgumentException, IOException {
@@ -74,6 +77,8 @@ public class TestRecoveryParser {
     when(mockAppMaster.getConfig()).thenReturn(new Configuration());
     mockDAGImpl = mock(DAGImpl.class);
     when(mockAppMaster.createDAG(any(DAGPlan.class), any(TezDAGID.class))).thenReturn(mockDAGImpl);
+    mockVertexImpl = mock(VertexImpl.class);
+    when(mockDAGImpl.getVertex(any(TezVertexID.class))).thenReturn(mockVertexImpl);
     parser = new RecoveryParser(mockAppMaster, localFS, recoveryPath, 3);
   }
 
@@ -143,7 +148,7 @@ public class TestRecoveryParser {
     rService.handle(new DAGHistoryEvent(dagID,
         new DAGInitializedEvent(dagID, 1L, "user", dagPlan.getName(), null)));
     // only for testing, DAGCommitStartedEvent is not supposed to happen at this time.
-    rService.handle(new DAGHistoryEvent(dagID,new DAGCommitStartedEvent(dagID, System.currentTimeMillis())));
+    rService.handle(new DAGHistoryEvent(dagID,new DAGCommitStartedEvent(dagID, System.currentTimeMillis(), false)));
     rService.stop();
 
     // write data in attempt_2
@@ -158,7 +163,7 @@ public class TestRecoveryParser {
 
     RecoveredDAGData dagData = parser.parseRecoveryData();
     assertEquals(true, dagData.nonRecoverable);
-    assertTrue(dagData.reason.contains("DAG Commit was in progress, not recoverable,"));
+    assertTrue(dagData.reason.contains("DAG Commit was in progress"));
     // DAGSubmittedEvent is handled but DAGInitializedEvent and DAGStartedEvent in the next attempt are both skipped
     // due to the dag is not recoerable.
     verify(mockAppMaster).createDAG(any(DAGPlan.class),any(TezDAGID.class));
@@ -297,4 +302,68 @@ public class TestRecoveryParser {
     }
   }
 
+  // dag is not recoverable when it is in the committing and doesn't support repeatable commit
+  @Test(timeout=5000)
+  public void testUnrecoverable_DAGInCommit() throws IOException {
+    ApplicationId appId = ApplicationId.newInstance(System.currentTimeMillis(), 1);
+    TezDAGID dagID = TezDAGID.getInstance(appId, 1);
+    AppContext appContext = mock(AppContext.class);
+    when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(recoveryPath+"/1"));
+    when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
+
+    DAGPlan dagPlan = TestDAGImpl.createTestDAGPlan();
+    // write data in attempt_1
+    RecoveryService rService = new RecoveryService(appContext);
+    Configuration conf = new Configuration();
+    conf.setBoolean(RecoveryService.TEZ_TEST_RECOVERY_DRAIN_EVENTS_WHEN_STOPPED, true);
+    rService.init(conf);
+    rService.start();
+    rService.handle(new DAGHistoryEvent(dagID,
+        new DAGSubmittedEvent(dagID, 1L, dagPlan, ApplicationAttemptId.newInstance(appId, 1),
+            null, "user", new Configuration())));
+    rService.handle(new DAGHistoryEvent(dagID,
+        new DAGCommitStartedEvent(dagID, 100L, false)));
+    // wait until DAGSubmittedEvent is handled in the RecoveryEventHandling thread
+    rService.await();
+    rService.stop();
+
+    RecoveredDAGData dagData = parser.parseRecoveryData();
+    assertEquals(false, dagData.isCompleted);
+    assertEquals(true, dagData.nonRecoverable);
+    assertTrue(dagData.reason.contains("DAG Commit was in progress, "
+        + "and at least one of its committers don't support repeatable commit"));
+  }
+
+  // dag is recoverable when it is in the committing but supports repeatable commit
+  @Test(timeout=5000)
+  public void testRecoverable_DAGInCommit() throws IOException {
+    ApplicationId appId = ApplicationId.newInstance(System.currentTimeMillis(), 1);
+    TezDAGID dagID = TezDAGID.getInstance(appId, 1);
+    AppContext appContext = mock(AppContext.class);
+    when(appContext.getCurrentRecoveryDir()).thenReturn(new Path(recoveryPath+"/1"));
+    when(appContext.getClock()).thenReturn(new SystemClock());
+    when(appContext.getApplicationID()).thenReturn(appId);
+
+    DAGPlan dagPlan = TestDAGImpl.createTestDAGPlan();
+    // write data in attempt_1
+    RecoveryService rService = new RecoveryService(appContext);
+    Configuration conf = new Configuration();
+    conf.setBoolean(RecoveryService.TEZ_TEST_RECOVERY_DRAIN_EVENTS_WHEN_STOPPED, true);
+    rService.init(conf);
+    rService.start();
+    rService.handle(new DAGHistoryEvent(dagID,
+        new DAGSubmittedEvent(dagID, 1L, dagPlan, ApplicationAttemptId.newInstance(appId, 1),
+            null, "user", new Configuration())));
+    rService.handle(new DAGHistoryEvent(dagID,
+        new DAGCommitStartedEvent(dagID, 100L, true)));
+    // wait until DAGSubmittedEvent is handled in the RecoveryEventHandling thread
+    rService.await();
+    rService.stop();
+
+    RecoveredDAGData dagData = parser.parseRecoveryData();
+    assertEquals(false, dagData.isCompleted);
+    assertEquals(false, dagData.nonRecoverable);
+    assertNull(dagData.reason);
+  }
 }

@@ -211,4 +211,11 @@ public class MROutputCommitter extends OutputCommitter {
     committer.recoverTask(taskContext);
   }
 
+  @Override
+  public boolean isCommitRepeatable() throws IOException {
+    if (!initialized) {
+      throw new RuntimeException("Committer not initialized");
+    }
+    return committer.isCommitJobRepeatable(jobContext);
+  }
 }

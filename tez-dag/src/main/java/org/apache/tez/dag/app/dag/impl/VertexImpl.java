@@ -2714,6 +2714,18 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
                 VertexTerminationCause.COMMIT_FAILURE, msg);
             endState = VertexState.FAILED;
           } else {
+            try {
+              vertex.initializeCommitters();
+            } catch (Exception e) {
+              String msg = "Failed to initialize committers"
+                  + ", vertex=" + vertex.logIdentifier + ","
+                  + ExceptionUtils.getStackTrace(e);
+              LOG.error(msg);
+              vertex.finished(VertexState.FAILED,
+                  VertexTerminationCause.INIT_FAILURE, msg);
+              endState = VertexState.FAILED;
+              break;
+            }
             // recover tasks
             if (vertex.tasks != null && vertex.numTasks != 0) {
               TaskState taskState = TaskState.KILLED;
@@ -3116,6 +3128,18 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
         case SUCCEEDED:
         case FAILED:
         case KILLED:
+          try {
+            vertex.initializeCommitters();
+          } catch (Exception e) {
+            String msg = "Failed to initialize committers"
+                + ", vertex=" + vertex.logIdentifier + ","
+                + ExceptionUtils.getStackTrace(e);
+            LOG.error(msg);
+            vertex.finished(VertexState.FAILED,
+                VertexTerminationCause.INIT_FAILURE, msg);
+            endState = VertexState.FAILED;
+            break;
+          }
           // recover tasks
           assert vertex.tasks.size() == vertex.numTasks;
           if (vertex.tasks != null  && vertex.numTasks != 0) {

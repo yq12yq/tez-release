@@ -34,13 +34,15 @@ public class DAGCommitStartedEvent implements HistoryEvent, SummaryEvent {
 
   private TezDAGID dagID;
   private long commitStartTime;
+  private boolean isCommitRepeatable;
 
   public DAGCommitStartedEvent() {
   }
 
-  public DAGCommitStartedEvent(TezDAGID dagID, long commitStartTime) {
+  public DAGCommitStartedEvent(TezDAGID dagID, long commitStartTime, boolean isCommitRepeatable) {
     this.dagID = dagID;
     this.commitStartTime = commitStartTime;
+    this.isCommitRepeatable = isCommitRepeatable;
   }
 
   @Override
@@ -61,11 +63,13 @@ public class DAGCommitStartedEvent implements HistoryEvent, SummaryEvent {
   public DAGCommitStartedProto toProto() {
     return DAGCommitStartedProto.newBuilder()
         .setDagId(dagID.toString())
+        .setIsCommitRepeatable(isCommitRepeatable)
         .build();
   }
 
   public void fromProto(DAGCommitStartedProto proto) {
     this.dagID = TezDAGID.fromString(proto.getDagId());
+    this.isCommitRepeatable = proto.getIsCommitRepeatable();
   }
 
   @Override
@@ -84,23 +88,29 @@ public class DAGCommitStartedEvent implements HistoryEvent, SummaryEvent {
 
   @Override
   public String toString() {
-    return "dagID=" + dagID;
+    return "dagID=" + dagID
+        +", isCommitRepeatable=" + isCommitRepeatable;
   }
 
   public TezDAGID getDagID() {
     return dagID;
   }
 
+  public boolean isCommitRepeatable() {
+    return isCommitRepeatable;
+  }
+
   @Override
   public void toSummaryProtoStream(OutputStream outputStream) throws IOException {
     ProtoUtils.toSummaryEventProto(dagID, commitStartTime,
-        getEventType(), null).writeDelimitedTo(outputStream);
+        getEventType(), toProto().toByteArray()).writeDelimitedTo(outputStream);
   }
 
   @Override
   public void fromSummaryProtoStream(SummaryEventProto proto) throws IOException {
-    this.dagID = TezDAGID.fromString(proto.getDagId());
-    this.commitStartTime = proto.getTimestamp();
+    DAGCommitStartedProto dagCommitStartedProto =
+        DAGCommitStartedProto.parseFrom(proto.getEventPayload());
+    fromProto(dagCommitStartedProto);
   }
 
   @Override

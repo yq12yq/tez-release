@@ -28,16 +28,18 @@ public class DAGEventRecoverEvent extends DAGEvent {
 
   private final DAGState desiredState;
   private final List<URL> additionalUrlsForClasspath;
+  private final String nonRecoverableReason;
 
   public DAGEventRecoverEvent(TezDAGID dagId, DAGState desiredState,
-      List<URL> additionalUrlsForClasspath) {
+      List<URL> additionalUrlsForClasspath, String nonRecoverableReason) {
     super(dagId, DAGEventType.DAG_RECOVER);
     this.desiredState = desiredState;
     this.additionalUrlsForClasspath = additionalUrlsForClasspath;
+    this.nonRecoverableReason = nonRecoverableReason;
   }
   
   public DAGEventRecoverEvent(TezDAGID dagId, List<URL> additionalUrlsForClasspath) {
-    this(dagId, null, additionalUrlsForClasspath);
+    this(dagId, null, additionalUrlsForClasspath, null);
   }
   
   public DAGState getDesiredState() {
@@ -50,5 +52,9 @@ public class DAGEventRecoverEvent extends DAGEvent {
 
   public boolean hasDesiredState() {
     return this.desiredState != null;
+  }
+
+  public String getNonRecoverableReason() {
+    return nonRecoverableReason;
   }
 }

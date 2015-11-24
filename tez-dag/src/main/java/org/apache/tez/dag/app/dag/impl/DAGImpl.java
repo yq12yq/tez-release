@@ -451,6 +451,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   private DAGState recoveredState = DAGState.NEW;
   @VisibleForTesting
   boolean recoveryCommitInProgress = false;
+  boolean recoveryCommitRepeatable = false;
   Map<String, Boolean> recoveredGroupCommits = new HashMap<String, Boolean>();
 
   static class VertexGroupInfo {
@@ -649,7 +650,9 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
           recoveredState = DAGState.RUNNING;
           return recoveredState;
         case DAG_COMMIT_STARTED:
+          DAGCommitStartedEvent dagCommitStartedEvent = (DAGCommitStartedEvent)historyEvent;
           recoveryCommitInProgress = true;
+          recoveryCommitRepeatable = dagCommitStartedEvent.isCommitRepeatable();
           return recoveredState;
         case VERTEX_GROUP_COMMIT_STARTED:
           VertexGroupCommitStartedEvent vertexGroupCommitStartedEvent =
@@ -1043,6 +1046,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     // we come here for successful dag completion and when outputs need to be
     // committed at the end for all or none visibility
     Map<OutputKey, CallableEvent> commitEvents = new HashMap<OutputKey, CallableEvent>();
+    boolean commitRepeatable = true; 
     // commit all shared outputs
     for (final VertexGroupInfo groupInfo : vertexGroups.values()) {
       if (!groupInfo.outputs.isEmpty()) {
@@ -1063,6 +1067,18 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
               }
             };
             commitEvents.put(outputKey, groupCommitCallableEvent);
+            try {
+              LOG.info("OutputCommitters:" + v.getOutputCommitters()+", vId=" + v.getVertexId());
+              commitRepeatable = commitRepeatable &&
+                v.getOutputCommitters().get(outputName).isCommitRepeatable();
+            } catch (Exception e) {
+              String msg = "Failed to check outputCommitter isCommitRepeatable, outputName=" + 
+                  outputName + ", committer=" + v.getOutputCommitters().get(outputName).getClass().getCanonicalName();
+              LOG.error(msg, e);
+              addDiagnostic(msg);
+              trySetTerminationCause(DAGTerminationCause.FAIL_TO_CHECK_COMMIT_REPEATABLE);
+              return finished(DAGState.FAILED);
+            }
           }
         } finally {
           TezUtilsInternal.clearHadoopCallerContext();
@@ -1099,6 +1115,17 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
             throw new TezUncheckedException("Vertex: " + vertex.getLogIdentifier() +
                 " not in SUCCEEDED state. State= " + vertex.getState());
           }
+          try {
+            commitRepeatable = commitRepeatable && entry.getValue().isCommitRepeatable();
+            LOG.info("isCommitable of output:" + entry.getKey());
+          } catch (Exception e) {
+            String msg = "Failed to check outputCommitter isCommitRepeatable, outputName=" + 
+                entry.getKey() + ", committer=" + entry.getValue().getClass().getCanonicalName();
+            LOG.error(msg, e);
+            addDiagnostic(msg);
+            trySetTerminationCause(DAGTerminationCause.FAIL_TO_CHECK_COMMIT_REPEATABLE);
+            return finished(DAGState.FAILED);
+          }
           OutputKey outputKey = new OutputKey(entry.getKey(), vertex.getName(), false);
           CommitCallback commitCallback = new CommitCallback(outputKey);
           CallableEvent commitCallableEvent = new CallableEvent(commitCallback) {
@@ -1121,7 +1148,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       try {
         LOG.info("Start writing dag commit event, " + getID());
         appContext.getHistoryHandler().handleCriticalEvent(new DAGHistoryEvent(getID(),
-            new DAGCommitStartedEvent(getID(), clock.getTime())));
+            new DAGCommitStartedEvent(getID(), clock.getTime(), commitRepeatable)));
       } catch (IOException e) {
         LOG.error("Failed to send commit event to history/recovery handler", e);
         trySetTerminationCause(DAGTerminationCause.RECOVERY_FAILURE);
@@ -1649,6 +1676,9 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       if (recoverEvent.hasDesiredState()) {
         // DAG completed or final end state known
         dag.recoveredState = recoverEvent.getDesiredState();
+        if (recoverEvent.getNonRecoverableReason() != null) {
+          dag.addDiagnostic(recoverEvent.getNonRecoverableReason());
+        }
       }
       if (recoverEvent.getAdditionalUrlsForClasspath() != null) {
         LOG.info("Added additional resources : [" + recoverEvent.getAdditionalUrlsForClasspath()
@@ -1694,7 +1724,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
             }
           }
 
-          if (groupCommitInProgress || dag.recoveryCommitInProgress) {
+          if (groupCommitInProgress || (dag.recoveryCommitInProgress && !dag.recoveryCommitRepeatable)) {
             // Fail the DAG as we have not seen a commit completion
             dag.trySetTerminationCause(DAGTerminationCause.COMMIT_FAILURE);
             dag.setFinishTime();

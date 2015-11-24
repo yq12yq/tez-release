@@ -321,6 +321,7 @@ public class RecoveryParser {
     String dagName;
     boolean completed = false;
     boolean dagCommitCompleted = true;
+    boolean dagCommitRepeatable = true;
     DAGState dagState;
     Map<TezVertexID, Boolean> vertexCommitStatus =
         new HashMap<TezVertexID, Boolean>();
@@ -351,7 +352,10 @@ public class RecoveryParser {
           dagState = dagFinishedEvent.getState();
           break;
         case DAG_COMMIT_STARTED:
+          DAGCommitStartedEvent dagCommitStartedEvent = new DAGCommitStartedEvent();
+          dagCommitStartedEvent.fromSummaryProtoStream(proto);
           dagCommitCompleted = false;
+          dagCommitRepeatable = dagCommitStartedEvent.isCommitRepeatable();
           break;
         case VERTEX_COMMIT_STARTED:
           VertexCommitStartedEvent vertexCommitStartedEvent =
@@ -419,9 +423,9 @@ public class RecoveryParser {
   }
 
   private String isDAGRecoverable(DAGSummaryData data) {
-    if (!data.dagCommitCompleted) {
-      return "DAG Commit was in progress, not recoverable"
-          + ", dagId=" + data.dagId;
+    if (!data.dagCommitCompleted && !data.dagCommitRepeatable) {
+      return "DAG Commit was in progress, and at least one of its committers don't support repeatable commit, "
+          +" not recoverable, dagId=" + data.dagId;
     }
     if (!data.vertexCommitStatus.isEmpty()) {
       for (Entry<TezVertexID, Boolean> entry : data.vertexCommitStatus.entrySet()) {

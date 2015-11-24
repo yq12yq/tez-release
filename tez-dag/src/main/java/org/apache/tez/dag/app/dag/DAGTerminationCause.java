@@ -47,6 +47,9 @@ public enum DAGTerminationCause {
   /** DAG failed while trying to write recovery events */
   RECOVERY_FAILURE(DAGState.FAILED),
 
+  /** Exception when call OutputCommitter's isCommitRepeatable*/
+  FAIL_TO_CHECK_COMMIT_REPEATABLE(DAGState.FAILED),
+
   INTERNAL_ERROR(DAGState.ERROR);
 
   private DAGState finishedState;

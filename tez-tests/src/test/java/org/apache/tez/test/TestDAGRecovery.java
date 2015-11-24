@@ -20,6 +20,7 @@ package org.apache.tez.test;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -30,12 +31,21 @@ import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.dag.api.DAG;
+import org.apache.tez.dag.api.DataSinkDescriptor;
 import org.apache.tez.dag.api.DataSourceDescriptor;
+import org.apache.tez.dag.api.EdgeProperty;
+import org.apache.tez.dag.api.GroupInputEdge;
 import org.apache.tez.dag.api.InputDescriptor;
 import org.apache.tez.dag.api.InputInitializerDescriptor;
+import org.apache.tez.dag.api.OutputCommitterDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezConstants;
-import org.apache.tez.dag.api.TezException;
+import org.apache.tez.dag.api.UserPayload;
+import org.apache.tez.dag.api.Vertex;
+import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
+import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
+import org.apache.tez.dag.api.EdgeProperty.SchedulingType;
+import org.apache.tez.dag.api.VertexGroup;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
 import org.apache.tez.dag.api.client.DAGStatus.State;
@@ -44,6 +54,9 @@ import org.apache.tez.dag.history.HistoryEvent;
 import org.apache.tez.dag.history.HistoryEventType;
 import org.apache.tez.dag.history.events.VertexInitializedEvent;
 import org.apache.tez.dag.history.events.VertexRecoverableEventsGeneratedEvent;
+import org.apache.tez.runtime.api.OutputCommitter;
+import org.apache.tez.runtime.api.OutputCommitterContext;
+import org.apache.tez.runtime.library.input.ConcatenatedMergedKeyValuesInput;
 import org.apache.tez.test.dag.MultiAttemptDAG;
 import org.apache.tez.test.dag.MultiAttemptDAG.FailingInputInitializer;
 import org.apache.tez.test.dag.MultiAttemptDAG.NoOpInput;
@@ -142,9 +155,8 @@ public class TestDAGRecovery {
     tezConf.set(TezConfiguration.TEZ_AM_LAUNCH_CMD_OPTS, " -Xmx256m");
     tezConf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, true);
     tezConf.set(TezConfiguration.TEZ_AM_STAGING_SCRATCH_DATA_AUTO_DELETE, "false");
-
+    tezConf.set(TezConfiguration.TEZ_AM_LOG_LEVEL, "INFO;org.apache.tez=DEBUG");
     tezSession = TezClient.create("TestDAGRecovery", tezConf);
-    tezSession.start();
   }
 
   @After
@@ -161,6 +173,7 @@ public class TestDAGRecovery {
   }
 
   void runDAGAndVerify(DAG dag, DAGStatus.State finalState) throws Exception {
+    tezSession.start();
     tezSession.waitTillReady();
     DAGClient dagClient = tezSession.submitDAG(dag);
     DAGStatus dagStatus = dagClient.getDAGStatus(null);
@@ -174,6 +187,24 @@ public class TestDAGRecovery {
     }
 
     Assert.assertEquals(finalState, dagStatus.getState());
+  }
+
+  void runDAGAndVerify(DAG dag, DAGStatus.State finalState, String diag) throws Exception {
+    tezSession.start();
+    tezSession.waitTillReady();
+    DAGClient dagClient = tezSession.submitDAG(dag);
+    DAGStatus dagStatus = dagClient.getDAGStatus(null);
+    while (!dagStatus.isCompleted()) {
+      LOG.info("Waiting for dag to complete. Sleeping for 500ms."
+          + " DAG name: " + dag.getName()
+          + " DAG appContext: " + dagClient.getExecutionContext()
+          + " Current state: " + dagStatus.getState());
+      Thread.sleep(100);
+      dagStatus = dagClient.getDAGStatus(null);
+    }
+
+    Assert.assertEquals(finalState, dagStatus.getState());
+    Assert.assertTrue(StringUtils.join(dagStatus.getDiagnostics(),"").contains(diag));
   }
 
   private void verifyRecoveryLog() throws IOException{
@@ -252,4 +283,95 @@ public class TestDAGRecovery {
     runDAGAndVerify(dag, State.SUCCEEDED);
   }
 
+  @Test(timeout=120000)
+  public void testVertexCommitNonRepeatable_OnDAGSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, true);
+    DAG dag = SimpleVTestDAG.createDAG("testVertexCommitNonRepeatable_OnDAGSuccess", null);
+    dag.getVertex("v1").addDataSink("out_1", DataSinkDescriptor.create(TestOutput.getOutputDesc(null), 
+        OutputCommitterDescriptor.create(NonRepeatableOutputCommitter.class.getCanonicalName()), null));
+    runDAGAndVerify(dag, State.FAILED, "DAG Commit was in progress, "
+        + "and at least one of its committers don't support repeatable commit");
+  }
+
+  @Test(timeout=120000)
+  public void testVertexCommitNonRepeatable_OnVertexSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, false);
+    DAG dag = SimpleVTestDAG.createDAG("testVertexCommitNonRepeatable_OnVertexSuccess", null);
+    dag.getVertex("v1").addDataSink("out_1", DataSinkDescriptor.create(TestOutput.getOutputDesc(null), 
+        OutputCommitterDescriptor.create(NonRepeatableOutputCommitter.class.getCanonicalName()), null));
+    runDAGAndVerify(dag, State.FAILED, "Vertex Commit was in progress");
+  }
+
+  @Test(timeout=120000)
+  public void testVertexCommitRepeatable_OnDAGSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, true);
+    DAG dag = SimpleVTestDAG.createDAG("testVertexCommitRepeatable_OnDAGSuccess", null);
+    dag.getVertex("v1").addDataSink("out_1", DataSinkDescriptor.create(TestOutput.getOutputDesc(null), 
+        OutputCommitterDescriptor.create(RepeatableOutputCommitter.class.getCanonicalName()), null));
+    runDAGAndVerify(dag, State.SUCCEEDED);
+  }
+
+  @Test(timeout=120000)
+  public void testVertexCommitRepeatable_OnVertexSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, false);
+    DAG dag = SimpleVTestDAG.createDAG("CommitRepeatable", null);
+    dag.getVertex("v1").addDataSink("out_1", DataSinkDescriptor.create(TestOutput.getOutputDesc(null), 
+        OutputCommitterDescriptor.create(RepeatableOutputCommitter.class.getCanonicalName()), null));
+    runDAGAndVerify(dag, State.FAILED, "Vertex Commit was in progress");
+  }
+
+  public static DAG createDAGWithGroup(String name, Configuration conf, String groupCommitterClass) throws Exception {
+    UserPayload payload = UserPayload.create(null);
+    int taskCount = 2;
+    DAG dag = DAG.create(name);
+    Vertex v1 = Vertex.create("v1", TestProcessor.getProcDesc(payload), taskCount);
+    Vertex v2 = Vertex.create("v2", TestProcessor.getProcDesc(payload), taskCount);
+    Vertex v3 = Vertex.create("v3", TestProcessor.getProcDesc(payload), taskCount);
+    dag.addVertex(v1).addVertex(v2).addVertex(v3);
+    VertexGroup group = dag.createVertexGroup("group_1", v1, v2);
+    group.addDataSink("out1", DataSinkDescriptor.create(TestOutput.getOutputDesc(null), 
+        OutputCommitterDescriptor.create(groupCommitterClass), null));
+    GroupInputEdge inputEdge = GroupInputEdge.create(group, v3,
+        EdgeProperty.create(DataMovementType.SCATTER_GATHER,
+            DataSourceType.PERSISTED,
+            SchedulingType.SEQUENTIAL,
+            TestOutput.getOutputDesc(payload),
+            TestInput.getInputDesc(payload)), InputDescriptor.create(
+                ConcatenatedMergedKeyValuesInput.class.getName()));
+    dag.addEdge(inputEdge);
+    return dag;
+  }
+
+  @Test(timeout=120000)
+  public void testVertexGroupCommitNonRepeatable_OnDAGSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, true);
+    DAG dag = createDAGWithGroup("testVertexGroupCommitNonRepeatable_OnDAGSuccess", conf,
+        NonRepeatableOutputCommitter.class.getCanonicalName());
+    runDAGAndVerify(dag, State.FAILED, "DAG Commit was in progress, "
+        + "and at least one of its committers don't support repeatable commit");
+  }
+
+  @Test(timeout=120000)
+  public void testVertexGroupCommitNonRepeatable_OnVertexSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, false);
+    DAG dag = createDAGWithGroup("testVertexGroupCommitNonRepeatable_OnVertexSuccess", conf,
+        NonRepeatableOutputCommitter.class.getCanonicalName());
+    runDAGAndVerify(dag, State.FAILED, "Vertex Group Commit was in progress");
+  }
+
+  @Test(timeout=120000)
+  public void testVertexGroupCommitRepeatable_OnDAGSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, true);
+    DAG dag = createDAGWithGroup("testVertexGroupCommitRepeatable_OnDAGSuccess", conf,
+        RepeatableOutputCommitter.class.getCanonicalName());
+    runDAGAndVerify(dag, State.SUCCEEDED);
+  }
+
+  @Test(timeout=120000)
+  public void testVertexGroupCommitRepeatable_OnVertexSuccess() throws Exception {
+    tezConf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS, false);
+    DAG dag = createDAGWithGroup("VertexGroupCommitRepeatable", conf,
+        RepeatableOutputCommitter.class.getCanonicalName());
+    runDAGAndVerify(dag, State.FAILED, "Vertex Group Commit was in progress");
+  }
 }

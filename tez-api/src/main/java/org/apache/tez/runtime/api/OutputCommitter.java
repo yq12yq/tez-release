@@ -113,4 +113,13 @@ public abstract class OutputCommitter {
     return this.committerContext;
   }
 
+  /**
+   * Whether the OutputCommitter supports retry of failed commit in a previous
+   * DAG attempt
+   * @return True if it can repeat the commit
+   * @throws Exception
+   */
+  public boolean isCommitRepeatable() throws Exception {
+    return false;
+  }
 }
