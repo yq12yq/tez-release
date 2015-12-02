@@ -35,6 +35,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2960. (BUG-48751) Tez UI: Move hardcoded url namespace to the configuration file
   TEZ-2946. (BUG-45381) Tez UI: At times RM return a huge error message making the yellow error bar to fill the whole screen
   TEZ-2947. (BUG-45381) Tez UI: Timeline, RM & AM requests gets into a consecutive loop in counters page without any delay
   TEZ-2923. (BUG-45381) Tez Live UI counters view empty for vertices, tasks, attempts
