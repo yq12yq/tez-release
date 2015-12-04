@@ -61,6 +61,7 @@ import org.apache.tez.client.TezClientUtils;
 import org.apache.tez.common.ATSConstants;
 import org.apache.tez.common.ReflectionUtils;
 import org.apache.tez.common.TezUtilsInternal;
+import org.apache.tez.common.counters.LimitExceededException;
 import org.apache.tez.common.counters.TezCounters;
 import org.apache.tez.dag.api.DagTypeConverters;
 import org.apache.tez.dag.api.EdgeManagerPluginDescriptor;
@@ -713,6 +714,8 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
   private boolean vertexToBeReconfiguredByManager = false;
   AtomicBoolean vmIsInitialized = new AtomicBoolean(false);
   AtomicBoolean completelyConfiguredSent = new AtomicBoolean(false);
+
+  private final AtomicBoolean internalErrorTriggered = new AtomicBoolean(false);
 
   @VisibleForTesting
   Map<Vertex, Edge> sourceVertices;
@@ -1866,6 +1869,17 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
         addDiagnostic(message);
         eventHandler.handle(new VertexEvent(this.vertexId,
             VertexEventType.V_INTERNAL_ERROR));
+      } catch (RuntimeException e) {
+        String message = "Uncaught Exception when handling event " + event.getType() +
+            " on vertex " + this.vertexName +
+            " with vertexId " + this.vertexId +
+            " at current state " + oldState;
+        LOG.error(message, e);
+        addDiagnostic(message);
+        if (!internalErrorTriggered.getAndSet(true)) {
+          eventHandler.handle(new VertexEvent(this.vertexId,
+              VertexEventType.V_INTERNAL_ERROR));
+        }
       }
 
       if (oldState != getInternalState()) {
@@ -1926,16 +1940,24 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
 
   void logJobHistoryVertexFinishedEvent() throws IOException {
     this.setFinishTime();
-    logJobHistoryVertexCompletedHelper(VertexState.SUCCEEDED, finishTime, "");
+    logJobHistoryVertexCompletedHelper(VertexState.SUCCEEDED, finishTime, "",
+        getAllCounters());
   }
 
   void logJobHistoryVertexFailedEvent(VertexState state) throws IOException {
+    TezCounters counters = null;
+    try {
+      counters = getAllCounters();
+    } catch (LimitExceededException e) {
+      // Ignore as failed vertex
+      addDiagnostic("Counters limit exceeded: " + e.getMessage());
+    }
     logJobHistoryVertexCompletedHelper(state, clock.getTime(),
-        StringUtils.join(getDiagnostics(), LINE_SEPARATOR));
+        StringUtils.join(getDiagnostics(), LINE_SEPARATOR), counters);
   }
 
   private void logJobHistoryVertexCompletedHelper(VertexState finalState, long finishTime,
-                                                  String diagnostics) throws IOException {
+                                                  String diagnostics, TezCounters counters) throws IOException {
     Map<String, Integer> taskStats = new HashMap<String, Integer>();
     taskStats.put(ATSConstants.NUM_COMPLETED_TASKS, completedTaskCount);
     taskStats.put(ATSConstants.NUM_SUCCEEDED_TASKS, succeededTaskCount);
@@ -1946,7 +1968,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
 
     VertexFinishedEvent finishEvt = new VertexFinishedEvent(vertexId, vertexName, numTasks, initTimeRequested,
         initedTime, startTimeRequested, startedTime, finishTime, finalState, diagnostics,
-        getAllCounters(), getVertexStats(), taskStats);
+        counters, getVertexStats(), taskStats);
     this.appContext.getHistoryHandler().handleCriticalEvent(
         new DAGHistoryEvent(getDAGId(), finishEvt));
   }
@@ -2086,7 +2108,7 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
   }
 
   private static VertexState finishWithTerminationCause(VertexImpl vertex) {
-    Preconditions.checkArgument(vertex.getTerminationCause()!= null, "TerminationCause is not set");
+    Preconditions.checkArgument(vertex.getTerminationCause() != null, "TerminationCause is not set");
     String diagnosticMsg = "Vertex did not succeed due to " + vertex.getTerminationCause()
         + ", failedTasks:" + vertex.failedTaskCount
         + " killedTasks:" + vertex.killedTaskCount;
@@ -2159,9 +2181,19 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
         break;
       case SUCCEEDED:
         try {
-          logJobHistoryVertexFinishedEvent();
-          eventHandler.handle(new DAGEventVertexCompleted(getVertexId(),
-              finalState));
+          try {
+            logJobHistoryVertexFinishedEvent();
+            eventHandler.handle(new DAGEventVertexCompleted(getVertexId(),
+                finalState));
+          } catch (LimitExceededException e) {
+            LOG.error("Counter limits exceeded for vertex: " + getLogIdentifier(), e);
+            finalState = VertexState.FAILED;
+            addDiagnostic("Counters limit exceeded: " + e.getMessage());
+            trySetTerminationCause(VertexTerminationCause.COUNTER_LIMITS_EXCEEDED);
+            logJobHistoryVertexFailedEvent(finalState);
+            eventHandler.handle(new DAGEventVertexCompleted(getVertexId(),
+                finalState));
+          }
         } catch (IOException e) {
           LOG.error("Failed to send vertex finished event to recovery", e);
           finalState = VertexState.FAILED;
@@ -4924,4 +4956,16 @@ public class VertexImpl implements org.apache.tez.dag.app.dag.Vertex, EventHandl
       LOG.debug("Vertex: " + vertexName + ", rack: " + rack.toString());
     }
   }
+
+  @Private
+  @VisibleForTesting
+  void setCounters(TezCounters counters) {
+    try {
+      writeLock.lock();
+      this.fullCounters = counters;
+    } finally {
+      writeLock.unlock();
+    }
+  }
+
 }
