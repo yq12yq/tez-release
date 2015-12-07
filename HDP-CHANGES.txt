@@ -35,6 +35,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2975. (BUG-49421) Bump up apache commons dependency.
   TEZ-2970. (BUG-49172) Re-localization in TezChild does not use correct UGI.
   TEZ-2968. (BUG-49071) Counter limits exception causes AM to crash.
   TEZ-2960. (BUG-48751) Tez UI: Move hardcoded url namespace to the configuration file
