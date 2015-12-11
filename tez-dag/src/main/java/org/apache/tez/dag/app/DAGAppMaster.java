@@ -2180,7 +2180,7 @@ public class DAGAppMaster extends AbstractService {
     this.appName = dagPlan.getName();
 
     // /////////////////// Create the job itself.
-    DAG newDAG = createDAG(dagPlan);
+    final DAG newDAG = createDAG(dagPlan);
     _updateLoggers(newDAG, "");
     if (LOG.isDebugEnabled()) {
       LOG.debug("Running a DAG with " + dagPlan.getVertexCount()
@@ -2209,7 +2209,7 @@ public class DAGAppMaster extends AbstractService {
     System.out.println(timeStamp + " Running Dag: "+ newDAG.getID());
     // Job name is the same as the app name until we support multiple dags
     // for an app later
-    DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(newDAG.getID(),
+    final DAGSubmittedEvent submittedEvent = new DAGSubmittedEvent(newDAG.getID(),
         submitTime, dagPlan, this.appAttemptID, cumulativeAdditionalResources,
         newDAG.getUserName(), newDAG.getConf());
     boolean dagLoggingEnabled = newDAG.getConf().getBoolean(
@@ -2217,10 +2217,18 @@ public class DAGAppMaster extends AbstractService {
         TezConfiguration.TEZ_DAG_HISTORY_LOGGING_ENABLED_DEFAULT);
     submittedEvent.setHistoryLoggingEnabled(dagLoggingEnabled);
     try {
-      historyEventHandler.handleCriticalEvent(
-          new DAGHistoryEvent(newDAG.getID(), submittedEvent));
+       appMasterUgi.doAs(new PrivilegedExceptionAction<Void>() {
+         @Override
+         public Void run() throws Exception {
+           historyEventHandler.handleCriticalEvent(
+               new DAGHistoryEvent(newDAG.getID(), submittedEvent));
+           return null;
+         }
+       });
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new TezUncheckedException(e);
+    } catch (InterruptedException e) {
+      throw new TezUncheckedException(e);
     }
 
     startDAGExecution(newDAG, lrDiff);
