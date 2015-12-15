@@ -64,7 +64,7 @@ App.Dag = App.AbstractEntity.extend({
   // diagnostics info if any.
   diagnostics: DS.attr('string'),
 
-  // Dag plan reated data
+  // Dag plan related data
   planName: DS.attr('string'),
   planVersion: DS.attr('number'),
   appContextInfo: DS.attr('object'),
@@ -74,7 +74,10 @@ App.Dag = App.AbstractEntity.extend({
   vertexIdToNameMap: DS.attr('array'),
 
   counterGroups: DS.attr('array'),
-  amWebServiceVersion: DS.attr('string')
+  amWebServiceVersion: DS.attr('string'),
+
+  callerId: DS.attr('string')
+
 });
 
 App.CounterGroup = DS.Model.extend({

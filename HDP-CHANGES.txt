@@ -35,6 +35,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2997. (BUG-49789) Tez UI: Support searches by CallerContext ID for DAGs.
   TEZ-2995. (BUG-49802) Timeline primary filter should only be on callerId and not type.
   TEZ-2975. (BUG-49421) Bump up apache commons dependency.
   TEZ-2970. (BUG-49172) Re-localization in TezChild does not use correct UGI.

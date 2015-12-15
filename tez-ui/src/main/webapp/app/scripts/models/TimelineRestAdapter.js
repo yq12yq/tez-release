@@ -94,6 +94,7 @@ var timelineJsonToDagMap = {
   name: 'primaryfilters.dagName.0',
   user: 'primaryfilters.user.0',
   status: 'otherinfo.status',
+  callerId: 'primaryfilters.callerId.0',
 
   progress: {
     custom: function(source) {
