@@ -38,7 +38,7 @@
     <profile>
       <id>hadoop26</id>
       <activation>
-        <activeByDefault>true</activeByDefault>
+        <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
         <module>hadoop-shim-2.6</module>
@@ -51,6 +51,15 @@
       </activation>
       <modules>
         <module>hadoop-shim-2.8</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>hwx-common</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>hadoop-shim-hdp</module>
       </modules>
     </profile>
   </profiles>
