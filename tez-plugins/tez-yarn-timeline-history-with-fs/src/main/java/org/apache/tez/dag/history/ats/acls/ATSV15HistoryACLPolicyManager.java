@@ -253,4 +253,11 @@ public class ATSV15HistoryACLPolicyManager implements HistoryACLPolicyManager {
     entity.setDomainId(domainId);
   }
 
+  @Override
+  public void close() {
+    if (timelineClient != null && timelineClient.isInState(Service.STATE.STARTED)) {
+      timelineClient.stop();
+    }
+  }
+
 }
