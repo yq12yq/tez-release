@@ -259,6 +259,10 @@ public class ATSV15HistoryLoggingService extends HistoryLoggingService {
           + ", eventQueueBacklog=" + eventQueue.size());
     }
     timelineClient.stop();
+    if (historyACLPolicyManager != null) {
+      historyACLPolicyManager.close();
+    }
+
   }
 
   private TimelineEntityGroupId getGroupId(DAGHistoryEvent event) {
