@@ -3,3 +3,4 @@ Additional Internal Only Commits
 
 TEZ-2936. (BUG-49913). Create ATS implementation that enables support for YARN-4265.
 BUG-49915. HDP specific Hadoop Shim support and config changes.
+BUG-50323. Temp revert TEZ-2948 for reverting HIVE-12448 internal pull

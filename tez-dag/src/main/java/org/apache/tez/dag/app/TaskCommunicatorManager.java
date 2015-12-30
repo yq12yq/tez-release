@@ -411,7 +411,7 @@ public class TaskCommunicatorManager extends AbstractService implements
     // Inform all communicators of the dagCompletion.
     for (int i = 0 ; i < taskCommunicators.length ; i++) {
       ((TaskCommunicatorContextImpl)taskCommunicatorContexts[i]).dagCompleteStart(dag);
-      taskCommunicators[i].dagComplete(dag.getID().getId());
+      taskCommunicators[i].dagComplete(dag.getName());
       ((TaskCommunicatorContextImpl)taskCommunicatorContexts[i]).dagCompleteEnd();
     }
 

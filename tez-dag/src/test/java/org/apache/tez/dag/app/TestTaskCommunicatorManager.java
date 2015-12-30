@@ -358,7 +358,7 @@ public class TestTaskCommunicatorManager {
     }
 
     @Override
-    public void dagComplete(int dagIdentifier) {
+    public void dagComplete(String dagName) {
 
     }
 

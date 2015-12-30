@@ -186,10 +186,10 @@ public abstract class TaskCommunicator implements ServicePluginLifecycle {
    * After this, the contents returned from querying the context may change at any point - due to
    * the next dag being submitted.
    *
-   * @param dagIdentifier the unique numerical identifier for the DAG in the specified execution context.
+   * @param dagName
    *
    */
-  public abstract void dagComplete(int dagIdentifier);
+  public abstract void dagComplete(String dagName);
 
   /**
    * Share meta-information such as host:port information where the Task Communicator may be
