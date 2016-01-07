@@ -43,9 +43,6 @@
           </dependencySet>
         </dependencySets>
       </binaries>
-       <excludes>
-        <exclude>org.apache.tez:tez-tests</exclude>
-      </excludes>
     </moduleSet>
   </moduleSets>
 </assembly>
