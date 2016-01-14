@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3032. (BUG-51020) Incorrect start time in different events for DAG history events.
   TEZ-3025. (BUG-51013) InputInitializer creation should use the dag ugi.
   TEZ-2997. (BUG-49789) Tez UI: Support searches by CallerContext ID for DAGs.
   TEZ-2995. (BUG-49802) Timeline primary filter should only be on callerId and not type.
