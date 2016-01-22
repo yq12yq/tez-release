@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3066. (BUG-54431) TaskAttemptFinishedEvent ConcurrentModificationException in recovery or history logging services.
   TEZ-3128. (BUG-53461) Avoid stopping containers on the AM shutdown thread.
   TEZ-3156. (TEZ-87) Tez client keeps trying to talk to RM even if RM does not know about the application. 
   TEZ-3137. (BUG-52985) tez task failed with illegal state exception
