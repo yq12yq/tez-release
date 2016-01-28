@@ -8,7 +8,6 @@ NEW FEATURES
 
 IMPROVEMENTS
 
-  TEZ-3017. HistoryACLManager does not have a close method for cleanup
   TEZ-1314. (BUG-48777) Port MAPREDUCE-5821 to Tez.
   TEZ-2949. (BUG-47794) Allow duplicate dag names within session for Tez.
   TEZ-2936. (BUG-46603) Support HDFS-based Timeline writer. 
@@ -36,8 +35,9 @@ IMPROVEMENTS
 
 BUG FIXES
 
-  TEZ-3037. (BUG-50911) History URL should be set regardless of which history logging service is enabled.
-  TEZ-3025. (BUG-50601) InputInitializer creation should use the dag ugi.
+  TEZ-3017. (BUG-51680) HistoryACLManager does not have a close method for cleanup
+  TEZ-3037. (BUG-51679) History URL should be set regardless of which history logging service is enabled.
+  TEZ-3025. (BUG-51722) InputInitializer creation should use the dag ugi.
   TEZ-2997. (BUG-49789) Tez UI: Support searches by CallerContext ID for DAGs.
   TEZ-2995. (BUG-49802) Timeline primary filter should only be on callerId and not type.
   TEZ-2975. (BUG-49421) Bump up apache commons dependency.
