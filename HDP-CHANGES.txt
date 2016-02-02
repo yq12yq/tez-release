@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2307. (BUG-51891) Possible wrong error message when submitting new dag
   TEZ-2898. (BUG-50966) tez tools : swimlanes.py is broken.
   TEZ-3037. (BUG-50911) History URL should be set regardless of which history logging service is enabled.
   TEZ-3032. (BUG-51020) Incorrect start time in different events for DAG history events.
