@@ -47,10 +47,10 @@ import org.apache.tez.common.security.JobTokenSecretManager;
 import org.apache.tez.common.security.TokenCache;
 import org.apache.tez.serviceplugins.api.ContainerEndReason;
 import org.apache.tez.serviceplugins.api.TaskAttemptEndReason;
-import org.apache.tez.dag.api.TaskCommunicator;
-import org.apache.tez.dag.api.TaskCommunicatorContext;
-import org.apache.tez.dag.api.TaskHeartbeatRequest;
-import org.apache.tez.dag.api.TaskHeartbeatResponse;
+import org.apache.tez.serviceplugins.api.TaskCommunicator;
+import org.apache.tez.serviceplugins.api.TaskCommunicatorContext;
+import org.apache.tez.serviceplugins.api.TaskHeartbeatRequest;
+import org.apache.tez.serviceplugins.api.TaskHeartbeatResponse;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezException;
 import org.apache.tez.dag.api.TezUncheckedException;
@@ -273,12 +273,12 @@ public class TezTaskCommunicatorImpl extends TaskCommunicator {
   }
 
   @Override
-  public void onVertexStateUpdated(VertexStateUpdate stateUpdate) throws Exception {
+  public void onVertexStateUpdated(VertexStateUpdate stateUpdate) {
     // Empty. Not registering, or expecting any updates.
   }
 
   @Override
-  public void dagComplete(String dagName) {
+  public void dagComplete(int dagIdentifier) {
     // Nothing to do at the moment. Some of the TODOs from TaskAttemptListener apply here.
   }
 
@@ -410,7 +410,7 @@ public class TezTaskCommunicatorImpl extends TaskCommunicator {
 
   private ContainerTask getContainerTask(ContainerId containerId) throws IOException {
     ContainerInfo containerInfo = registeredContainers.get(containerId);
-    ContainerTask task = null;
+    ContainerTask task;
     if (containerInfo == null) {
       if (getContext().isKnownContainer(containerId)) {
         LOG.info("Container with id: " + containerId
@@ -422,6 +422,7 @@ public class TezTaskCommunicatorImpl extends TaskCommunicator {
       task = TASK_FOR_INVALID_JVM;
     } else {
       synchronized (containerInfo) {
+        getContext().containerAlive(containerId);
         if (containerInfo.taskSpec != null) {
           if (!containerInfo.taskPulled) {
             containerInfo.taskPulled = true;

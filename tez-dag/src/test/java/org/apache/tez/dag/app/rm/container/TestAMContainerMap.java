@@ -31,10 +31,11 @@ import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.Token;
-import org.apache.tez.dag.api.TaskCommunicator;
+import org.apache.tez.serviceplugins.api.TaskCommunicator;
 import org.apache.tez.dag.app.AppContext;
 import org.apache.tez.dag.app.ContainerHeartbeatHandler;
 import org.apache.tez.dag.app.TaskCommunicatorManagerInterface;
+import org.apache.tez.serviceplugins.api.ServicePluginException;
 
 public class TestAMContainerMap {
 
@@ -42,7 +43,7 @@ public class TestAMContainerMap {
     return mock(ContainerHeartbeatHandler.class);
   }
 
-  private TaskCommunicatorManagerInterface mockTaskAttemptListener() {
+  private TaskCommunicatorManagerInterface mockTaskAttemptListener() throws ServicePluginException {
     TaskCommunicatorManagerInterface tal = mock(TaskCommunicatorManagerInterface.class);
     TaskCommunicator taskComm = mock(TaskCommunicator.class);
     doReturn(new InetSocketAddress("localhost", 21000)).when(taskComm).getAddress();

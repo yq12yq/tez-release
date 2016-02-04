@@ -29,11 +29,10 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.app.rm.container.AMContainer;
 import org.apache.tez.serviceplugins.api.TaskAttemptEndReason;
-import org.apache.tez.dag.api.TaskCommunicatorContext;
-import org.apache.tez.dag.api.TaskHeartbeatRequest;
-import org.apache.tez.dag.api.TaskHeartbeatResponse;
+import org.apache.tez.serviceplugins.api.TaskCommunicatorContext;
+import org.apache.tez.serviceplugins.api.TaskHeartbeatRequest;
+import org.apache.tez.serviceplugins.api.TaskHeartbeatResponse;
 import org.apache.tez.dag.api.TezException;
-import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.event.VertexState;
 import org.apache.tez.dag.api.event.VertexStateUpdate;
 import org.apache.tez.dag.app.dag.DAG;
@@ -205,11 +204,7 @@ public class TaskCommunicatorContextImpl implements TaskCommunicatorContext, Ver
 
   @Override
   public void onStateUpdated(VertexStateUpdate event) {
-    try {
-      taskCommunicatorManager.vertexStateUpdateNotificationReceived(event, taskCommunicatorIndex);
-    } catch (Exception e) {
-      throw new TezUncheckedException(e);
-    }
+    taskCommunicatorManager.vertexStateUpdateNotificationReceived(event, taskCommunicatorIndex);
   }
 
   private DAG getDag() {

@@ -256,7 +256,9 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
             TaskEventType.T_TERMINATE,
             TaskEventType.T_SCHEDULE,
             TaskEventType.T_ADD_SPEC_ATTEMPT,
-            TaskEventType.T_ATTEMPT_KILLED))
+            TaskEventType.T_ATTEMPT_FAILED,
+            TaskEventType.T_ATTEMPT_KILLED,
+            TaskEventType.T_ATTEMPT_SUCCEEDED))
 
     // Transitions from KILLED state
     // Ignorable event: T_ATTEMPT_KILLED
@@ -825,40 +827,17 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   private void handleTaskAttemptCompletion(TezTaskAttemptID attemptId,
       TaskAttemptStateInternal attemptState) {
     this.sendTaskAttemptCompletionEvent(attemptId, attemptState);
-  }
-
-  // TODO: Recovery
-  /*
-  private static TaskFinishedEvent createTaskFinishedEvent(TaskImpl task, TaskStateInternal taskState) {
-    TaskFinishedEvent tfe =
-      new TaskFinishedEvent(task.taskId,
-        task.successfulAttempt,
-        task.getFinishTime(task.successfulAttempt),
-        task.taskId.getTaskType(),
-        taskState.toString(),
-        task.getCounters());
-    return tfe;
-  }
-
-  private static TaskFailedEvent createTaskFailedEvent(TaskImpl task, List<String> diag, TaskStateInternal taskState, TezTaskAttemptID taId) {
-    StringBuilder errorSb = new StringBuilder();
-    if (diag != null) {
-      for (String d : diag) {
-        errorSb.append(", ").append(d);
-      }
+    if (getInternalState() != TaskStateInternal.SUCCEEDED) {
+      sendDAGSchedulerFinishedEvent(attemptId); // not a retro active action
     }
-    TaskFailedEvent taskFailedEvent = new TaskFailedEvent(
-        TypeConverter.fromYarn(task.taskId),
-     // Hack since getFinishTime needs isFinished to be true and that doesn't happen till after the transition.
-        task.getFinishTime(taId),
-        TypeConverter.fromYarn(task.getType()),
-        errorSb.toString(),
-        taskState.toString(),
-        taId == null ? null : TypeConverter.fromYarn(taId));
-    return taskFailedEvent;
   }
-  */
 
+  private void sendDAGSchedulerFinishedEvent(TezTaskAttemptID taId) {
+    // send notification to DAG scheduler
+    eventHandler.handle(new DAGEventSchedulerUpdate(
+        DAGEventSchedulerUpdate.UpdateType.TA_COMPLETED, attempts.get(taId)));
+  }
+  
   private static void unSucceed(TaskImpl task) {
     task.commitAttempt = null;
     task.successfulAttempt = null;
@@ -1105,10 +1084,6 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
               .getID(), diagnostics, errCause));
         }
       }
-      // send notification to DAG scheduler
-      task.eventHandler.handle(new DAGEventSchedulerUpdate(
-          DAGEventSchedulerUpdate.UpdateType.TA_SUCCEEDED, task.attempts
-              .get(task.successfulAttempt)));
       return task.finished(TaskStateInternal.SUCCEEDED);
     }
   }

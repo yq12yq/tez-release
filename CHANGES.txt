@@ -1,16 +1,46 @@
 Apache Tez Change Log
 =====================
 
-Release 0.8.2: Unreleased
+Release 0.8.3: Unreleased
 
 INCOMPATIBLE CHANGES
+
+ALL CHANGES:
+  TEZ-3089. TaskConcurrencyAnalyzer can return negative task count with very large jobs.
+  TEZ-2307. Possible wrong error message when submitting new dag
+  TEZ-2974. Tez tools: TFileRecordReader in tez-tools should support reading >2 GB tfiles.
+  TEZ-3081. Update tez website for trademarks feedback.
+  TEZ-3076. Reduce merge memory overhead to support large number of in-memory mapoutputs
+  TEZ-3079. Fix tez-tfile parser documentation.
+  TEZ-3066. TaskAttemptFinishedEvent ConcurrentModificationException in recovery or history logging services.
+  TEZ-3036. Tez AM can hang on startup with no indication of error
+  TEZ-3052. Task internal error due to Invalid event: T_ATTEMPT_FAILED at FAILED
+  TEZ-2594. Fix LICENSE for missing entries for full and minimal tarballs.
+  TEZ-3053. Containers timeout if they do not receive a task within the container timeout interval.
+  TEZ-2898. tez tools : swimlanes.py is broken.
+  TEZ-2937. Can Processor.close() be called after closing inputs and outputs?
+  TEZ-3037. History URL should be set regardless of which history logging service is enabled.
+  TEZ-3032. DAG start time getting logged using system time instead of recorded time in startTime field.
+
+Release 0.8.2: 2016-01-19
+
+INCOMPATIBLE CHANGES
+  TEZ-3024. Move TaskCommunicator to correct package.
   TEZ-2679. Admin forms of launch env settings
   TEZ-2948. Stop using dagName in the dagComplete notification to TaskCommunicators.
   TEZ-2949. Allow duplicate dag names within session for Tez.
   TEZ-604. Revert temporary changes made in TEZ-603 to kill the provided tez session, if running a MapReduce job.
+  TEZ-2972. Avoid task rescheduling when a node turns unhealthy
 
 ALL CHANGES:
+  TEZ-2669. Propagation of errors from plugins to the AM for error reporting.
+  TEZ-2978. Add an option to allow the SplitGrouper to generate node local only groups.
+  TEZ-2129. Task and Attempt views should contain links to the logs
+  TEZ-3025. InputInitializer creation should use the dag ugi.
   TEZ-3017. HistoryACLManager does not have a close method for cleanup
+  TEZ-2914. Ability to limit vertex concurrency
+  TEZ-3011. Link Vertex Name in Dag Tasks/Task Attempts to Vertex
+  TEZ-3006. Remove unused import in TestHistoryParser.
   TEZ-2910. Set caller context for tracing ( integrate with HDFS-9184 ).
   TEZ-2976. Recovery fails when InputDescriptor is changed during input initialization.
   TEZ-2997. Tez UI: Support searches by CallerContext ID for DAGs
@@ -89,6 +119,7 @@ ALL CHANGES:
   TEZ-2866. Tez UI: Newly added columns wont be displayed by default in tables
   TEZ-2887. Tez build failure due to missing dependency in pom files.
   TEZ-1692. Reduce code duplication between TezMapredSplitsGrouper and TezMapreduceSplitsGrouper.
+  TEZ-2972. Avoid task rescheduling when a node turns unhealthy
 
 
 Release 0.8.1-alpha: 2015-10-12
@@ -296,6 +327,28 @@ INCOMPATIBLE CHANGES
   TEZ-2949. Allow duplicate dag names within session for Tez.
 
 ALL CHANGES
+  TEZ-2307. Possible wrong error message when submitting new dag.
+  TEZ-3076. Reduce merge memory overhead to support large number of in-memory mapoutputs
+  TEZ-3066. TaskAttemptFinishedEvent ConcurrentModificationException in recovery or history logging services.
+  TEZ-3036. Tez AM can hang on startup with no indication of error
+  TEZ-3052. Task internal error due to Invalid event: T_ATTEMPT_FAILED at FAILED
+  TEZ-2937. Can Processor.close() be called after closing inputs and outputs?
+  TEZ-3037. History URL should be set regardless of which history logging service is enabled.
+  TEZ-3032. DAG start time getting logged using system time instead of recorded time in startTime field.
+  TEZ-2129. Task and Attempt views should contain links to the logs
+  TEZ-3025. InputInitializer creation should use the dag ugi.
+  TEZ-3017. HistoryACLManager does not have a close method for cleanup
+  TEZ-2914. Ability to limit vertex concurrency
+  TEZ-2918. Make progress notifications in IOs
+  TEZ-2952. NPE in TestOnFileUnorderedKVOutput
+  TEZ-808. Handle task attempts that are not making progress
+  TEZ-2987. TestVertexImpl.testTez2684 fails
+  TEZ-2599. Dont send obsoleted data movement events to tasks
+  TEZ-2943. Change shuffle vertex manager to use per vertex data for auto
+  TEZ-2633. Allow VertexManagerPlugins to receive and report based on attempts
+  TEZ-3011. Link Vertex Name in Dag Tasks/Task Attempts to Vertex
+  TEZ-2538. ADDITIONAL_SPILL_COUNT wrongly populated for DefaultSorter with multiple partitions.
+  TEZ-3006. Remove unused import in TestHistoryParser.
   TEZ-2979. FlakyTest: org.apache.tez.history.TestHistoryParser.
   TEZ-2684. ShuffleVertexManager.parsePartitionStats throws IllegalStateException: Stats should be initialized.
   TEZ-2496. Consider scheduling tasks in ShuffleVertexManager based on the partition sizes from the source.

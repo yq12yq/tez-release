@@ -63,6 +63,7 @@ import com.google.common.collect.Lists;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.tez.client.CallerContext;
 import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.NamedEntityDescriptor;
@@ -72,6 +73,8 @@ import org.apache.tez.dag.api.records.DAGProtos.AMPluginDescriptorProto;
 import org.apache.tez.dag.api.records.DAGProtos.ConfigurationProto;
 import org.apache.tez.dag.api.records.DAGProtos.TezNamedEntityDescriptorProto;
 import org.apache.tez.dag.app.dag.event.DAGAppMasterEventDagCleanup;
+import org.apache.tez.dag.app.dag.event.DAGAppMasterEventUserServiceFatalError;
+import org.apache.tez.dag.app.dag.event.DAGEventInternalError;
 import org.apache.tez.dag.history.events.DAGRecoveredEvent;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
@@ -151,10 +154,6 @@ import org.apache.tez.dag.app.dag.event.VertexEvent;
 import org.apache.tez.dag.app.dag.event.VertexEventType;
 import org.apache.tez.dag.app.dag.impl.DAGImpl;
 import org.apache.tez.dag.app.launcher.ContainerLauncherManager;
-import org.apache.tez.dag.app.dag.impl.TaskAttemptImpl;
-import org.apache.tez.dag.app.dag.impl.TaskImpl;
-import org.apache.tez.dag.app.dag.impl.VertexImpl;
-import org.apache.tez.dag.app.launcher.LocalContainerLauncher;
 import org.apache.tez.dag.app.rm.AMSchedulerEventType;
 import org.apache.tez.dag.app.rm.ContainerLauncherEventType;
 import org.apache.tez.dag.app.rm.TaskSchedulerManager;
@@ -281,6 +280,7 @@ public class DAGAppMaster extends AbstractService {
   private final UserGroupInformation appMasterUgi;
 
   private AtomicBoolean sessionStopped = new AtomicBoolean(false);
+  private final Object idleStateLock = new Object();
   private long sessionTimeoutInterval;
   private long lastDAGCompletionTime;
   private Timer dagSubmissionTimer;
@@ -671,8 +671,34 @@ public class DAGAppMaster extends AbstractService {
     return taskSchedulerManager;
   }
 
+  private void handleInternalError(String errDiagnosticsPrefix, String errDiagDagEvent) {
+    state = DAGAppMasterState.ERROR;
+    if (currentDAG != null) {
+      _updateLoggers(currentDAG, "_post");
+      String errDiagnostics = errDiagnosticsPrefix + ". Aborting dag: " + currentDAG.getID();
+      LOG.info(errDiagnostics);
+      // Inform the current DAG about the error
+      sendEvent(new DAGEventInternalError(currentDAG.getID(), errDiagDagEvent));
+    } else {
+      LOG.info(errDiagnosticsPrefix + ". AppMaster will exit as no dag is active");
+      // This could be problematic if the scheduler generated the error,
+      // since un-registration may not be possible.
+      // For now - try setting this flag, but call the shutdownHandler irrespective of
+      // how the flag is handled by user code.
+      try {
+        this.taskSchedulerManager.setShouldUnregisterFlag();
+      } catch (Exception e) {
+        // Ignore exception for now
+        LOG.error("Error when trying to set unregister flag for TaskScheduler", e);
+      } finally {
+        shutdownHandler.shutdown();
+      }
+    }
+  }
+
   @VisibleForTesting
   protected synchronized void handle(DAGAppMasterEvent event) {
+    String errDiagnostics;
     switch (event.getType()) {
     case SCHEDULING_SERVICE_ERROR:
       // Scheduling error - probably an issue with the communication with the RM
@@ -683,22 +709,30 @@ public class DAGAppMaster extends AbstractService {
       DAGAppMasterEventSchedulingServiceError schedulingServiceErrorEvent =
           (DAGAppMasterEventSchedulingServiceError) event;
       state = DAGAppMasterState.ERROR;
-      LOG.info("Error in the TaskScheduler. Shutting down.",
-          schedulingServiceErrorEvent.getThrowable());
+      errDiagnostics = "Error in the TaskScheduler. Shutting down. ";
+      addDiagnostic(errDiagnostics
+          + "Error=" + ExceptionUtils.getStackTrace(schedulingServiceErrorEvent.getThrowable()));
+      LOG.error(errDiagnostics, schedulingServiceErrorEvent.getThrowable());
       shutdownHandler.shutdown();
       break;
+    case TASK_COMMUNICATOR_SERVICE_FATAL_ERROR:
+    case CONTAINER_LAUNCHER_SERVICE_FATAL_ERROR:
+    case TASK_SCHEDULER_SERVICE_FATAL_ERROR:
+      // A fatal error from the pluggable services. The AM cannot continue operation, and should
+      // be shutdown. The AM should not be restarted for recovery.
+      DAGAppMasterEventUserServiceFatalError usfe = (DAGAppMasterEventUserServiceFatalError) event;
+      Throwable error = usfe.getError();
+      errDiagnostics = "Service Error: " + usfe.getDiagnosticInfo()
+          + ", eventType=" + event.getType()
+          + ", exception=" + ExceptionUtils.getStackTrace(usfe.getError());
+      LOG.error(errDiagnostics, error);
+      addDiagnostic(errDiagnostics);
+
+      handleInternalError("Service error: " + event.getType(), errDiagnostics);
+      break;
     case INTERNAL_ERROR:
-      state = DAGAppMasterState.ERROR;
-      if(currentDAG != null) {
-        _updateLoggers(currentDAG, "_post");
-        // notify dag to finish which will send the DAG_FINISHED event
-        LOG.info("Internal Error. Notifying dags to finish.");
-        sendEvent(new DAGEvent(currentDAG.getID(), DAGEventType.INTERNAL_ERROR));
-      } else {
-        LOG.info("Internal Error. Finishing directly as no dag is active.");
-        this.taskSchedulerManager.setShouldUnregisterFlag();
-        shutdownHandler.shutdown();
-      }
+      handleInternalError("DAGAppMaster Internal Error occurred",
+          "DAGAppMaster Internal Error occurred");
       break;
     case DAG_FINISHED:
       DAGAppMasterEventDAGFinished finishEvt =
@@ -756,6 +790,7 @@ public class DAGAppMaster extends AbstractService {
           LOG.error("Received a DAG Finished Event with state="
               + finishEvt.getDAGState()
               + ". Error. Shutting down.");
+          addDiagnostic("DAG completed with an ERROR state. Shutting down AM");
           state = DAGAppMasterState.ERROR;
           this.taskSchedulerManager.setShouldUnregisterFlag();
           shutdownHandler.shutdown();
@@ -777,7 +812,6 @@ public class DAGAppMaster extends AbstractService {
             // Leaving the taskSchedulerEventHandler here for now. Doesn't generate new events.
             // However, eventually it needs to be moved out.
             this.taskSchedulerManager.dagCompleted();
-            state = DAGAppMasterState.IDLE;
           } else {
             LOG.info("Session shutting down now.");
             this.taskSchedulerManager.setShouldUnregisterFlag();
@@ -817,6 +851,10 @@ public class DAGAppMaster extends AbstractService {
       TezDAGID.clearCache();
       LOG.info("Completed cleanup for DAG: name=" + cleanupEvent.getDag().getName() + ", with id=" +
           cleanupEvent.getDag().getID());
+      synchronized (idleStateLock) {
+        state = DAGAppMasterState.IDLE;
+        idleStateLock.notify();
+      }
       break;
     case NEW_DAG_SUBMITTED:
       // Inform sub-components that a new DAG has been submitted.
@@ -1297,21 +1335,33 @@ public class DAGAppMaster extends AbstractService {
       throw new SessionNotRunning("AM unable to accept new DAG submissions."
           + " In the process of shutting down");
     }
+
+    // dag is in cleanup when dag state is completed but AM state is still RUNNING
+    synchronized (idleStateLock) {
+      while (currentDAG != null && currentDAG.isComplete() && state == DAGAppMasterState.RUNNING) {
+        try {
+          LOG.info("wait for previous dag cleanup");
+          idleStateLock.wait();
+        } catch (InterruptedException e) {
+          throw new TezException(e);
+        }
+      }
+    }
+
     synchronized (this) {
       if (this.versionMismatch) {
         throw new TezException("Unable to accept DAG submissions as the ApplicationMaster is"
             + " incompatible with the client. " + versionMismatchDiagnostics);
       }
+      if (state.equals(DAGAppMasterState.ERROR)
+              || sessionStopped.get()) {
+        throw new SessionNotRunning("AM unable to accept new DAG submissions."
+                + " In the process of shutting down");
+      }
       if (currentDAG != null
-          && !state.equals(DAGAppMasterState.IDLE)) {
+          && !currentDAG.isComplete()) {
         throw new TezException("App master already running a DAG");
       }
-      if (state.equals(DAGAppMasterState.ERROR)
-          || sessionStopped.get()) {
-        throw new SessionNotRunning("AM unable to accept new DAG submissions."
-            + " In the process of shutting down");
-      }
-
       // RPC server runs in the context of the job user as it was started in
       // the job user's UGI context
       LOG.info("Starting DAG submitted via RPC: " + dagPlan.getName());
@@ -1698,7 +1748,18 @@ public class DAGAppMaster extends AbstractService {
         LOG.debug("Service dependency: " + dependency.getName() + " notify" +
                   " for service: " + service.getName());
       }
-      if (dependency.isInState(Service.STATE.STARTED)) {
+      Throwable dependencyError = dependency.getFailureCause();
+      if (dependencyError != null) {
+        synchronized(this) {
+          dependenciesFailed = true;
+          if(LOG.isDebugEnabled()) {
+            LOG.debug("Service: " + service.getName() + " will fail to start"
+                + " as dependent service " + dependency.getName()
+                + " failed to start: " + dependencyError);
+          }
+          this.notifyAll();
+        }
+      } else if (dependency.isInState(Service.STATE.STARTED)) {
         if(dependenciesStarted.incrementAndGet() == dependencies.size()) {
           synchronized(this) {
             if(LOG.isDebugEnabled()) {
@@ -1707,17 +1768,6 @@ public class DAGAppMaster extends AbstractService {
             canStart = true;
             this.notifyAll();
           }
-        }
-      } else if (!service.isInState(Service.STATE.STARTED)
-          && dependency.getFailureState() != null) {
-        synchronized(this) {
-          dependenciesFailed = true;
-          if(LOG.isDebugEnabled()) {
-            LOG.debug("Service: " + service.getName() + " will fail to start"
-                + " as dependent service " + dependency.getName()
-                + " failed to start");
-          }
-          this.notifyAll();
         }
       }
     }
@@ -1752,9 +1802,12 @@ public class DAGAppMaster extends AbstractService {
 
   private static class ServiceThread extends Thread {
     final ServiceWithDependency serviceWithDependency;
-    Throwable error = null;
-    public ServiceThread(ServiceWithDependency serviceWithDependency) {
+    final Map<Service, ServiceWithDependency> services;
+    volatile Throwable error = null;
+    public ServiceThread(ServiceWithDependency serviceWithDependency,
+        Map<Service, ServiceWithDependency> services) {
       this.serviceWithDependency = serviceWithDependency;
+      this.services = services;
       this.setName("ServiceThread:" + serviceWithDependency.service.getName());
     }
 
@@ -1766,7 +1819,14 @@ public class DAGAppMaster extends AbstractService {
       try {
         serviceWithDependency.start();
       } catch (Throwable t) {
+        // AbstractService does not notify listeners if something throws, so
+        // notify dependent services explicitly to prevent hanging.
+        // AbstractService only records fault causes for exceptions, not
+        // errors, so dependent services will proceed thinking startup
+        // succeeded if an error is thrown. The error will be noted when the
+        // main thread joins the ServiceThread.
         error = t;
+        notifyDependentServices();
       } finally {
         if(LOG.isDebugEnabled()) {
           LOG.debug("Service: " + serviceWithDependency.service.getName() +
@@ -1776,6 +1836,14 @@ public class DAGAppMaster extends AbstractService {
       if(LOG.isDebugEnabled()) {
         LOG.debug("Service thread completed for "
             + serviceWithDependency.service.getName());
+      }
+    }
+
+    private void notifyDependentServices() {
+      for (ServiceWithDependency otherSvc : services.values()) {
+        if (otherSvc.dependencies.contains(serviceWithDependency.service)) {
+          otherSvc.stateChanged(serviceWithDependency.service);
+        }
       }
     }
   }
@@ -1790,7 +1858,7 @@ public class DAGAppMaster extends AbstractService {
       for(ServiceWithDependency sd : services.values()) {
         // start the service. If this fails that service
         // will be stopped and an exception raised
-        ServiceThread st = new ServiceThread(sd);
+        ServiceThread st = new ServiceThread(sd, services);
         threads.add(st);
       }
 
@@ -2393,7 +2461,6 @@ public class DAGAppMaster extends AbstractService {
     }
 
     startDAGExecution(newDAG, lrDiff);
-
     // set state after curDag is set
     this.state = DAGAppMasterState.RUNNING;
   }

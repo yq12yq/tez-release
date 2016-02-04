@@ -537,7 +537,17 @@ public class TezConfiguration extends Configuration {
   public static final String TEZ_AM_MAX_APP_ATTEMPTS = TEZ_AM_PREFIX +
       "max.app.attempts";
   public static final int TEZ_AM_MAX_APP_ATTEMPTS_DEFAULT = 2;
-  
+
+  /**
+   * Int value. The maximum number of attempts that can run concurrently for a given vertex.
+   * Setting <=0 implies no limit
+   */
+  @ConfigurationScope(Scope.VERTEX)
+  @ConfigurationProperty(type="integer")
+  public static final String TEZ_AM_VERTEX_MAX_TASK_CONCURRENCY =
+      TEZ_AM_PREFIX + "vertex.max-task-concurrency";
+  public static final int TEZ_AM_VERTEX_MAX_TASK_CONCURRENCY_DEFAULT = -1;
+
   /**
    * Int value. The maximum number of attempts that can fail for a particular task before the task is failed. 
    * This does not count killed attempts. Task failure results in DAG failure.
@@ -568,6 +578,19 @@ public class TezConfiguration extends Configuration {
   public static final String TEZ_AM_NODE_BLACKLISTING_IGNORE_THRESHOLD = TEZ_AM_PREFIX
       + "node-blacklisting.ignore-threshold-node-percent";
   public static final int TEZ_AM_NODE_BLACKLISTING_IGNORE_THRESHOLD_DEFAULT = 33;
+
+  /**
+   * Boolean value. Enable task rescheduling for node updates.
+   * When enabled the task scheduler will reschedule task attempts that
+   * are associated with an unhealthy node to avoid potential data transfer
+   * errors from downstream tasks.
+   */
+  @ConfigurationScope(Scope.AM)
+  @ConfigurationProperty(type="boolean")
+  public static final String TEZ_AM_NODE_UNHEALTHY_RESCHEDULE_TASKS =
+      TEZ_AM_PREFIX + "node-unhealthy-reschedule-tasks";
+  public static final boolean
+    TEZ_AM_NODE_UNHEALTHY_RESCHEDULE_TASKS_DEFAULT = false;
 
   /** Int value. Number of threads to handle client RPC requests. Expert level setting.*/
   @ConfigurationScope(Scope.AM)

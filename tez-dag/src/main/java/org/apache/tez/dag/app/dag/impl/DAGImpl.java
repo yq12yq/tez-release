@@ -43,6 +43,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.LimitExceededException;
+import org.apache.tez.dag.app.dag.event.DAGEventInternalError;
+import org.apache.tez.dag.app.dag.event.DiagnosableEvent;
 import org.apache.tez.state.OnStateChangedCallback;
 import org.apache.tez.state.StateMachineTez;
 import org.slf4j.Logger;
@@ -104,7 +106,6 @@ import org.apache.tez.dag.app.dag.event.DAGEventCounterUpdate;
 import org.apache.tez.dag.app.dag.event.DAGEventDiagnosticsUpdate;
 import org.apache.tez.dag.app.dag.event.DAGEventRecoverEvent;
 import org.apache.tez.dag.app.dag.event.DAGEventSchedulerUpdate;
-import org.apache.tez.dag.app.dag.event.DAGEventSchedulerUpdateTAAssigned;
 import org.apache.tez.dag.app.dag.event.DAGEventStartDag;
 import org.apache.tez.dag.app.dag.event.DAGEventType;
 import org.apache.tez.dag.app.dag.event.DAGEventVertexCompleted;
@@ -1221,7 +1222,7 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     if (recoveryData == null
         || recoveryData.getDAGStartedEvent() == null) {
       DAGStartedEvent startEvt = new DAGStartedEvent(this.dagId,
-          clock.getTime(), this.userName, this.dagName);
+          this.startTime, this.userName, this.dagName);
       this.appContext.getHistoryHandler().handle(
           new DAGHistoryEvent(dagId, startEvt));
     }
@@ -1244,9 +1245,8 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     if (recoveryData == null
         || recoveryData.getDAGFinishedEvent() == null) {
       Map<String, Integer> taskStats = constructTaskStats(getDAGProgress());
-
       DAGFinishedEvent finishEvt = new DAGFinishedEvent(dagId, startTime,
-          clock.getTime(), state,
+          finishTime, state,
           StringUtils.join(getDiagnostics(), LINE_SEPARATOR),
           counters, this.userName, this.dagName, taskStats,
           this.appContext.getApplicationAttemptId(), this.jobPlan);
@@ -1592,6 +1592,9 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
     LOG.info("Using DAG Scheduler: " + dagSchedulerClassName);
     dag.dagScheduler = ReflectionUtils.createClazzInstance(dagSchedulerClassName, new Class<?>[] {
         DAG.class, EventHandler.class}, new Object[] {dag, dag.eventHandler});
+    for (Vertex v : dag.vertices.values()) {
+      dag.dagScheduler.addVertexConcurrencyLimit(v.getVertexId(), v.getMaxTaskConcurrency());
+    }
   }
 
   private static VertexImpl createVertex(DAGImpl dag, String vertexName, int vId) {
@@ -1903,10 +1906,6 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
       Vertex vertex = job.vertices.get(vertexEvent.getVertexId());
       job.numCompletedVertices++;
       if (vertexEvent.getVertexState() == VertexState.SUCCEEDED) {
-        if (!job.reRunningVertices.contains(vertex.getVertexId())) {
-          // vertex succeeded for the first time
-          job.dagScheduler.vertexCompleted(vertex);
-        }
         forceTransitionToKillWait = !(job.vertexSucceeded(vertex));
       }
       else if (vertexEvent.getVertexState() == VertexState.FAILED) {
@@ -2146,13 +2145,8 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
         case TA_SCHEDULE:
           dag.dagScheduler.scheduleTask(sEvent);
           break;
-        case TA_SCHEDULED:
-          DAGEventSchedulerUpdateTAAssigned taEvent =
-                                (DAGEventSchedulerUpdateTAAssigned) sEvent;
-          dag.dagScheduler.taskScheduled(taEvent);
-          break;
-        case TA_SUCCEEDED:
-          dag.dagScheduler.taskSucceeded(sEvent);
+        case TA_COMPLETED:
+          dag.dagScheduler.taskCompleted(sEvent);
           break;
         default:
           throw new TezUncheckedException("Unknown DAGEventSchedulerUpdate:"
@@ -2259,13 +2253,21 @@ public class DAGImpl implements org.apache.tez.dag.app.dag.DAG,
   private static class InternalErrorTransition implements
       SingleArcTransition<DAGImpl, DAGEvent> {
     @Override
-    public void transition(DAGImpl job, DAGEvent event) {
-      LOG.info(job.getID() + " terminating due to internal error");
+    public void transition(DAGImpl dag, DAGEvent event) {
+      String diagnostics = null;
+      if (event instanceof DiagnosableEvent) {
+        DiagnosableEvent errEvent = (DiagnosableEvent) event;
+        diagnostics = errEvent.getDiagnosticInfo();
+        dag.addDiagnostic(diagnostics);
+      }
+
+      LOG.info(dag.getID() + " terminating due to internal error. "
+          + (diagnostics == null? "" : " Error=" + diagnostics));
       // terminate all vertices
-      job.enactKill(DAGTerminationCause.INTERNAL_ERROR, VertexTerminationCause.INTERNAL_ERROR);
-      job.setFinishTime();
-      job.cancelCommits();
-      job.finished(DAGState.ERROR);
+      dag.enactKill(DAGTerminationCause.INTERNAL_ERROR, VertexTerminationCause.INTERNAL_ERROR);
+      dag.setFinishTime();
+      dag.cancelCommits();
+      dag.finished(DAGState.ERROR);
     }
   }
 
