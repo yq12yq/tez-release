@@ -6,6 +6,11 @@ Release 0.8.3: Unreleased
 INCOMPATIBLE CHANGES
 
 ALL CHANGES:
+  TEZ-3103. Shuffle can hang when memory to memory merging enabled
+  TEZ-3107. tez-tools: Log warn msgs in case ATS has wrong values (e.g startTime > finishTime).
+  TEZ-3104. Tez fails on Bzip2 intermediate output format on hadoop 2.7.1 and earlier
+  TEZ-3090. MRInput should make dagIdentifier, vertexIdentifier, etc available to the InputFormat jobConf.
+  TEZ-3093. CriticalPathAnalyzer should be accessible via zeppelin.
   TEZ-3089. TaskConcurrencyAnalyzer can return negative task count with very large jobs.
   TEZ-2307. Possible wrong error message when submitting new dag
   TEZ-2974. Tez tools: TFileRecordReader in tez-tools should support reading >2 GB tfiles.
@@ -327,6 +332,11 @@ INCOMPATIBLE CHANGES
   TEZ-2949. Allow duplicate dag names within session for Tez.
 
 ALL CHANGES
+  TEZ-3103. Shuffle can hang when memory to memory merging enabled
+  TEZ-3107. tez-tools: Log warn msgs in case ATS has wrong values (e.g startTime > finishTime).
+  TEZ-3104. Tez fails on Bzip2 intermediate output format on hadoop 2.7.1 and earlier
+  TEZ-3093. CriticalPathAnalyzer should be accessible via zeppelin.
+  TEZ-3089. TaskConcurrencyAnalyzer can return negative task count with very large jobs.
   TEZ-2307. Possible wrong error message when submitting new dag.
   TEZ-3076. Reduce merge memory overhead to support large number of in-memory mapoutputs
   TEZ-3066. TaskAttemptFinishedEvent ConcurrentModificationException in recovery or history logging services.
