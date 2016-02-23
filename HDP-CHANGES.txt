@@ -63,6 +63,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3131. (BUG-59496) Support a way to override test_root_dir for FaultToleranceTestRunner.
   TEZ-2579. (BUG-60016) Incorrect comparison of TaskAttemptId
   TEZ-3295. (BUG-59614) TestOrderedWordCount should handle relative input/output paths
   TEZ-3224. (BUG-59492) User payload is not initialized before creating vertex manager plugin.
