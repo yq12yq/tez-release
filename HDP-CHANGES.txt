@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3126. (BUG-54539) Log reason for not reducing parallelism.
   TEZ-2886. (BUG-54426) Ability to merge AM credentials with DAG credentials.
   TEZ-2963. (BUG-54425) RecoveryService#handleSummaryEvent exception with HDFS transparent encryption + kerberos authentication.
   TEZ-3166. Counters aren't fully updated and sent for failed tasks
