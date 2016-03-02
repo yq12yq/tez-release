@@ -158,7 +158,7 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
         System.currentTimeMillis(),
         "srcNameTrimmed");
     scheduler = spy(realScheduler);
-    handler = new ShuffleInputEventHandlerOrderedGrouped(inputContext, scheduler, false);
+    handler = new ShuffleInputEventHandlerOrderedGrouped(inputContext, scheduler);
     mergeManager = mock(MergeManager.class);
   }
 
@@ -172,9 +172,8 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
         new InputAttemptIdentifier(new InputIdentifier(inputIdx), attemptNum,
             PATH_COMPONENT, false, InputAttemptIdentifier.SPILL_INFO.INCREMENTAL_UPDATE, 0);
     handler.handleEvents(Collections.singletonList(dme1));
-    String baseUri = handler.getBaseURI(HOST, PORT, attemptNum).toString();
     int partitionId = attemptNum;
-    verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId), eq(baseUri), eq(id1));
+    verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId), eq(id1));
     verify(scheduler).pipelinedShuffleInfoEventsMap.containsKey(id1.getInputIdentifier());
 
     //Send final_update event.
@@ -183,10 +182,9 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
         new InputAttemptIdentifier(new InputIdentifier(inputIdx), attemptNum,
             PATH_COMPONENT, false, InputAttemptIdentifier.SPILL_INFO.FINAL_UPDATE, 1);
     handler.handleEvents(Collections.singletonList(dme2));
-    baseUri = handler.getBaseURI(HOST, PORT, attemptNum).toString();
     partitionId = attemptNum;
     assertTrue(scheduler.pipelinedShuffleInfoEventsMap.containsKey(id2.getInputIdentifier()));
-    verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId), eq(baseUri), eq(id2));
+    verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId), eq(id2));
     assertTrue(scheduler.pipelinedShuffleInfoEventsMap.containsKey(id2.getInputIdentifier()));
 
     MapHost host = scheduler.getHost();
@@ -227,7 +225,6 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
     //Process attempt #1 first
     int attemptNum = 1;
     int inputIdx = 1;
-    String baseUri = handler.getBaseURI(HOST, PORT, attemptNum).toString();
 
     Event dme1 = createDataMovementEvent(attemptNum, inputIdx, null, false, true, true, 0, attemptNum);
     handler.handleEvents(Collections.singletonList(dme1));
@@ -236,7 +233,7 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
         new InputAttemptIdentifier(new InputIdentifier(inputIdx), attemptNum,
             PATH_COMPONENT, false, InputAttemptIdentifier.SPILL_INFO.INCREMENTAL_UPDATE, 0);
 
-    verify(scheduler, times(1)).addKnownMapOutput(eq(HOST), eq(PORT), eq(1), eq(baseUri), eq(id1));
+    verify(scheduler, times(1)).addKnownMapOutput(eq(HOST), eq(PORT), eq(1), eq(id1));
     assertTrue("Shuffle info events should not be empty for pipelined shuffle",
         !scheduler.pipelinedShuffleInfoEventsMap.isEmpty());
 
@@ -262,10 +259,9 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
     handler.handleEvents(events);
     InputAttemptIdentifier expectedIdentifier = new InputAttemptIdentifier(targetIdx, 0,
         PATH_COMPONENT);
-    String baseUri = handler.getBaseURI(HOST, PORT, srcIdx).toString();
     int partitionId = srcIdx;
     verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId),
-        eq(baseUri), eq(expectedIdentifier));
+        eq(expectedIdentifier));
     assertTrue("Shuffle info events should be empty for regular shuffle codepath",
         scheduler.pipelinedShuffleInfoEventsMap.isEmpty());
   }
@@ -318,12 +314,10 @@ public class TestShuffleInputEventHandlerOrderedGrouped {
         false);
     events.add(dme);
     handler.handleEvents(events);
-    String baseUri = handler.getBaseURI(HOST, PORT, srcIdx).toString();
     int partitionId = srcIdx;
     InputAttemptIdentifier expectedIdentifier =
         new InputAttemptIdentifier(taskIndex, 0, PATH_COMPONENT);
-    verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId), eq(baseUri),
-        eq(expectedIdentifier));
+    verify(scheduler).addKnownMapOutput(eq(HOST), eq(PORT), eq(partitionId), eq(expectedIdentifier));
   }
 
   private ByteString createEmptyPartitionByteString(int... emptyPartitions) throws IOException {
