@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3115. (BUG-59504) Shuffle string handling adds significant memory overhead.
   TEZ-2244. (BUG-69195) PipelinedSorter: Progressive allocation for sort-buffers.
   TEZ-3449. Fix Spelling typos.
   TEZ-3434. (BUG-64980) Add unit tests for flushing of recovery events.
