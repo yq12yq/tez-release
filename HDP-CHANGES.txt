@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3156. (TEZ-84) Tez client keeps trying to talk to RM even if RM does not know about the application. 
   TEZ-3137. (BUG-52985) tez task failed with illegal state exception
   TEZ-3123. (BUG-52871) Containers can get re-used even with conflicting local resources.
   TEZ-3117. (BUG-52605) Deadlock in Edge and Vertex code
