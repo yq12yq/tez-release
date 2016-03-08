@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2863. (BUG-55894) Container, node, and logs not available in UI for tasks that fail to launch
   TEZ-3177. (BUG-47365) Non-DAG events should use the session domain or no domain if the data does not need protection.
   TEZ-3126. (BUG-54539) Log reason for not reducing parallelism.
   TEZ-2886. (BUG-54426) Ability to merge AM credentials with DAG credentials.
