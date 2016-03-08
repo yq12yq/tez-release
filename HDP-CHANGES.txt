@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-2863. (BUG-54598) Container, node, and logs not available in UI for tasks that fail to launch
   TEZ-3173. (BUG-54700) Update Tez AM REST APIs for more information for each vertex.
   TEZ-3192. (BUG-55442) IFile#checkState creating unnecessary objects though auto-boxing.
   TEZ-1911. (BUG-54604) MergeManager's unconditionalReserve() should check for memory limits before allocating.
