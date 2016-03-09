@@ -149,5 +149,5 @@ BUG FIXES
   TEZ-2453. Tez UI: show the dagInfo is the application has set the same.
   TEZ-2447. Tez UI: Generic changes based on feedbacks.
   TEZ-2409. Allow different edges to have different routing plugins
-  TEZ-3101. Tez UI: Task attempt log link doesn't have the correct protocol.
+  TEZ-3101. (BUG-53754) Tez UI: Task attempt log link doesn't have the correct protocol.
 
