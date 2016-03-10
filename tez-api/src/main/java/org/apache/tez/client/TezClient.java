@@ -22,9 +22,15 @@ import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
+import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.tez.common.TezCommonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -120,6 +126,12 @@ public class TezClient {
 
   private int preWarmDAGCounter = 0;
 
+  /* max submitDAG request size through IPC; beyond this we transfer them in the same way we transfer local resource */
+  private int maxSubmitDAGRequestSizeThroughIPC;
+  /* this counter counts number of serialized DAGPlan and is used to give unique name to each serialized DAGPlan */
+  private AtomicInteger serializedSubmitDAGPlanRequestCounter = new AtomicInteger(0);
+  private FileSystem stagingFs = null;
+
   private static final String atsHistoryLoggingServiceClassName =
       "org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService";
   private static final String atsHistoryACLManagerClassName =
@@ -157,6 +169,10 @@ public class TezClient {
     tezConf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, isSession);
     this.amConfig = new AMConfiguration(tezConf, localResources, credentials);
     this.apiVersionInfo = new TezApiVersionInfo();
+    this.maxSubmitDAGRequestSizeThroughIPC = tezConf.getInt(CommonConfigurationKeys.IPC_MAXIMUM_DATA_LENGTH,
+        CommonConfigurationKeys.IPC_MAXIMUM_DATA_LENGTH_DEFAULT) -
+        tezConf.getInt(TezConfiguration.TEZ_IPC_PAYLOAD_RESERVED_BYTES,
+        TezConfiguration.TEZ_IPC_PAYLOAD_RESERVED_BYTES_DEFAULT);
     Limits.setConfiguration(tezConf);
 
     LOG.info("Tez Client Version: " + apiVersionInfo.toString());
@@ -412,6 +428,8 @@ public class TezClient {
       } catch (YarnException e) {
         throw new TezException(e);
       }
+
+      this.stagingFs = FileSystem.get(amConfig.getTezConfiguration());
     }
   }
   
@@ -488,13 +506,26 @@ public class TezClient {
         usingTezArchiveDeploy, sessionCredentials, aclConfigs, javaOptsChecker);
 
     SubmitDAGRequestProto.Builder requestBuilder = SubmitDAGRequestProto.newBuilder();
-    requestBuilder.setDAGPlan(dagPlan).build();
+    requestBuilder.setDAGPlan(dagPlan);
     if (!additionalLocalResources.isEmpty()) {
       requestBuilder.setAdditionalAmResources(DagTypeConverters
           .convertFromLocalResources(additionalLocalResources));
     }
     
     additionalLocalResources.clear();
+
+    // if request size exceeds maxSubmitDAGRequestSizeThroughIPC, we serialize them to HDFS
+    SubmitDAGRequestProto request = requestBuilder.build();
+    if (request.getSerializedSize() > maxSubmitDAGRequestSizeThroughIPC) {
+      Path dagPlanPath = new Path(TezCommonUtils.getTezSystemStagingPath(amConfig.getTezConfiguration(),
+          sessionAppId.toString()), TezConstants.TEZ_PB_PLAN_BINARY_NAME +
+          serializedSubmitDAGPlanRequestCounter.incrementAndGet());
+
+      try (FSDataOutputStream fsDataOutputStream = stagingFs.create(dagPlanPath, false)) {
+        request.writeTo(fsDataOutputStream);
+        request = requestBuilder.clear().setSerializedRequestPath(stagingFs.resolvePath(dagPlanPath).toString()).build();
+      }
+    }
 
     DAGClientAMProtocolBlockingPB proxy = null;
     try {
@@ -514,7 +545,7 @@ public class TezClient {
     }
 
     try {
-      SubmitDAGResponseProto response = proxy.submitDAG(null, requestBuilder.build());
+      SubmitDAGResponseProto response = proxy.submitDAG(null, request);
       // the following check is only for testing since the final class
       // SubmitDAGResponseProto cannot be mocked
       if (response != null) {

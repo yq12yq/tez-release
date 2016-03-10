@@ -1318,4 +1318,20 @@ public class TezConfiguration extends Configuration {
   public static final boolean TEZ_AM_ATS_V15_OVERRIDE_SUMMARY_TYPES_DEFAULT = true;
 
 
+  /**
+   * Int value. SubmitDAGPlanRequest cannot be larger than Max IPC message size minus this number; otherwise, it will
+   * be serialized to HDFS and we transfer the path to server. Server will deserialize the request from HDFS.
+   */
+  @Private
+  @ConfigurationScope(Scope.CLIENT)
+  public static final String TEZ_IPC_PAYLOAD_RESERVED_BYTES = TEZ_PREFIX + "ipc.payload.reserved.bytes";
+  public static final int TEZ_IPC_PAYLOAD_RESERVED_BYTES_DEFAULT = 5 * 1024 * 1024;
+
+  // for Recovery Test
+  @Private
+  @ConfigurationScope(Scope.TEST)
+  public static final String TEZ_AM_RECOVERY_SERVICE_CLASS =
+      TEZ_PREFIX + "test.recovery-service-class";
+  @Private
+  public static final String TEZ_AM_RECOVERY_SERVICE_CLASS_DEFAULT = "org.apache.tez.dag.history.recovery.RecoveryService";
 }
