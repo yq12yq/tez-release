@@ -2,7 +2,6 @@ Changes only in Hortonworks github and not in Apache Tez release 0.7.0 and hence
 
 INCOMPATIBLE CHANGES
 
-  TEZ-2468. Change the minimum Java version to Java 7.
 
 NEW FEATURES
 
@@ -11,6 +10,7 @@ NEW FEATURES
 IMPROVEMENTS
 
   TEZ-3155. Support a way to submit DAGs to a session where the DAG plan exceeds hadoop ipc limits.
+  TEZ-2468. Change the minimum Java version to Java 7.
   TEZ-3017. HistoryACLManager does not have a close method for cleanup
   TEZ-1314. (BUG-48777) Port MAPREDUCE-5821 to Tez.
   TEZ-2949. (BUG-47794) Allow duplicate dag names within session for Tez.
