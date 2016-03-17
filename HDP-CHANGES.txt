@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3166. Counters aren't fully updated and sent for failed tasks
   BUG-54420. Fix Tez to handle changes for BUG-54323.
   TEZ-3128. (BUG-53461) Avoid stopping containers on the AM shutdown thread.
   TEZ-3156. (TEZ-87) Tez client keeps trying to talk to RM even if RM does not know about the application. 
