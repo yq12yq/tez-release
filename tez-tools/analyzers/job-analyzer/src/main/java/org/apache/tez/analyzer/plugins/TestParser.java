@@ -13,6 +13,7 @@ import org.mortbay.util.ajax.JSON;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -61,7 +62,7 @@ public class TestParser {
   }
 
   public static void populateMapping(Path filePath) throws IOException {
-    for (String line : Files.readAllLines(filePath)) {
+    for (String line : Files.readAllLines(filePath, Charset.forName("UTF-8"))) {
       String qId = line.split("\t")[0];
       String dagId = line.split("\t")[1];
       queryToDAGMapping.put(dagId, qId);
