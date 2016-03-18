@@ -85,11 +85,11 @@ public abstract class BaseParser {
 
     //Set reference time for all events
     for (VertexInfo vertexInfo : dagInfo.getVertices()) {
-      setReferenceTime(vertexInfo.getEvents(), dagInfo.getStartTime());
+      setReferenceTime(vertexInfo.getEvents(), dagInfo.getStartTimeInterval());
       for (TaskInfo taskInfo : vertexInfo.getTasks()) {
-        setReferenceTime(taskInfo.getEvents(), dagInfo.getStartTime());
+        setReferenceTime(taskInfo.getEvents(), dagInfo.getStartTimeInterval());
         for (TaskAttemptInfo taskAttemptInfo : taskInfo.getTaskAttempts()) {
-          setReferenceTime(taskAttemptInfo.getEvents(), dagInfo.getStartTime());
+          setReferenceTime(taskAttemptInfo.getEvents(), dagInfo.getStartTimeInterval());
         }
       }
     }
@@ -110,5 +110,10 @@ public abstract class BaseParser {
         return false;
       }
     });
+  }
+
+  protected void setUserName(String userName) {
+    Preconditions.checkArgument(dagInfo != null, "DagInfo can not be null");
+    dagInfo.setUserName(userName);
   }
 }

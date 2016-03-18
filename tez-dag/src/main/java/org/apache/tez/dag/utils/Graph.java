@@ -62,6 +62,7 @@ public class Graph {
     List<Edge> outs;
     String label;
     String shape;
+    String color;
 
     public Node(String id) {
       this(id, null);
@@ -103,6 +104,10 @@ public class Graph {
 
     public void setShape(String shape) {
       this.shape = shape;
+    }
+
+    public void setColor(String color) {
+      this.color = color;
     }
   }
 
