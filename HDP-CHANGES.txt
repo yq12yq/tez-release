@@ -40,7 +40,6 @@ IMPROVEMENTS
 
 BUG FIXES
 
-  BUG-54609. Fix compile failure for job analyser with java-7.
   TEZ-3126. (BUG-54539) Log reason for not reducing parallelism.
   TEZ-2886. (BUG-54426) Ability to merge AM credentials with DAG credentials.
   TEZ-2963. (BUG-54425) RecoveryService#handleSummaryEvent exception with HDFS transparent encryption + kerberos authentication.
