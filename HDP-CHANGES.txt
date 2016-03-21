@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  BUG-54696. Backport TEZ-3103. Shuffle can hang when memory to memory merging enabled
   BUG-54430. Backport analyzers in tez-tools.
   TEZ-3155. Support a way to submit DAGs to a session where the DAG plan exceeds hadoop ipc limits.
   TEZ-2468. Change the minimum Java version to Java 7.

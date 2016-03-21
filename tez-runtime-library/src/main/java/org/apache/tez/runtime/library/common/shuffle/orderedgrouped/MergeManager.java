@@ -483,6 +483,12 @@ public class MergeManager {
     LOG.info("closeInMemoryMergedFile -> size: " + mapOutput.getSize() +
              ", inMemoryMergedMapOutputs.size() -> " + 
              inMemoryMergedMapOutputs.size());
+
+    commitMemory += mapOutput.getSize();
+
+    if (commitMemory >= mergeThreshold) {
+      startMemToDiskMerge();
+    }
   }
   
   public synchronized void closeOnDiskFile(FileChunk file) {
@@ -1037,5 +1043,20 @@ public class MergeManager {
                  finalSegments, finalSegments.size(), tmpDir,
                  comparator, nullProgressable, spilledRecordsCounter, null,
                  additionalBytesRead, null);
+  }
+
+  @VisibleForTesting
+  long getCommitMemory() {
+    return commitMemory;
+  }
+
+  @VisibleForTesting
+  long getUsedMemory() {
+    return usedMemory;
+  }
+
+  @VisibleForTesting
+  void waitForMemToMemMerge() throws InterruptedException {
+    memToMemMerger.waitForMerge();
   }
 }
