@@ -183,4 +183,12 @@ public interface Vertex extends Comparable<Vertex> {
   public Configuration getConf();
 
   public boolean isSpeculationEnabled();
+
+  public long getInitTime();
+  public long getStartTime();
+  public long getFinishTime();
+
+  void reportTaskStartTime(long taskStartTime);
+  public long getFirstTaskStartTime();
+  public long getLastTaskFinishTime();
 }

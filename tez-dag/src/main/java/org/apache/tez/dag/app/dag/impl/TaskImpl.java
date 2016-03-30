@@ -330,6 +330,9 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   private final boolean leafVertex;
   private TaskState recoveredState = TaskState.NEW;
 
+  @VisibleForTesting
+  long finishTime = -1L;
+
   @Override
   public TaskState getState() {
     readLock.lock();
@@ -431,7 +434,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
     try {
       report.setTaskId(taskId);
       report.setStartTime(getLaunchTime());
-      report.setFinishTime(getFinishTime());
+      report.setFinishTime(getLastTaskAttemptFinishTime());
       report.setTaskState(getState());
       report.setProgress(getProgress());
       return report;
@@ -666,6 +669,16 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
     }
   }
 
+  @Override
+  public long getFinishTime() {
+    readLock.lock();
+    try {
+      return finishTime;
+    } finally {
+      readLock.unlock();
+    }
+  }
+
   @VisibleForTesting
   public TaskStateInternal getInternalState() {
     readLock.lock();
@@ -707,7 +720,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
 
   //this is always called in read/write lock
   //TODO Verify behaviour is Task is killed (no finished attempt)
-  private long getFinishTime() {
+  private long getLastTaskAttemptFinishTime() {
     if (!isFinished()) {
       return 0;
     }
@@ -1009,8 +1022,9 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   protected void logJobHistoryTaskFinishedEvent() {
     // FIXME need to handle getting finish time as this function
     // is called from within a transition
+    this.finishTime = clock.getTime();
     TaskFinishedEvent finishEvt = new TaskFinishedEvent(taskId,
-        getVertex().getName(), getLaunchTime(), clock.getTime(),
+        getVertex().getName(), getLaunchTime(), this.finishTime,
         successfulAttempt,
         TaskState.SUCCEEDED, "", getCounters(), failedAttempts);
     this.appContext.getHistoryHandler().handle(
@@ -1018,8 +1032,9 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
   }
 
   protected void logJobHistoryTaskFailedEvent(TaskState finalState) {
+    this.finishTime = clock.getTime();
     TaskFinishedEvent finishEvt = new TaskFinishedEvent(taskId,
-        getVertex().getName(), getLaunchTime(), clock.getTime(), null,
+        getVertex().getName(), getLaunchTime(), this.finishTime, null,
         finalState, 
         StringUtils.join(getDiagnostics(), LINE_SEPARATOR),
         getCounters(), failedAttempts);
@@ -1075,6 +1090,7 @@ public class TaskImpl implements Task, EventHandler<TaskEvent> {
       task.addAndScheduleAttempt(null);
       task.scheduledTime = task.clock.getTime();
       task.logJobHistoryTaskStartedEvent();
+      task.vertex.reportTaskStartTime(task.getLaunchTime());
     }
   }
 

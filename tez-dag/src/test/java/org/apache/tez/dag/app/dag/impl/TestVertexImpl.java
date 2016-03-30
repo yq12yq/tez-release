@@ -6316,4 +6316,66 @@ public class TestVertexImpl {
 
   }
 
+  @Test(timeout = 5000)
+  public void testFirstTaskStartTime() {
+    VertexImpl v = vertices.get("vertex1");
+    Assert.assertEquals(v.getFirstTaskStartTime(), -1);
+    v.reportTaskStartTime(100);
+    Assert.assertEquals(v.getFirstTaskStartTime(), 100);
+    v.reportTaskStartTime(50);
+    Assert.assertEquals(v.getFirstTaskStartTime(), 50);
+    v.reportTaskStartTime(200);
+    Assert.assertEquals(v.getFirstTaskStartTime(), 50);
+  }
+
+  @Test(timeout = 5000)
+  public void testLastTaskFinishTime() {
+    NodeId nid = NodeId.newInstance("127.0.0.1", 0);
+    ContainerId contId = ContainerId.newContainerId(appAttemptId, 3);
+    Container container = mock(Container.class);
+    when(container.getId()).thenReturn(contId);
+    when(container.getNodeId()).thenReturn(nid);
+    when(container.getNodeHttpAddress()).thenReturn("localhost:0");
+    AMContainerMap containers = new AMContainerMap(
+        mock(ContainerHeartbeatHandler.class), mock(TaskAttemptListener.class),
+        new ContainerContextMatcher(), appContext);
+    containers.addContainerIfNew(container);
+    doReturn(containers).when(appContext).getAllContainers();
+    dispatcher.register(DAGEventType.class, dagEventDispatcher);
+
+    initAllVertices(VertexState.INITED);
+
+    VertexImpl v = vertices.get("vertex2");
+    startVertex(v);
+
+    TezTaskID tid0 = TezTaskID.getInstance(v.getVertexId(), 0);
+    TezTaskID tid1 = TezTaskID.getInstance(v.getVertexId(), 1);
+    TaskImpl task0 = (TaskImpl) v.getTask(tid0);
+    TaskImpl task1 = (TaskImpl) v.getTask(tid1);
+
+    TezTaskAttemptID taskAttemptId0 = TezTaskAttemptID.getInstance(task0.getTaskId(), 0);
+    TezTaskAttemptID taskAttemptId1 = TezTaskAttemptID.getInstance(task1.getTaskId(), 0);
+    TaskAttemptImpl taskAttempt0 = (TaskAttemptImpl) task0.getAttempt(taskAttemptId0);
+    TaskAttemptImpl taskAttempt1 = (TaskAttemptImpl) task1.getAttempt(taskAttemptId1);
+
+    Assert.assertEquals(v.getLastTaskFinishTime(), -1);
+
+    taskAttempt0.handle(new TaskAttemptEventSchedule(taskAttemptId0, 0, 0));
+    taskAttempt0.handle(new TaskAttemptEventStartedRemotely(taskAttemptId0, contId, null));
+    taskAttempt0.handle(new TaskAttemptEvent(taskAttemptId0, TaskAttemptEventType.TA_DONE));
+    //task0.handle(new TaskEventTAUpdate(taskAttemptId0, TaskEventType.T_ATTEMPT_SUCCEEDED));
+
+    Assert.assertEquals(v.getLastTaskFinishTime(), -1);
+
+    taskAttempt1.handle(new TaskAttemptEventSchedule(taskAttemptId1, 0, 0));
+    taskAttempt1.handle(new TaskAttemptEventStartedRemotely(taskAttemptId1, contId, null));
+    taskAttempt1.handle(new TaskAttemptEvent(taskAttemptId1, TaskAttemptEventType.TA_DONE));
+    //task1.handle(new TaskEventTAUpdate(taskAttemptId1, TaskEventType.T_ATTEMPT_SUCCEEDED));
+
+    dispatcher.await();
+
+    Assert.assertEquals(VertexState.SUCCEEDED, v.getState());
+    Assert.assertTrue(v.getLastTaskFinishTime() > 0);
+  }
+
 }
