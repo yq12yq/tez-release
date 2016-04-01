@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  BUG-55442. Backport TEZ-3192: IFile#checkState creating unnecessary objects though auto-boxing.
   BUG-54604. Backport TEZ-1911. MergeManager's unconditionalReserve() should check for memory limits before allocating.
   BUG-54696. Backport TEZ-3103. Shuffle can hang when memory to memory merging enabled
   BUG-54430. Backport analyzers in tez-tools.
