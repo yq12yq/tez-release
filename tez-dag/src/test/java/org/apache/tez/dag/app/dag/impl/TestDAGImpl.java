@@ -2173,6 +2173,7 @@ public class TestDAGImpl {
 
   @SuppressWarnings("unchecked")
   @Test(timeout = 5000)
+  @Ignore
   public void testCounterLimits() {
     initDAG(mrrDag);
     dispatcher.await();
