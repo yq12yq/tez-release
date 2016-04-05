@@ -44,6 +44,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3177. (BUG-47365) Non-DAG events should use the session domain or no domain if the data does not need protection.
   TEZ-3189. (BUG-54666) Pre-warm dags should not be counted in submitted dags count by DAGAppMaster.
   TEZ-3126. (BUG-54539) Log reason for not reducing parallelism.
   TEZ-2886. (BUG-54426) Ability to merge AM credentials with DAG credentials.
