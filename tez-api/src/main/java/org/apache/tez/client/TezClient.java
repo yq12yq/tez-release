@@ -119,6 +119,7 @@ public class TezClient {
   private JavaOptsChecker javaOptsChecker = null;
 
   private int preWarmDAGCounter = 0;
+  private int dagCounter = 0;
 
   private static final String atsHistoryLoggingServiceClassName =
       "org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService";
@@ -430,6 +431,7 @@ public class TezClient {
    *           if submission timed out
    */  
   public synchronized DAGClient submitDAG(DAG dag) throws TezException, IOException {
+    ++dagCounter;
     if (isSession) {
       return submitDAGSession(dag);
     } else {
@@ -471,7 +473,8 @@ public class TezClient {
     if (historyACLPolicyManager != null && sessionHistoryLoggingEnabled) {
       try {
         aclConfigs = historyACLPolicyManager.setupSessionDAGACLs(
-            amConfig.getTezConfiguration(), sessionAppId, dag.getName(), dag.getDagAccessControls());
+            amConfig.getTezConfiguration(), sessionAppId,
+            Integer.toString(dagCounter), dag.getDagAccessControls());
       } catch (HistoryACLPolicyException e) {
         LOG.warn("Disabling history logging for dag " +
           dag.getName() + " due to error in setting up history acls " + e);
