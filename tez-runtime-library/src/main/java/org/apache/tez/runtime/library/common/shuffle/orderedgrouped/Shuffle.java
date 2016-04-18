@@ -373,7 +373,7 @@ public class Shuffle implements ExceptionReporter {
       // Finish the on-going merges...
       TezRawKeyValueIterator kvIter = null;
       try {
-        kvIter = merger.close();
+        kvIter = merger.close(true);
       } catch (Throwable e) {
         throw new ShuffleError("Error while doing final merge " , e);
       }
@@ -444,7 +444,7 @@ public class Shuffle implements ExceptionReporter {
   private void cleanupMerger(boolean ignoreErrors) throws Throwable {
     if (!mergerClosed.getAndSet(true)) {
       try {
-        merger.close();
+        merger.close(false);
       } catch (Throwable e) {
         if (ignoreErrors) {
           LOG.info(srcNameTrimmed + ": " + "Exception while trying to shutdown merger, Ignoring", e);

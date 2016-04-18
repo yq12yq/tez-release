@@ -530,8 +530,8 @@ public class MergeManager {
   public boolean isMergeComplete() {
     return finalMergeComplete;
   }
-  
-  public TezRawKeyValueIterator close() throws Throwable {
+
+  public TezRawKeyValueIterator close(boolean tryFinalMerge) throws Throwable {
     // Wait for on-going merges to complete
     if (memToMemMerger != null) { 
       memToMemMerger.close();
@@ -546,9 +546,14 @@ public class MergeManager {
     inMemoryMapOutputs.clear();
     List<FileChunk> disk = new ArrayList<FileChunk>(onDiskMapOutputs);
     onDiskMapOutputs.clear();
-    TezRawKeyValueIterator kvIter = finalMerge(conf, rfs, memory, disk);
-    this.finalMergeComplete = true;
-    return kvIter;
+    // Don't attempt a final merge if close is invoked as a result of a previous
+    // shuffle exception / error.
+    if (tryFinalMerge) {
+      TezRawKeyValueIterator kvIter = finalMerge(conf, rfs, memory, disk);
+      this.finalMergeComplete = true;
+      return kvIter;
+    }
+    return null;
   }
    
   void runCombineProcessor(TezRawKeyValueIterator kvIter, Writer writer)
