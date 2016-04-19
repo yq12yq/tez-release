@@ -47,6 +47,7 @@ import org.apache.tez.test.dag.TwoLevelsFailingDAG;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class TestFaultTolerance {
@@ -732,6 +733,7 @@ public class TestFaultTolerance {
   }
   
   @Test (timeout=240000)
+  @Ignore
   public void testRandomFailingTasks() throws Exception {
     Configuration testConf = new Configuration(false);
     testConf.setBoolean(TestProcessor.TEZ_FAILING_PROCESSOR_DO_RANDOM_FAIL, true);

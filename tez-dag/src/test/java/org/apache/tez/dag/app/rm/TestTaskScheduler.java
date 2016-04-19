@@ -77,6 +77,7 @@ import org.apache.tez.dag.app.rm.TestTaskSchedulerHelpers.PreemptionMatcher;
 import org.apache.tez.dag.app.rm.container.ContainerSignatureMatcher;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -730,6 +731,7 @@ public class TestTaskScheduler {
 
   @SuppressWarnings({ "unchecked" })
   @Test(timeout=10000)
+  @Ignore
   public void testTaskSchedulerWithReuse() throws Exception {
     RackResolver.init(new YarnConfiguration());
     TaskSchedulerAppCallback mockApp = mock(TaskSchedulerAppCallback.class);
