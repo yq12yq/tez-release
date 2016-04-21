@@ -66,6 +66,7 @@ import org.apache.tez.tests.MiniTezClusterWithTimeline;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.Sets;
@@ -194,6 +195,7 @@ public class TestATSHistoryWithACLs {
   }
 
   @Test (timeout=50000)
+  @Ignore
   public void testSimpleAMACls() throws Exception {
     TezClient tezSession = null;
     ApplicationId applicationId;
@@ -246,6 +248,7 @@ public class TestATSHistoryWithACLs {
   }
 
   @Test (timeout=50000)
+  @Ignore
   public void testDAGACls() throws Exception {
     TezClient tezSession = null;
     ApplicationId applicationId;
@@ -313,6 +316,7 @@ public class TestATSHistoryWithACLs {
    * @throws Exception
    */
   @Test (timeout=50000)
+  @Ignore
   public void testMultipleDagSession() throws Exception {
     TezClient tezSession = null;
     String viewAcls = "nobody nobody_group";
@@ -395,6 +399,7 @@ public class TestATSHistoryWithACLs {
  * @throws Exception
  */
   @Test (timeout=50000)
+  @Ignore
   public void testMultipleDagNonSession() throws Exception {
     TezClient tezClient = null;
     String viewAcls = "nobody nobody_group";
@@ -598,6 +603,7 @@ public class TestATSHistoryWithACLs {
    * @throws Exception
    */
   @Test (timeout=50000)
+  @Ignore
   public void testDagLoggingEnabled() throws Exception {
     ATSHistoryLoggingService historyLoggingService;
     historyLoggingService =

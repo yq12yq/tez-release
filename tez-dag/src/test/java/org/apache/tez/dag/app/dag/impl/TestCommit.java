@@ -111,6 +111,7 @@ import org.apache.tez.runtime.api.impl.TezEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData.EventProducerConsumerType;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -1629,6 +1630,7 @@ public class TestCommit {
 
   // DAG killed while dag is still in RUNNING and vertex is in COMMITTING
   @Test(timeout = 5000)
+  @Ignore
   public void testDAGKilledWhileRunning_OnVertexSuccess() throws Exception {
     conf.setBoolean(TezConfiguration.TEZ_AM_COMMIT_ALL_OUTPUTS_ON_DAG_SUCCESS,
         false);
