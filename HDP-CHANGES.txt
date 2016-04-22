@@ -60,6 +60,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3224. (BUG-59492) User payload is not initialized before creating vertex manager plugin.
   TEZ-2846. (BUG-59606) Flaky test: TestCommit.testVertexCommit_OnDAGSuccess.
   TEZ-3193. (BUG-59491) Deadlock in AM during task commit request.
   TEZ-3036. (BUG-59497) Tez AM can hang on startup with no indication of error
