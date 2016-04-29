@@ -44,6 +44,7 @@ IMPROVEMENTS
   BUG-43319. Port initial patch for ATS v1.5 from TEZ-2628
   TEZ-2662. Provide a way to check whether AM or task opts are valid and error if not.
   BUG-56245. Replace tez-ui v1 with v2 in apache master and erie branch. tez-ui copied from master#4389ce8cf368c913757a95788c9c792b2a71f37f
+  TEZ-3233. (BUG-53624) Tez UI: Have LLAP information reflect in Tez UI
 
 BUG FIXES
 
