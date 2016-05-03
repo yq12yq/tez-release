@@ -59,6 +59,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3193. (BUG-59491) Deadlock in AM during task commit request.
   TEZ-3036. (BUG-59497) Tez AM can hang on startup with no indication of error
   TEZ-3258. (BUG-59489) Jvm Checker does not ignore DisableExplicitGC when checking JVM GC options.
   TEZ-3052. (BUG-59498) Task internal error due to Invalid event: T_ATTEMPT_FAILED at FAILED

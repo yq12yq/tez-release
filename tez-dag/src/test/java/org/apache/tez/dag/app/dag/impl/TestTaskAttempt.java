@@ -99,6 +99,7 @@ import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezTaskID;
 import org.apache.tez.dag.records.TezVertexID;
+import org.apache.tez.dag.utils.TezBuilderUtils;
 import org.apache.tez.runtime.api.events.InputReadErrorEvent;
 import org.apache.tez.runtime.api.events.TaskStatusUpdateEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData;
@@ -121,7 +122,6 @@ public class TestTaskAttempt {
   }
   
   AppContext appCtx;
-  Task mockTask;
   TaskLocationHint locationHint;
 
   @BeforeClass
@@ -132,7 +132,6 @@ public class TestTaskAttempt {
   @Before
   public void setupTest() {
     appCtx = mock(AppContext.class);
-    mockTask = mock(Task.class);
     HistoryEventHandler mockHistHandler = mock(HistoryEventHandler.class);
     doReturn(mockHistHandler).when(appCtx).getHistoryHandler();
   }
@@ -167,7 +166,6 @@ public class TestTaskAttempt {
           + AMSchedulerEventTALaunchRequest.class.getName());
     }
     
-    verify(mockTask, times(1)).getTaskLocationHint();
     // TODO Move the Rack request check to the client after TEZ-125 is fixed.
     Set<String> requestedRacks = taImpl.taskRacks;
     assertEquals(1, requestedRacks.size());
@@ -1477,23 +1475,17 @@ public class TestTaskAttempt {
         TaskHeartbeatHandler taskHeartbeatHandler, AppContext appContext,
         boolean isRescheduled,
         Resource resource, ContainerContext containerContext, boolean leafVertex) {
-      super(taskId, attemptNumber, eventHandler, tal, conf,
+      super(TezBuilderUtils.newTaskAttemptId(taskId, attemptNumber),
+          eventHandler, tal, conf,
           clock, taskHeartbeatHandler, appContext,
-          isRescheduled, resource, containerContext, leafVertex, mockTask);
-      when(mockTask.getTaskLocationHint()).thenReturn(locationHint);
+          isRescheduled, resource, containerContext, leafVertex, mock(Vertex.class),
+          locationHint, null);
     }
 
-    
-    Vertex mockVertex = mock(Vertex.class);
     boolean inputFailedReported = false;
     
     @Override
-    protected Vertex getVertex() {
-      return mockVertex;
-    }
-
-    @Override
-    protected TaskSpec createRemoteTaskSpec() {
+    protected TaskSpec getTaskSpec() {
       // FIXME
       return null;
     }
