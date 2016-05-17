@@ -50,6 +50,7 @@ IMPROVEMENTS
   TEZ-3086. (BUG-56627) Tez UI: Backward compatibility changes
   TEZ-3254. (BUG-54441) Tez UI: Consider downloading Hive/Pig explain plans
   TEZ-3255. (BUG-56044) Tez UI: Hide swimlane while displaying running DAGs from old versions of Tez
+  BUG-57985. Tez UI: Revert changes added by BUG-57728
 
 BUG FIXES
 
