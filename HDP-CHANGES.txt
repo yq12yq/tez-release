@@ -49,6 +49,7 @@ IMPROVEMENTS
   TEZ-3233. (BUG-53624) Tez UI: Have LLAP information reflect in Tez UI
   TEZ-3086. (BUG-56627) Tez UI: Backward compatibility changes
   TEZ-3254. (BUG-54441) Tez UI: Consider downloading Hive/Pig explain plans
+  TEZ-3255. (BUG-56044) Tez UI: Hide swimlane while displaying running DAGs from old versions of Tez
 
 BUG FIXES
 
