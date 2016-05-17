@@ -48,6 +48,7 @@ IMPROVEMENTS
   BUG-56245. Replace tez-ui v1 with v2 in apache master and erie branch. tez-ui copied from master#4389ce8cf368c913757a95788c9c792b2a71f37f
   TEZ-3233. (BUG-53624) Tez UI: Have LLAP information reflect in Tez UI
   TEZ-3086. (BUG-56627) Tez UI: Backward compatibility changes
+  TEZ-3254. (BUG-54441) Tez UI: Consider downloading Hive/Pig explain plans
 
 BUG FIXES
 
