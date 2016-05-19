@@ -129,6 +129,8 @@ public abstract class RuntimeTask {
     return taskSpec.getTaskAttemptID();
   }
 
+  public abstract int getMaxEventsToHandle();
+
   public abstract void handleEvents(Collection<TezEvent> events);
 
   public int getEventCounter() {
