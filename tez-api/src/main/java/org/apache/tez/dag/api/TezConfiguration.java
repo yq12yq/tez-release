@@ -617,6 +617,16 @@ public class TezConfiguration extends Configuration {
   public static final int TEZ_TASK_MAX_EVENTS_PER_HEARTBEAT_DEFAULT = 500;
 
   /**
+   * Int value. Maximum number of pending task events before a task will stop
+   * asking for more events in the task heartbeat.
+   * Expert level setting.
+   */
+  @ConfigurationScope(Scope.AM)
+  public static final String TEZ_TASK_MAX_EVENT_BACKLOG = TEZ_TASK_PREFIX +
+      "max-event-backlog";
+  public static final int TEZ_TASK_MAX_EVENT_BACKLOG_DEFAULT = 10000;
+
+  /**
    * Whether to generate counters per IO or not. Enabling this will rename
    * CounterGroups / CounterNames to making them unique per Vertex +
    * Src|Destination

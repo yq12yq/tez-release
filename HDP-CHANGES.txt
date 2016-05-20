@@ -56,6 +56,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3114. (BUG-54603) Shuffle OOM due to EventMetaData flood (jlowe)
   TEZ-1961. (BUG-30204) Remove misleading exception "No running dag" from AM logs
   TEZ-3105. (BUG-54597) TezMxBeanResourceCalculator does not work on IBM JDK 7 or 8 causing Tez failures.
   TEZ-2988. (BUG-54605) DAGAppMaster::shutdownTezAM should return with a no-op if it has been invoked earlier.
