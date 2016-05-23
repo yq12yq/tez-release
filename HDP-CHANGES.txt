@@ -52,6 +52,7 @@ IMPROVEMENTS
   TEZ-3255. (BUG-56044) Tez UI: Hide swimlane while displaying running DAGs from old versions of Tez
   BUG-57985. Tez UI: Revert changes added by BUG-57728
   TEZ-3259. (BUG-57728) Tez UI: Build issue - File saver package is not working well with bower
+  TEZ-3262. (BUG-57728) Tez UI : zip.js is not having a bower friendly versioning system
 
 BUG FIXES
 
