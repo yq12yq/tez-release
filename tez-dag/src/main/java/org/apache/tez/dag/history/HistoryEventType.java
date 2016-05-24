@@ -58,6 +58,7 @@ public enum HistoryEventType {
       case DAG_INITIALIZED:
       case DAG_STARTED:
       case DAG_FINISHED:
+      case DAG_KILL_REQUEST:
       case VERTEX_INITIALIZED:
       case VERTEX_STARTED:
       case VERTEX_DATA_MOVEMENT_EVENTS_GENERATED:
