@@ -81,6 +81,8 @@ public class DeprecatedKeys {
         TezConfiguration.TEZ_COUNTERS_COUNTER_NAME_MAX_LENGTH);
     mrParamToDAGParamMap.put(MRJobConfig.COUNTER_GROUP_NAME_MAX_KEY,
       TezConfiguration.TEZ_COUNTERS_GROUP_NAME_MAX_LENGTH);
+    mrParamToDAGParamMap.put(MRJobConfig.JOB_TAGS,
+        TezConfiguration.TEZ_APPLICATION_TAGS);
   }
 
   // TODO TEZAM4 Sometime, make sure this gets loaded by default. Insteaf of the current initialization in MRAppMaster, TezChild.

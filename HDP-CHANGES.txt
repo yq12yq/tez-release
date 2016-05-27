@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-909.  (BUG-66190) Provide support for application tags (ebadger via rohini)
   TEZ-3382. (BUG-63319) Tez analyzer: Should be resilient to new counters.
   TEZ-3379. (BUG-63224) Tez analyzer: Move sysout to log4j.
   TEZ-3376. (BUG-62940) Fix groupId generation to account for dagId starting with 1.
