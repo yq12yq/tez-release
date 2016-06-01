@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3276. (BUG-59594) Tez Example MRRSleep job fails when tez.staging-dir fs is not same as default FS.
   TEZ-2097. (BUG-47918) TEZ-UI Add dag logs backend support
   TEZ-3114. (BUG-54603) Shuffle OOM due to EventMetaData flood (jlowe)
   TEZ-1961. (BUG-56796) Remove misleading exception "No running dag" from AM logs
