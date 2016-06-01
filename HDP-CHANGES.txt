@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3276. Tez Example MRRSleep job fails when tez.staging-dir fs is not same as default FS.
   TEZ-3147. (BUG-57591) Intermediate mem-to-mem: Fix early exit when only one segment can fit into memory.
   TEZ-3196. (BUG-55535) java.lang.InternalError from decompression codec is fatal to a task during shuffle.
   TEZ-2756. (BUG-54600) MergeManager close should not try merging files on close if invoked after a shuffle exception.
