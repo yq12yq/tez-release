@@ -36,6 +36,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3289. (BUG-59594) Tez Example MRRSleep job does not set Staging dir correctly on secure cluster.
   TEZ-3276. (BUG-59594) Tez Example MRRSleep job fails when tez.staging-dir fs is not same as default FS.
   TEZ-2097. (BUG-47918) TEZ-UI Add dag logs backend support
   TEZ-3114. (BUG-54603) Shuffle OOM due to EventMetaData flood (jlowe)
