@@ -58,6 +58,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3289. (BUG-59345) Tez Example MRRSleep job does not set Staging dir correctly on secure cluster.
   TEZ-3203. (BUG-59222) DAG hangs when one of the upstream vertices has zero tasks.
   TEZ-3213. (BUG-56815) Uncaught exception during vertex recovery leads to invalid state transition loop.
   TEZ-3276. (BUG-58654) Tez Example MRRSleep job fails when tez.staging-dir fs is not same as default FS.
