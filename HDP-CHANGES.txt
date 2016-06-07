@@ -58,6 +58,7 @@ IMPROVEMENTS
   TEZ-3262. (BUG-57728) Tez UI : zip.js is not having a bower friendly versioning system
   TEZ-3063. (BUG-30617) Tez UI : Display Input, Output, Processor, Source and Sink configurations under a vertex
   TEZ-3281. (BUG-43252) Tez UI: Swimlane improvements
+  TEZ-3264. (BUG-57683) Tez UI: UI discrepancies
 
 BUG FIXES
 
