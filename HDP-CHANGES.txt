@@ -60,6 +60,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2846. (BUG-59606) Flaky test: TestCommit.testVertexCommit_OnDAGSuccess.
   TEZ-3193. (BUG-59491) Deadlock in AM during task commit request.
   TEZ-3036. (BUG-59497) Tez AM can hang on startup with no indication of error
   TEZ-3258. (BUG-59489) Jvm Checker does not ignore DisableExplicitGC when checking JVM GC options.
