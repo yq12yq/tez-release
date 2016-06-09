@@ -110,11 +110,19 @@ public class TestVertexManager {
     public void initialize() throws Exception {}
 
     @Override
+    public void onVertexStarted(Map<String, List<Integer>> completions) throws Exception {}
+
+    @Override
+    public void onSourceTaskCompleted(String srcVertexName, Integer taskId) throws Exception {}
+
+    @Override
     public void onVertexManagerEventReceived(VertexManagerEvent vmEvent) throws Exception {}
 
     @Override
     public void onRootVertexInitialized(String inputName, InputDescriptor inputDescriptor,
                                         List<Event> events) throws Exception {}
+
+
   }
 
   @Test(timeout = 5000)
