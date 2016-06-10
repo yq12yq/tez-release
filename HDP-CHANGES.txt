@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3107. (BUG-59501) tez-tools: Log warn msgs in case ATS has wrong values (e.g startTime > finishTime).
   TEZ-3175. (BUG-59493) Add tez client submit host.
   TEZ-3202. (BUG-59499) Reduce the memory need for jobs with high number of segments.
   TEZ-3147. (BUG-57591) Intermediate mem-to-mem: Fix early exit when only one segment can fit into memory.
