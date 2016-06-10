@@ -62,6 +62,7 @@ import org.apache.tez.tests.MiniTezClusterWithTimeline;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -345,6 +346,7 @@ public class TestAnalyzer {
   }
   
   @Test (timeout=300000)
+  @Ignore
   public void testWithATS() throws Exception {
     usingATS = true;
     createTezSessionATS();
@@ -352,6 +354,7 @@ public class TestAnalyzer {
   }
   
   @Test (timeout=300000)
+  @Ignore
   public void testWithSimpleHistory() throws Exception {
     usingATS = false;
     createTezSessionSimpleHistory();

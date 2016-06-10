@@ -82,6 +82,7 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 import org.apache.tez.tests.MiniTezClusterWithTimeline;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedWriter;
@@ -192,6 +193,7 @@ public class TestHistoryParser {
    * @throws Exception
    */
   @Test
+  @Ignore
   public void testParserWithSuccessfulJob() throws Exception {
     //Run basic word count example.
     String dagId = runWordCount(WordCount.TokenProcessor.class.getName(),
@@ -357,6 +359,7 @@ public class TestHistoryParser {
    * Run a failed job and parse the data from ATS
    */
   @Test
+  @Ignore
   public void testParserWithFailedJob() throws Exception {
     //Run a job which would fail
     String dagId = runWordCount(WordCount.TokenProcessor.class.getName(), FailProcessor.class
