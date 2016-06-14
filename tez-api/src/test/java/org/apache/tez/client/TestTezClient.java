@@ -58,6 +58,8 @@ import org.apache.tez.dag.api.SessionNotRunning;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.TezConstants;
 import org.apache.tez.dag.api.TezException;
+import org.apache.tez.dag.api.TezUncheckedException;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolBlockingPB;
@@ -457,4 +459,31 @@ public class TestTezClient {
     client.start();
   }
 
+
+  @Test(timeout = 5000)
+  public void testClientResubmit() throws Exception {
+    TezClientForTest client = configureAndCreateTezClient(null, true, null);
+    client.start();
+    Map<String, LocalResource> lrDAG = Collections.singletonMap("LR1",
+        LocalResource.newInstance(
+            URL.newInstance("file", "localhost", 0, "/test1"),
+            LocalResourceType.FILE,
+            LocalResourceVisibility.PUBLIC, 1, 1));
+    Vertex vertex1 = Vertex.create("Vertex1", ProcessorDescriptor.create("P1"), 1,
+        Resource.newInstance(1, 1));
+    vertex1.setTaskLaunchCmdOpts("-XX:+UseParallelGC -XX:+UseG1GC");
+    Vertex vertex2 = Vertex.create("Vertex2", ProcessorDescriptor.create("P2"), 1,
+        Resource.newInstance(1, 1));
+    vertex2.setTaskLaunchCmdOpts("-XX:+UseParallelGC -XX:+UseG1GC");
+    DAG dag = DAG.create("DAG").addVertex(vertex1).addVertex(vertex2).addTaskLocalFiles(lrDAG);
+    for (int i = 0; i < 3; ++i) {
+      try {
+        client.submitDAG(dag);
+        Assert.fail("Expected TezUncheckedException here.");
+      } catch(TezUncheckedException ex) {
+        Assert.assertTrue(ex.getMessage().contains("Invalid/conflicting GC options found"));
+      }
+    }
+    client.stop();
+  }
 }
