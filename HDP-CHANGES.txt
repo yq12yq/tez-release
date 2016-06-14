@@ -64,6 +64,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3294. (BUG-56680) DAG.createDag() does not clear local state on repeat calls.
   TEZ-3297. (BUG-59986) Deadlock scenario in AM during ShuffleVertexManager auto reduce.
   TEZ-3131. (BUG-59496) Support a way to override test_root_dir for FaultToleranceTestRunner.
   TEZ-2579. (BUG-60016) Incorrect comparison of TaskAttemptId
