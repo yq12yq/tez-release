@@ -118,6 +118,7 @@ public class TestHistoryParser {
   private static String TEZ_BASE_DIR =
       "target" + Path.SEPARATOR + TestHistoryParser.class.getName() + "-tez";
   private static String DOWNLOAD_DIR = TEST_ROOT_DIR + Path.SEPARATOR + "download";
+  private static String yarnTimelineAddress;
 
   @BeforeClass
   public static void setupCluster() throws Exception {
@@ -177,10 +178,12 @@ public class TestHistoryParser {
 
     TezConfiguration tezConf = new TezConfiguration(miniTezCluster.getConfig());
     tezConf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, true);
-    tezConf.set(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS, "0.0.0.0:8188");
+    tezConf.set(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS,
+        miniTezCluster.getConfig().get(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS));
     tezConf.setBoolean(TezConfiguration.TEZ_AM_ALLOW_DISABLED_TIMELINE_DOMAINS, true);
     tezConf.set(TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS,
         ATSHistoryLoggingService.class.getName());
+    yarnTimelineAddress = miniTezCluster.getConfig().get(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS);
 
   }
 
@@ -200,7 +203,7 @@ public class TestHistoryParser {
         WordCount.SumProcessor.class.getName(), "WordCount", true);
 
     //Export the data from ATS
-    String[] args = { "--dagId=" + dagId, "--downloadDir=" + DOWNLOAD_DIR };
+    String[] args = { "--dagId=" + dagId, "--downloadDir=" + DOWNLOAD_DIR, "--yarnTimelineAddress=" + yarnTimelineAddress };
 
     int result = ATSImportTool.process(args);
     assertTrue(result == 0);
@@ -359,14 +362,13 @@ public class TestHistoryParser {
    * Run a failed job and parse the data from ATS
    */
   @Test
-  @Ignore
   public void testParserWithFailedJob() throws Exception {
     //Run a job which would fail
     String dagId = runWordCount(WordCount.TokenProcessor.class.getName(), FailProcessor.class
         .getName(), "WordCount-With-Exception", true);
 
     //Export the data from ATS
-    String[] args = { "--dagId=" + dagId, "--downloadDir=" + DOWNLOAD_DIR };
+    String[] args = { "--dagId=" + dagId, "--downloadDir=" + DOWNLOAD_DIR, "--yarnTimelineAddress=" + yarnTimelineAddress };
 
     int result = ATSImportTool.process(args);
     assertTrue(result == 0);
@@ -614,7 +616,6 @@ public class TestHistoryParser {
     TezConfiguration tezConf = new TezConfiguration(miniTezCluster.getConfig());
     if (withTimeline) {
       tezConf.setBoolean(YarnConfiguration.TIMELINE_SERVICE_ENABLED, withTimeline);
-      tezConf.set(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS, "0.0.0.0:8188");
       tezConf.set(TezConfiguration.TEZ_HISTORY_LOGGING_SERVICE_CLASS,
           ATSHistoryLoggingService.class.getName());
     } else {
