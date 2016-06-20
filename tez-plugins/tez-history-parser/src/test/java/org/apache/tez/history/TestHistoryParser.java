@@ -196,7 +196,6 @@ public class TestHistoryParser {
    * @throws Exception
    */
   @Test
-  @Ignore
   public void testParserWithSuccessfulJob() throws Exception {
     //Run basic word count example.
     String dagId = runWordCount(WordCount.TokenProcessor.class.getName(),
