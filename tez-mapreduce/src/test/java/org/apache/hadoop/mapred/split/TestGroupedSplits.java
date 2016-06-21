@@ -57,6 +57,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Sets;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 
 public class TestGroupedSplits {
@@ -476,6 +477,54 @@ public class TestGroupedSplits {
         Assert.assertTrue(gSplit2.getRack() != null);
       }
     }
+  }
+
+
+  @Test (timeout = 30000)
+  public void testS3Scenario() throws IOException {
+    //There can be multiple nodes in cluster, but locations would be "localhost" in s3
+    String[] locations = {"localhost"};
+    int oriSplits = 52;
+    int desiredSplits = 19;
+    long splitLength = 231958;
+
+    InputSplit[] origSplits = new InputSplit[oriSplits];
+
+    for (int i = 0; i < oriSplits; i++) {
+      String[] splitLoc = locations;
+      origSplits[i] = new TestInputSplit(splitLength, splitLoc, i);
+    }
+
+    TezMapredSplitsGrouper grouper = new TezMapredSplitsGrouper();
+    JobConf conf = new JobConf(defaultConf);
+
+    //Create splits now
+    InputSplit[] groupedSplits =
+        grouper.getGroupedSplits(conf, origSplits, desiredSplits, "SampleFormat");
+
+    //Verify
+    int splitsInGroup = oriSplits / desiredSplits;
+    int totalSplits = (int) Math.ceil(oriSplits * 1.0 / splitsInGroup);
+    assertEquals(totalSplits, groupedSplits.length);
+
+    // min split optimization should not be invoked if any location is not localhost
+    String[] nonLocalLocations = { "EmptyLocation", "localhost" };
+
+    origSplits = new InputSplit[oriSplits];
+
+    for (int i = 0; i < oriSplits; i++) {
+      String[] splitLoc = nonLocalLocations;
+      origSplits[i] = new TestInputSplit(splitLength, splitLoc, i);
+    }
+
+    grouper = new TezMapredSplitsGrouper();
+    conf = new JobConf(defaultConf);
+
+    //Create splits now
+    groupedSplits = grouper.getGroupedSplits(conf, origSplits, desiredSplits, "SampleFormat");
+
+    //splits should be 1
+    assertEquals(1, groupedSplits.length);
   }
   
   @SuppressWarnings({ "rawtypes", "unchecked" })

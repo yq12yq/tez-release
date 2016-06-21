@@ -181,6 +181,35 @@ public class TezMapReduceSplitsGrouper {
       estimator = DEFAULT_SPLIT_ESTIMATOR;
     }
 
+    String emptyLocation = "EmptyLocation";
+    String localhost = "localhost";
+    String[] emptyLocations = {emptyLocation};
+    List<InputSplit> groupedSplits = new ArrayList<InputSplit>(desiredNumSplits);;
+
+    boolean allSplitsHaveLocalhost = true;
+
+    long totalLength = 0;
+    Map<String, LocationHolder> distinctLocations = createLocationsMap(conf);
+    // go through splits and add them to locations
+    for (InputSplit split : originalSplits) {
+      totalLength += estimator.getEstimatedSize(split);
+      String[] locations = split.getLocations();
+      if (locations == null || locations.length == 0) {
+        locations = emptyLocations;
+        allSplitsHaveLocalhost = false;
+      }
+      for (String location : locations ) {
+        if (location == null) {
+          location = emptyLocation;
+          allSplitsHaveLocalhost = false;
+        }
+        if (!location.equalsIgnoreCase(localhost)) {
+          allSplitsHaveLocalhost = false;
+        }
+        distinctLocations.put(location, null);
+      }
+    }
+
     if (! (configNumSplits > 0 || 
           originalSplits == null || 
           originalSplits.size() == 0)) {
@@ -189,11 +218,7 @@ public class TezMapReduceSplitsGrouper {
       // there are splits generated
       // desired splits is less than number of splits generated
       // Do sanity checks
-      long totalLength = 0;
-      for (InputSplit split : originalSplits) {
-        totalLength += estimator.getEstimatedSize(split);
-      }
-  
+
       int splitCount = desiredNumSplits>0?desiredNumSplits:originalSplits.size();
       long lengthPerGroup = totalLength/splitCount;
 
@@ -223,19 +248,25 @@ public class TezMapReduceSplitsGrouper {
       } else if (lengthPerGroup < minLengthPerGroup) {
         // splits too small to work. Need to override with size.
         int newDesiredNumSplits = (int)(totalLength/minLengthPerGroup) + 1;
-        LOG.info("Desired splits: " + desiredNumSplits + " too large. " + 
-            " Desired splitLength: " + lengthPerGroup + 
+        /**
+         * This is a workaround for systems like S3 that pass the same
+         * fake hostname for all splits.
+         */
+        if (!allSplitsHaveLocalhost) {
+          desiredNumSplits = newDesiredNumSplits;
+        }
+
+        LOG.info("Desired splits: " + desiredNumSplits + " too large. " +
+            " Desired splitLength: " + lengthPerGroup +
             " Min splitLength: " + minLengthPerGroup +
-            " New desired splits: " + newDesiredNumSplits + 
+            " New desired splits: " + newDesiredNumSplits +
+            " Final desired splits: " + desiredNumSplits +
+            " All splits have localhost: " + allSplitsHaveLocalhost +
             " Total length: " + totalLength +
             " Original splits: " + originalSplits.size());
-        
-        desiredNumSplits = newDesiredNumSplits;
       }
     }
-     
-    List<InputSplit> groupedSplits = null;
-    
+
     if (desiredNumSplits == 0 ||
         originalSplits.size() == 0 ||
         desiredNumSplits >= originalSplits.size()) {
@@ -251,28 +282,7 @@ public class TezMapReduceSplitsGrouper {
       }
       return groupedSplits;
     }
-    
-    String emptyLocation = "EmptyLocation";
-    String[] emptyLocations = {emptyLocation};
-    groupedSplits = new ArrayList<InputSplit>(desiredNumSplits);
-    
-    long totalLength = 0;
-    Map<String, LocationHolder> distinctLocations = createLocationsMap(conf);
-    // go through splits and add them to locations
-    for (InputSplit split : originalSplits) {
-      totalLength += estimator.getEstimatedSize(split);
-      String[] locations = split.getLocations();
-      if (locations == null || locations.length == 0) {
-        locations = emptyLocations;
-      }
-      for (String location : locations ) {
-        if (location == null) {
-          location = emptyLocation;
-        }
-        distinctLocations.put(location, null);
-      }
-    }
-    
+
     long lengthPerGroup = totalLength/desiredNumSplits;
     int numNodeLocations = distinctLocations.size();
     int numSplitsPerLocation = originalSplits.size()/numNodeLocations;

@@ -8,6 +8,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3291. Optimize splits grouping when locality information is not available.
   TEZ-3017. HistoryACLManager does not have a close method for cleanup
   TEZ-1314. (BUG-48777) Port MAPREDUCE-5821 to Tez.
   TEZ-2949. (BUG-47794) Allow duplicate dag names within session for Tez.
