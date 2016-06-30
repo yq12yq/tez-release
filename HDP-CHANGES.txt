@@ -66,6 +66,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3293. Fetch failures can cause a shuffle hang waiting for memory merge that never starts.
   TEZ-3305. (BUG-60245) TestAnalyzer fails with Hadoop 2.7.
   TEZ-3304. (BUG-60245) TestHistoryParser fails with Hadoop 2.7.
   TEZ-3294. (BUG-56680) DAG.createDag() does not clear local state on repeat calls.
