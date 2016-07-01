@@ -950,4 +950,10 @@ public class LogicalIOProcessorRuntimeTask extends RuntimeTask {
     return this.outputsMap;
   }
 
+  @Private
+  @VisibleForTesting
+  public Configuration getTaskConf() {
+    return tezConf;
+  }
+
 }
