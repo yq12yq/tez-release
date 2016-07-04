@@ -66,6 +66,7 @@ IMPROVEMENTS
   TEZ-3264. (BUG-57683) Tez UI: UI discrepancies
   TEZ-3292. (BUG-57683) Tez UI: UTs breaking with timezone change
   TEZ-3288. (BUG-58622) Tez UI: Display more details in the error bar
+  TEZ-3318. (BUG-58431) Tez UI: Polling is not restarted after RM recovery
 
 BUG FIXES
 
