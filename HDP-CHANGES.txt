@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3223. (BUG-61612) Support a NullHistoryLogger to disable history logging if needed.
   TEZ-3286. (BUG-59271) Allow clients to set processor reserved memory per vertex (instead of per container).
   TEZ-3291. (BUG-60681) Optimize splits grouping when locality information is not available.
   TEZ-3256. (BUG-59490) [Backport HADOOP-11032] Remove Guava Stopwatch dependency
