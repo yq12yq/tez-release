@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3308. (BUG-52060) Add counters to capture input split length.
   TEZ-3223. (BUG-61612) Support a NullHistoryLogger to disable history logging if needed.
   TEZ-3286. (BUG-59271) Allow clients to set processor reserved memory per vertex (instead of per container).
   TEZ-3291. (BUG-60681) Optimize splits grouping when locality information is not available.
@@ -68,6 +69,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3314. (BUG-52060) Double counting input bytes in MultiMRInput.
   TEZ-3325. Flaky test in TestDAGImpl.testCounterLimits.
   TEZ-3293. (BUG-61394) Fetch failures can cause a shuffle hang waiting for memory merge that never starts.
   TEZ-3305. (BUG-60245) TestAnalyzer fails with Hadoop 2.7.
