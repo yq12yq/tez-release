@@ -684,6 +684,7 @@ public class TestHistoryEventTimelineConversion {
 
   @Test(timeout = 5000)
   public void testConvertVertexFinishedEvent() {
+    String vertexName = "v1";
     long initRequestedTime = random.nextLong();
     long initedTime = random.nextLong();
     long startRequestedTime = random.nextLong();
@@ -694,7 +695,7 @@ public class TestHistoryEventTimelineConversion {
     taskStats.put("BAR", 200);
     VertexStats vertexStats = new VertexStats();
 
-    VertexFinishedEvent event = new VertexFinishedEvent(tezVertexID, "v1", 1, initRequestedTime,
+    VertexFinishedEvent event = new VertexFinishedEvent(tezVertexID, vertexName, 1, initRequestedTime,
         initedTime, startRequestedTime, startTime, finishTime, VertexState.ERROR,
         "diagnostics", null, vertexStats, taskStats);
 
@@ -719,6 +720,8 @@ public class TestHistoryEventTimelineConversion {
     Assert.assertEquals(HistoryEventType.VERTEX_FINISHED.name(), timelineEvent.getEventType());
     Assert.assertEquals(finishTime, timelineEvent.getTimestamp());
 
+    Assert.assertEquals(vertexName,
+        timelineEntity.getOtherInfo().get(ATSConstants.VERTEX_NAME));
     Assert.assertEquals(finishTime,
         ((Long) timelineEntity.getOtherInfo().get(ATSConstants.FINISH_TIME)).longValue());
     Assert.assertEquals(finishTime - startTime,

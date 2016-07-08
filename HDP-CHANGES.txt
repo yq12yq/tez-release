@@ -68,6 +68,7 @@ IMPROVEMENTS
   TEZ-3292. (BUG-57683) Tez UI: UTs breaking with timezone change
   TEZ-3288. (BUG-58622) Tez UI: Display more details in the error bar
   TEZ-3318. (BUG-58431) Tez UI: Polling is not restarted after RM recovery
+  TEZ-3329. (BUG-61330) Tez ATS data is incomplete for a vertex which fails or gets killed before initialization
 
 BUG FIXES
 
