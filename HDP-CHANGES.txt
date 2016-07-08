@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3327. (BUG-61685) ATS Parser: Populate config details available in dag.
   TEZ-3308. (BUG-52060) Add counters to capture input split length.
   TEZ-3223. (BUG-61612) Support a NullHistoryLogger to disable history logging if needed.
   TEZ-3286. (BUG-59271) Allow clients to set processor reserved memory per vertex (instead of per container).
