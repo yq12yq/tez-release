@@ -133,7 +133,7 @@ public class TestFetcher {
     verify(fetcher).doHttpFetch();
   }
 
-  @Test(timeout = 3000)
+  @Test(timeout = 60000)
   public void testSetupLocalDiskFetch() throws Exception {
 
     InputAttemptIdentifier[] srcAttempts = {
