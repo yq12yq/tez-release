@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3193. (BUG-59515) Deadlock in AM during task commit request.
   TEZ-2579. (BUG-60017) Incorrect comparison of TaskAttemptId
   TEZ-3293. (BUG-61418) Fetch failures can cause a shuffle hang waiting for memory merge that never starts.
   TEZ-3103. (BUG-61418) Shuffle can hang when memory to memory merging enabled.
