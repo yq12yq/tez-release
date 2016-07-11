@@ -325,8 +325,12 @@ public class TestShuffleVertexManager {
     manager.onVertexStateUpdated(new VertexStateUpdate(mockSrcVertexId1, VertexState.CONFIGURED));
     manager.onVertexStateUpdated(new VertexStateUpdate(mockSrcVertexId2, VertexState.CONFIGURED));
     manager.onVertexStateUpdated(new VertexStateUpdate(mockSrcVertexId3, VertexState.CONFIGURED));
-    manager.onSourceTaskCompleted(mockSrcVertexId2, new Integer(0));
     Assert.assertEquals(1, manager.pendingTasks.size());
+    Assert.assertEquals(1, scheduledTasks.size());
+    Assert.assertEquals(1, manager.numBipartiteSourceTasksCompleted);
+    Assert.assertEquals(3, manager.numVertexManagerEventsReceived);
+    manager.onSourceTaskCompleted(mockSrcVertexId2, new Integer(0));
+    Assert.assertEquals(0, manager.pendingTasks.size());
     Assert.assertEquals(1, scheduledTasks.size());
     Assert.assertEquals(2, manager.numBipartiteSourceTasksCompleted);
     Assert.assertEquals(3, manager.numVertexManagerEventsReceived);
@@ -641,17 +645,17 @@ public class TestShuffleVertexManager {
     Assert.assertTrue(manager.totalNumBipartiteSourceTasks == 4);
     manager.onSourceTaskCompleted(mockSrcVertexId1, new Integer(0));
     manager.onSourceTaskCompleted(mockSrcVertexId2, new Integer(1));
-    Assert.assertTrue(manager.pendingTasks.size() == 2);
-    Assert.assertTrue(scheduledTasks.size() == 1); // 1 task scheduled
+    Assert.assertTrue(manager.pendingTasks.size() == 1);
+    Assert.assertTrue(scheduledTasks.size() == 2); // 2 tasks scheduled
     Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 2);
     // completion of same task again should not get counted
     manager.onSourceTaskCompleted(mockSrcVertexId2, new Integer(1));
-    Assert.assertTrue(manager.pendingTasks.size() == 2);
-    Assert.assertTrue(scheduledTasks.size() == 1); // 1 task scheduled
+    Assert.assertTrue(manager.pendingTasks.size() == 1);
+    Assert.assertTrue(scheduledTasks.size() == 2); // still 2 tasks scheduled
     Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 2);
     manager.onSourceTaskCompleted(mockSrcVertexId2, new Integer(0));
     Assert.assertTrue(manager.pendingTasks.size() == 0);
-    Assert.assertTrue(scheduledTasks.size() == 2); // 2 tasks scheduled
+    Assert.assertTrue(scheduledTasks.size() == 1); // 1 task scheduled
     Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 3);
     scheduledTasks.clear();
     manager.onSourceTaskCompleted(mockSrcVertexId1, new Integer(1)); // we are done. no action
@@ -681,6 +685,34 @@ public class TestShuffleVertexManager {
     Assert.assertTrue(scheduledTasks.size() == 1); // no task scheduled
     Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 4);
 
+    // if there is single task to schedule, it should be schedule when src completed
+    // fraction is more than min slow start fraction
+    scheduledTasks.clear();
+    when(mockContext.getVertexNumTasks(mockManagedVertexId)).thenReturn(1);
+    manager = createManager(conf, mockContext, 0.25f, 0.75f);
+    manager.onVertexStarted(null);
+    manager.onVertexStateUpdated(new VertexStateUpdate(mockSrcVertexId1, VertexState.CONFIGURED));
+    manager.onVertexStateUpdated(new VertexStateUpdate(mockSrcVertexId2, VertexState.CONFIGURED));
+    manager.onVertexStateUpdated(new VertexStateUpdate(mockSrcVertexId3, VertexState.CONFIGURED));
+    Assert.assertTrue(manager.pendingTasks.size() == 1); // no tasks scheduled
+    Assert.assertTrue(manager.totalNumBipartiteSourceTasks == 4);
+    manager.onSourceTaskCompleted(mockSrcVertexId1, 0);
+    Assert.assertTrue(manager.pendingTasks.size() == 1);
+    Assert.assertTrue(scheduledTasks.size() == 0); // no task scheduled
+    Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 1);
+    manager.onSourceTaskCompleted(mockSrcVertexId2, 1);
+    Assert.assertTrue(manager.pendingTasks.size() == 0);
+    Assert.assertTrue(scheduledTasks.size() == 1); // 1 task scheduled
+    Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 2);
+    scheduledTasks.clear();
+    manager.onSourceTaskCompleted(mockSrcVertexId1, 1);
+    Assert.assertTrue(manager.pendingTasks.size() == 0);
+    Assert.assertTrue(scheduledTasks.size() == 0); // no task scheduled
+    Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 3);
+    manager.onSourceTaskCompleted(mockSrcVertexId2, 0);
+    Assert.assertTrue(manager.pendingTasks.size() == 0);
+    Assert.assertTrue(scheduledTasks.size() == 0); // no task scheduled
+    Assert.assertTrue(manager.numBipartiteSourceTasksCompleted == 4);
   }
 
 
