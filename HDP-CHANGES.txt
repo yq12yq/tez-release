@@ -37,6 +37,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3103. (BUG-61418) Shuffle can hang when memory to memory merging enabled.
   TEZ-3295. (BUG-59614) TestOrderedWordCount should handle relative input/output paths.
   TEZ-3289. (BUG-59594) Tez Example MRRSleep job does not set Staging dir correctly on secure cluster.
   TEZ-3276. (BUG-59594) Tez Example MRRSleep job fails when tez.staging-dir fs is not same as default FS.
