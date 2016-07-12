@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3052. (BUG-59511) Task internal error due to Invalid event: T_ATTEMPT_FAILED at FAILED
   TEZ-3193. (BUG-59515) Deadlock in AM during task commit request.
   TEZ-2579. (BUG-60017) Incorrect comparison of TaskAttemptId
   TEZ-3293. (BUG-61418) Fetch failures can cause a shuffle hang waiting for memory merge that never starts.
