@@ -28,7 +28,7 @@ IMPROVEMENTS
   TEZ-1911. (BUG-54604) MergeManager's unconditionalReserve() should check for memory limits before allocating.
   TEZ-3103. (BUG-54696) Shuffle can hang when memory to memory merging enabled
   BUG-54430. Backport analyzers in tez-tools.
-  TEZ-3155. Support a way to submit DAGs to a session where the DAG plan exceeds hadoop ipc limits.
+  TEZ-3155. (BUG-52552) Support a way to submit DAGs to a session where the DAG plan exceeds hadoop ipc limits.
   TEZ-2468. Change the minimum Java version to Java 7.
   TEZ-3017. HistoryACLManager does not have a close method for cleanup
   TEZ-1314. (BUG-48777) Port MAPREDUCE-5821 to Tez.
@@ -74,7 +74,7 @@ IMPROVEMENTS
 BUG FIXES
 
   TEZ-3314. (BUG-52060) Double counting input bytes in MultiMRInput.
-  TEZ-3325. Flaky test in TestDAGImpl.testCounterLimits.
+  TEZ-3325. (BUG-55372) Flaky test in TestDAGImpl.testCounterLimits.
   TEZ-3293. (BUG-61394) Fetch failures can cause a shuffle hang waiting for memory merge that never starts.
   TEZ-3305. (BUG-60245) TestAnalyzer fails with Hadoop 2.7.
   TEZ-3304. (BUG-60245) TestHistoryParser fails with Hadoop 2.7.
@@ -104,7 +104,7 @@ BUG FIXES
   TEZ-3126. (BUG-54539) Log reason for not reducing parallelism.
   TEZ-2886. (BUG-54426) Ability to merge AM credentials with DAG credentials.
   TEZ-2963. (BUG-54425) RecoveryService#handleSummaryEvent exception with HDFS transparent encryption + kerberos authentication.
-  TEZ-3166. Counters aren't fully updated and sent for failed tasks
+  TEZ-3166. (BUG-31891) Counters aren't fully updated and sent for failed tasks
   TEZ-3066. (BUG-54432) TaskAttemptFinishedEvent ConcurrentModificationException in recovery or history logging services.
   BUG-54420. Fix Tez to handle changes for BUG-54323.
   TEZ-3128. (BUG-53461) Avoid stopping containers on the AM shutdown thread.
