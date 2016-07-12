@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3297. (BUG-59952) Deadlock scenario in AM during ShuffleVertexManager auto reduce.
   TEZ-3213. (BUG-56816) Uncaught exception during vertex recovery leads to invalid state transition loop.
   TEZ-3052. (BUG-59511) Task internal error due to Invalid event: T_ATTEMPT_FAILED at FAILED
   TEZ-3193. (BUG-59515) Deadlock in AM during task commit request.
