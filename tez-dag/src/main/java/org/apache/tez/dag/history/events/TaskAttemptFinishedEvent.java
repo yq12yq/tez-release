@@ -227,11 +227,11 @@ public class TaskAttemptFinishedEvent implements HistoryEvent {
         + ", finishTime=" + finishTime
         + ", timeTaken=" + (finishTime - startTime)
         + ", status=" + state.name()
-        + ", errorEnum=" + (error != null ? error.name() : "")
-        + ", diagnostics=" + diagnostics
-        + ", containerId=" + (containerId != null ? containerId.toString() : "")
-        + ", nodeId=" + (nodeId != null ? nodeId.toString() : "")
-        + ", nodeHttpAddress=" + (nodeHttpAddress != null ? nodeHttpAddress : "")
+        + (error != null ? ", errorEnum=" + error.name() : "")
+        + (diagnostics != null ? ", diagnostics=" + diagnostics : "")
+        + (containerId != null ? ", containerId=" + containerId.toString() : "")
+        + (nodeId != null ? ", nodeId=" + nodeId.toString() : "")
+        + (nodeHttpAddress != null ? ", nodeHttpAddress=" + nodeHttpAddress : "")
         + counterStr;
   }
 
