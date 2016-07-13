@@ -20,9 +20,13 @@ package org.apache.tez.runtime.metrics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
+import org.apache.hadoop.fs.GlobalStorageStatistics;
+import org.apache.hadoop.fs.StorageStatistics;
 import org.apache.tez.util.TezMxBeanResourceCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +52,16 @@ public class TaskCounterUpdater {
   private final TezCounters tezCounters;
   private final Configuration conf;
 
+//  /**
+//   * A Map where Key-> URIScheme and value->FileSystemStatisticUpdater
+//   */
+//  private Map<String, FileSystemStatisticUpdater> statisticUpdaters =
+//     new HashMap<>();
   /**
-   * A Map where Key-> URIScheme and value->FileSystemStatisticUpdater
+   * A Map where Key-> URIScheme and value->Map<Name, FileSystemStatisticUpdater2>
    */
-  private Map<String, FileSystemStatisticUpdater> statisticUpdaters =
-     new HashMap<String, FileSystemStatisticUpdater>();
+  private Map<String, Map<String, FileSystemStatisticUpdater2>> statisticUpdaters2 =
+      new HashMap<>();
   protected final GcTimeUpdater gcUpdater;
   private ResourceCalculatorProcessTree pTree;
   private long initCpuCumulativeTime = 0;
@@ -74,28 +83,47 @@ public class TaskCounterUpdater {
     // This doesn't remove the fileSystem, and does not clear all statistics -
     // so there is a potential of an unused FileSystem showing up for a
     // Container, and strange values for READ_OPS etc.
-    Map<String, List<FileSystem.Statistics>> map = new
-        HashMap<String, List<FileSystem.Statistics>>();
-    for(Statistics stat: FileSystem.getAllStatistics()) {
-      String uriScheme = stat.getScheme();
-      if (map.containsKey(uriScheme)) {
-        List<FileSystem.Statistics> list = map.get(uriScheme);
-        list.add(stat);
-      } else {
-        List<FileSystem.Statistics> list = new ArrayList<FileSystem.Statistics>();
-        list.add(stat);
-        map.put(uriScheme, list);
+//    Map<String, List<FileSystem.Statistics>> map = new
+//        HashMap<String, List<FileSystem.Statistics>>();
+//    for(Statistics stat: FileSystem.getAllStatistics()) {
+//      String uriScheme = stat.getScheme();
+//      if (map.containsKey(uriScheme)) {
+//        List<FileSystem.Statistics> list = map.get(uriScheme);
+//        list.add(stat);
+//      } else {
+//        List<FileSystem.Statistics> list = new ArrayList<FileSystem.Statistics>();
+//        list.add(stat);
+//        map.put(uriScheme, list);
+//      }
+//    }
+//
+//    for (Map.Entry<String, List<FileSystem.Statistics>> entry: map.entrySet()) {
+//      FileSystemStatisticUpdater updater = statisticUpdaters.get(entry.getKey());
+//      if(updater==null) {//new FileSystem has been found in the cache
+//        updater =
+//            new FileSystemStatisticUpdater(tezCounters, entry.getValue(),
+//                entry.getKey());
+//        statisticUpdaters.put(entry.getKey(), updater);
+//      }
+//      updater.updateCounters();
+//    }
+
+    GlobalStorageStatistics globalStorageStatistics = FileSystem.getGlobalStorageStatistics();
+    Iterator<StorageStatistics> iter = globalStorageStatistics.iterator();
+    while (iter.hasNext()) {
+      StorageStatistics stats = iter.next();
+      if (!statisticUpdaters2.containsKey(stats.getScheme())) {
+        Map<String, FileSystemStatisticUpdater2> updaterSet =
+            new TreeMap<>();
+        statisticUpdaters2.put(stats.getScheme(), updaterSet);
       }
-    }
-    for (Map.Entry<String, List<FileSystem.Statistics>> entry: map.entrySet()) {
-      FileSystemStatisticUpdater updater = statisticUpdaters.get(entry.getKey());
-      if(updater==null) {//new FileSystem has been found in the cache
-        updater =
-            new FileSystemStatisticUpdater(tezCounters, entry.getValue(),
-                entry.getKey());
-        statisticUpdaters.put(entry.getKey(), updater);
+      FileSystemStatisticUpdater2 updater2 = statisticUpdaters2.get(
+          stats.getScheme()).get(stats.getName());
+      if (updater2 == null) {
+        updater2 = new FileSystemStatisticUpdater2(tezCounters, stats);
+        statisticUpdaters2.get(stats.getScheme()).put(stats.getName(), updater2);
       }
-      updater.updateCounters();
+      updater2.updateCounters();
     }
 
     gcUpdater.incrementGcCounter();

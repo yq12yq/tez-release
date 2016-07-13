@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3331. (BUG-58448) Add operation specific HDFS counters to ATS.
   TEZ-1248. (BUG-29880) Reduce slow-start should special case 1 reducer runs.
   TEZ-3327. (BUG-61685) ATS Parser: Populate config details available in dag.
   TEZ-3308. (BUG-52060) Add counters to capture input split length.
