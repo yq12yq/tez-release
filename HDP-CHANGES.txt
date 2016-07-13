@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3203. (BUG-59368) DAG hangs when one of the upstream vertices has zero tasks (jlowe)
   TEZ-3297. (BUG-59952) Deadlock scenario in AM during ShuffleVertexManager auto reduce.
   TEZ-3213. (BUG-56816) Uncaught exception during vertex recovery leads to invalid state transition loop.
   TEZ-3052. (BUG-59511) Task internal error due to Invalid event: T_ATTEMPT_FAILED at FAILED
