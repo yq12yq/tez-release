@@ -91,6 +91,7 @@ import org.apache.tez.runtime.api.impl.InputSpec;
 import org.apache.tez.runtime.api.impl.OutputSpec;
 import org.apache.tez.runtime.api.impl.TaskSpec;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -1133,6 +1134,7 @@ public class TestContainerReuse {
   }
 
   @Test(timeout = 30000l)
+  @Ignore
   public void testReuseConflictLocalResources() throws IOException, InterruptedException, ExecutionException {
     LOG.info("Test testReuseLocalResourcesChanged");
     Configuration tezConf = new Configuration(new YarnConfiguration());
