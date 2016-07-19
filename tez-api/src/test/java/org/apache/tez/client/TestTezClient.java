@@ -154,7 +154,7 @@ public class TestTezClient {
     testTezClient(false);
   }
   
-  @Test (timeout = 5000)
+  @Test (timeout = 60000)
   public void testTezclientSession() throws Exception {
     testTezClient(true);
   }
