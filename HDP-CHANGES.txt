@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3357. (BUG-62940) Change TimelineCachePlugin to handle DAG grouping.
   TEZ-3337. (BUG-61892) Do not log empty fields of TaskAttemptFinishedEvent to avoid confusion.
   TEZ-3331. (BUG-58448) Add operation specific HDFS counters to ATS.
   TEZ-1248. (BUG-29880) Reduce slow-start should special case 1 reducer runs.
