@@ -74,6 +74,7 @@ IMPROVEMENTS
   TEZ-3318. (BUG-58431) Tez UI: Polling is not restarted after RM recovery
   TEZ-3329. (BUG-61330) Tez ATS data is incomplete for a vertex which fails or gets killed before initialization
   TEZ-3333. (BUG-61915) Tez UI: Handle cases where Vertex/Task/Task Attempt data is missing
+  TEZ-3370. (BUG-62946) Tez UI: Display the log link as N/A if the app does not provide a log link
 
 BUG FIXES
 
