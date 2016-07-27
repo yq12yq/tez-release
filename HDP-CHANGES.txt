@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3379. (BUG-63224) Tez analyzer: Move sysout to log4j.
   TEZ-3376. (BUG-62940) Fix groupId generation to account for dagId starting with 1.
   TEZ-3374. (BUG-62940) Change TEZ_HISTORY_LOGGING_TIMELINE_NUM_DAGS_PER_GROUP conf key name.
   TEZ-3357. (BUG-62940) Change TimelineCachePlugin to handle DAG grouping.
