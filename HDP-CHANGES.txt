@@ -88,6 +88,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-2852. (BUG-69852) TestVertexImpl fails due to race in AsyncDispatcher.
   TEZ-3536. (BUG-69492) NPE in WebUIService start when host resolution fails. 
   TEZ-3493. (BUG-68606) DAG submit timeout cannot be set to a month
   TEZ-2545. (BUG-62817) It is not necessary to start the vertex group commit when DAG is in TERMINATING
