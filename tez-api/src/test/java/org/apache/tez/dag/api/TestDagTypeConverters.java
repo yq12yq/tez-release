@@ -18,6 +18,8 @@
 
 package org.apache.tez.dag.api;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 
 import java.nio.ByteBuffer;
@@ -26,9 +28,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.URL;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.common.TezCommonUtils;
+import org.apache.tez.common.security.DAGAccessControls;
+import org.apache.tez.dag.api.records.DAGProtos.ACLInfo;
 import org.apache.tez.dag.api.records.DAGProtos.TezEntityDescriptorProto;
 import org.junit.Assert;
 import org.junit.Test;
+
+import com.google.common.collect.Sets;
 
 public class TestDagTypeConverters {
 
@@ -87,6 +93,40 @@ public class TestDagTypeConverters {
     Assert.assertEquals("/file", lr2UrlDeserialized.getFile());
     Assert.assertEquals("hdfs", lr2UrlDeserialized.getScheme());
     Assert.assertEquals(2311, lr2UrlDeserialized.getPort());
+  }
+
+  @Test
+  public void testAclConversions() {
+    DAGAccessControls dagAccessControls = new DAGAccessControls("u1,u2 g1,g2", "u3,u4 g3,g4");
+    ACLInfo aclInfo = DagTypeConverters.convertDAGAccessControlsToProto(dagAccessControls);
+    assertSame(dagAccessControls, aclInfo);
+    assertSame(DagTypeConverters.convertDAGAccessControlsFromProto(aclInfo), aclInfo);
+
+    dagAccessControls = new DAGAccessControls("u1 ", "u2 ");
+    aclInfo = DagTypeConverters.convertDAGAccessControlsToProto(dagAccessControls);
+    assertSame(dagAccessControls, aclInfo);
+    assertSame(DagTypeConverters.convertDAGAccessControlsFromProto(aclInfo), aclInfo);
+
+    dagAccessControls = new DAGAccessControls(" g1", " g3,g4");
+    aclInfo = DagTypeConverters.convertDAGAccessControlsToProto(dagAccessControls);
+    assertSame(dagAccessControls, aclInfo);
+    assertSame(DagTypeConverters.convertDAGAccessControlsFromProto(aclInfo), aclInfo);
+
+    dagAccessControls = new DAGAccessControls("*", "*");
+    aclInfo = DagTypeConverters.convertDAGAccessControlsToProto(dagAccessControls);
+    assertSame(dagAccessControls, aclInfo);
+    assertSame(DagTypeConverters.convertDAGAccessControlsFromProto(aclInfo), aclInfo);
+  }
+
+  private void assertSame(DAGAccessControls dagAccessControls, ACLInfo aclInfo) {
+    assertEquals(dagAccessControls.getUsersWithViewACLs(),
+        Sets.newHashSet(aclInfo.getUsersWithViewAccessList()));
+    assertEquals(dagAccessControls.getUsersWithModifyACLs(),
+        Sets.newHashSet(aclInfo.getUsersWithModifyAccessList()));
+    assertEquals(dagAccessControls.getGroupsWithViewACLs(),
+        Sets.newHashSet(aclInfo.getGroupsWithViewAccessList()));
+    assertEquals(dagAccessControls.getGroupsWithModifyACLs(),
+        Sets.newHashSet(aclInfo.getGroupsWithModifyAccessList()));
   }
 
 }

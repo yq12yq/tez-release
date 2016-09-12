@@ -50,12 +50,14 @@ import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.counters.CounterGroup;
 import org.apache.tez.common.counters.TezCounter;
 import org.apache.tez.common.counters.TezCounters;
+import org.apache.tez.common.security.DAGAccessControls;
 import org.apache.tez.dag.api.EdgeProperty.DataMovementType;
 import org.apache.tez.dag.api.EdgeProperty.DataSourceType;
 import org.apache.tez.dag.api.EdgeProperty.SchedulingType;
 import org.apache.tez.dag.api.client.StatusGetOpts;
 import org.apache.tez.dag.api.client.rpc.DAGClientAMProtocolRPC.TezAppMasterStatusProto;
 import org.apache.tez.dag.api.records.DAGProtos;
+import org.apache.tez.dag.api.records.DAGProtos.ACLInfo;
 import org.apache.tez.dag.api.records.DAGProtos.CallerContextProto;
 import org.apache.tez.dag.api.records.DAGProtos.ConfigurationProto;
 import org.apache.tez.dag.api.records.DAGProtos.EdgePlan;
@@ -743,4 +745,27 @@ public class DagTypeConverters {
     return callerContext;
   }
 
+  public static ACLInfo convertDAGAccessControlsToProto(DAGAccessControls dagAccessControls) {
+    if (dagAccessControls == null) {
+      return null;
+    }
+    ACLInfo.Builder builder = ACLInfo.newBuilder();
+    builder.addAllUsersWithViewAccess(dagAccessControls.getUsersWithViewACLs());
+    builder.addAllUsersWithModifyAccess(dagAccessControls.getUsersWithModifyACLs());
+    builder.addAllGroupsWithViewAccess(dagAccessControls.getGroupsWithViewACLs());
+    builder.addAllGroupsWithModifyAccess(dagAccessControls.getGroupsWithModifyACLs());
+    return builder.build();
+  }
+
+  public static DAGAccessControls convertDAGAccessControlsFromProto(ACLInfo aclInfo) {
+    if (aclInfo == null) {
+      return null;
+    }
+    DAGAccessControls dagAccessControls = new DAGAccessControls();
+    dagAccessControls.setUsersWithViewACLs(aclInfo.getUsersWithViewAccessList());
+    dagAccessControls.setUsersWithModifyACLs(aclInfo.getUsersWithModifyAccessList());
+    dagAccessControls.setGroupsWithViewACLs(aclInfo.getGroupsWithViewAccessList());
+    dagAccessControls.setGroupsWithModifyACLs(aclInfo.getGroupsWithModifyAccessList());
+    return dagAccessControls;
+  }
 }

@@ -57,7 +57,6 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.tez.common.counters.LimitExceededException;
 import org.apache.tez.common.counters.Limits;
 import org.apache.tez.common.counters.TezCounters;
-import org.apache.tez.common.security.HistoryACLPolicyManager;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.PreWarmVertex;
 import org.apache.tez.dag.api.ProcessorDescriptor;
@@ -229,12 +228,10 @@ public class TestTezClient {
         LocalResourceType.FILE, LocalResourceVisibility.PUBLIC, 1, 1));
     
     TezClientForTest client = configureAndCreateTezClient(lrs, isSession, null);
-    HistoryACLPolicyManager mockAcl = mock(HistoryACLPolicyManager.class);
 
     ArgumentCaptor<ApplicationSubmissionContext> captor = ArgumentCaptor.forClass(ApplicationSubmissionContext.class);
     when(client.mockYarnClient.getApplicationReport(client.mockAppId).getYarnApplicationState())
     .thenReturn(YarnApplicationState.RUNNING);
-    client.setUpHistoryAclManager(mockAcl);
     client.start();
     verify(client.mockYarnClient, times(1)).init((Configuration)any());
     verify(client.mockYarnClient, times(1)).start();
@@ -332,9 +329,8 @@ public class TestTezClient {
           (ShutdownSessionRequestProto) any());
     }
     verify(client.mockYarnClient, times(1)).stop();
-    verify(mockAcl, times(1)).close();
   }
-  
+
   @Test (timeout=5000)
   public void testPreWarm() throws Exception {
     TezClientForTest client = configureAndCreateTezClient();

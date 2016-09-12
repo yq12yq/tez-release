@@ -326,8 +326,7 @@ public class TestDAGPlan {
     TezConfiguration conf = new TezConfiguration(false);
     conf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, "  -XX:+UseParallelGC ");
     try {
-      DAGPlan dagProto = dag.createDag(conf, null, null, null, true, null,
-          new JavaOptsChecker());
+      dag.createDag(conf, null, null, null, true, new JavaOptsChecker());
       fail("Expected dag creation to fail for invalid java opts");
     } catch (TezUncheckedException e) {
       Assert.assertTrue(e.getMessage().contains("Invalid/conflicting GC options"));
@@ -335,13 +334,11 @@ public class TestDAGPlan {
 
     // Should not fail as java opts valid
     conf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, "  -XX:-UseParallelGC ");
-    DAGPlan dagProto1 = dag.createDag(conf, null, null, null, true, null,
-        new JavaOptsChecker());
+    dag.createDag(conf, null, null, null, true, new JavaOptsChecker());
 
     // Should not fail as no checker enabled
     conf.set(TezConfiguration.TEZ_TASK_LAUNCH_CMD_OPTS, "  -XX:+UseParallelGC ");
-    DAGPlan dagProto2 = dag.createDag(conf, null, null, null, true, null, null);
-
+    dag.createDag(conf, null, null, null, true, null);
   }
 
 }

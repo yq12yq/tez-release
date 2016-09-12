@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -731,15 +730,14 @@ public class DAG {
                            Map<String, LocalResource> tezJarResources, LocalResource binaryConfig,
                            boolean tezLrsAsArchive) {
     return createDag(tezConf, extraCredentials, tezJarResources, binaryConfig, tezLrsAsArchive,
-        null, null);
+        null);
   }
 
   // create protobuf message describing DAG
   @Private
   public synchronized DAGPlan createDag(Configuration tezConf, Credentials extraCredentials,
       Map<String, LocalResource> tezJarResources, LocalResource binaryConfig,
-      boolean tezLrsAsArchive, Map<String, String> additionalConfigs,
-      JavaOptsChecker javaOptsChecker) {
+      boolean tezLrsAsArchive, JavaOptsChecker javaOptsChecker) {
     Deque<String> topologicalVertexStack = verify(true);
 
     DAGPlan.Builder dagBuilder = DAGPlan.newBuilder();
@@ -955,32 +953,12 @@ public class DAG {
       dagBuilder.addEdge(edgeBuilder);
     }
 
-
-    ConfigurationProto.Builder confProtoBuilder =
-        ConfigurationProto.newBuilder();
     if (dagAccessControls != null) {
-      Configuration aclConf = new Configuration(false);
-      dagAccessControls.serializeToConfiguration(aclConf);
-      Iterator<Entry<String, String>> aclConfIter = aclConf.iterator();
-      while (aclConfIter.hasNext()) {
-        Entry<String, String> entry = aclConfIter.next();
-        PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
-        kvp.setKey(entry.getKey());
-        kvp.setValue(entry.getValue());
-        TezConfiguration.validateProperty(entry.getKey(), Scope.DAG);
-        confProtoBuilder.addConfKeyValues(kvp);
-      }
+      dagBuilder.setAclInfo(DagTypeConverters.convertDAGAccessControlsToProto(dagAccessControls));
     }
-    if (additionalConfigs != null && !additionalConfigs.isEmpty()) {
-      for (Entry<String, String> entry : additionalConfigs.entrySet()) {
-        PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
-        kvp.setKey(entry.getKey());
-        kvp.setValue(entry.getValue());
-        TezConfiguration.validateProperty(entry.getKey(), Scope.DAG);
-        confProtoBuilder.addConfKeyValues(kvp);
-      }
-    }
-    if (this.dagConf != null && !this.dagConf.isEmpty()) {
+
+    ConfigurationProto.Builder confProtoBuilder = ConfigurationProto.newBuilder();
+    if (!this.dagConf.isEmpty()) {
       for (Entry<String, String> entry : this.dagConf.entrySet()) {
         PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
         kvp.setKey(entry.getKey());

@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -61,7 +60,6 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.tez.common.security.HistoryACLPolicyManager;
 import org.apache.tez.common.security.JobTokenIdentifier;
 import org.apache.tez.common.security.JobTokenSecretManager;
 import org.apache.tez.common.security.TokenCache;
@@ -133,7 +131,7 @@ public class TestTezClientUtils {
   /**
    *
    */
-  @Test (timeout=5000)
+  @Test (timeout=10000)
   public void validateSetTezJarLocalResourcesDefinedExistingDirectory() throws Exception {
     URL[] cp = ((URLClassLoader)ClassLoader.getSystemClassLoader()).getURLs();
     StringBuffer buffer = new StringBuffer();
@@ -192,7 +190,7 @@ public class TestTezClientUtils {
    * 
    * @throws Exception
    */
-  @Test (timeout=5000)
+  @Test (timeout=10000)
   public void validateSetTezJarLocalResourcesDefinedExistingDirectoryIgnoredSetToFalse() throws Exception {
     URL[] cp = ((URLClassLoader)ClassLoader.getSystemClassLoader()).getURLs();
     StringBuffer buffer = new StringBuffer();
@@ -245,7 +243,7 @@ public class TestTezClientUtils {
     ApplicationSubmissionContext appSubmissionContext =
         TezClientUtils.createApplicationSubmissionContext(appId, dag, "amName", amConf,
             new HashMap<String, LocalResource>(), credentials, false, new TezApiVersionInfo(),
-            mock(HistoryACLPolicyManager.class), null);
+            null);
 
     ContainerLaunchContext amClc = appSubmissionContext.getAMContainerSpec();
     Map<String, ByteBuffer> amServiceData = amClc.getServiceData();
@@ -278,7 +276,7 @@ public class TestTezClientUtils {
     ApplicationSubmissionContext appSubmissionContext =
         TezClientUtils.createApplicationSubmissionContext(appId, dag, "amName", amConf,
             new HashMap<String, LocalResource>(), credentials, false, new TezApiVersionInfo(),
-            mock(HistoryACLPolicyManager.class), null);
+            null);
 
     List<String> expectedCommands = new LinkedList<String>();
     expectedCommands.add("-Dlog4j.configuratorClass=org.apache.tez.common.TezLog4jConfigurator");
@@ -318,7 +316,7 @@ public class TestTezClientUtils {
     ApplicationSubmissionContext appSubmissionContext =
         TezClientUtils.createApplicationSubmissionContext(appId, dag, "amName", amConf,
             new HashMap<String, LocalResource>(), credentials, false, new TezApiVersionInfo(),
-            mock(HistoryACLPolicyManager.class), null);
+            null);
 
     List<String> expectedCommands = new LinkedList<String>();
     expectedCommands.add("-Dlog4j.configuratorClass=org.apache.tez.common.TezLog4jConfigurator");
@@ -504,7 +502,7 @@ public class TestTezClientUtils {
     expected.put("property1", val1);
     expected.put("property2", expVal2);
 
-    ConfigurationProto confProto = TezClientUtils.createFinalConfProtoForApp(conf, null);
+    ConfigurationProto confProto = TezClientUtils.createFinalConfProtoForApp(conf);
 
     for (PlanKeyValuePair kvPair : confProto.getConfKeyValuesList()) {
       String v = expected.remove(kvPair.getKey());
@@ -664,6 +662,7 @@ public class TestTezClientUtils {
     Assert.assertTrue(resourceNames.contains("f1.txt"));
     Assert.assertTrue(resourceNames.contains("dir2-f.txt"));
   }
+
 
   @Test(timeout = 5000)
   public void testTaskLaunchCmdOptsSetup() throws TezException {
