@@ -26,11 +26,12 @@ import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -41,6 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.service.AbstractService;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -162,8 +165,7 @@ class TestTaskSchedulerHelpers {
   @SuppressWarnings("rawtypes")
   static class CapturingEventHandler implements EventHandler {
 
-    private List<Event> events = new LinkedList<Event>();
-
+    private Queue<Event> events = new ConcurrentLinkedQueue<Event>();
 
     public void handle(Event event) {
       events.add(event);

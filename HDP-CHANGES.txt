@@ -105,6 +105,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3000. (BUG-69238) Fix TestContainerReuse.
   TEZ-2852. (BUG-69238) TestVertexImpl fails due to race in AsyncDispatcher.
   TEZ-3574. (BUG-72510) Container reuse won't pickup extra dag level local resource.
   TEZ-3568. (BUG-69826) Update SecurityUtils configuration to pick user provided configuration.
