@@ -80,6 +80,7 @@ IMPROVEMENTS
   TEZ-3333. (BUG-61915) Tez UI: Handle cases where Vertex/Task/Task Attempt data is missing
   TEZ-3370. (BUG-62946) Tez UI: Display the log link as N/A if the app does not provide a log link
   TEZ-3398. (BUG-63709) Tez UI: Bread crumb link to Application from Application details dag/configuration tab is broken
+  TEZ-3433. (BUG-65680) Tez UI: Searching using wrong ID causes error in all DAGs page
 
 BUG FIXES
 
