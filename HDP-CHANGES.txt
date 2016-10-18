@@ -85,6 +85,7 @@ IMPROVEMENTS
   TEZ-3398. (BUG-63709) Tez UI: Bread crumb link to Application from Application details dag/configuration tab is broken
   TEZ-3433. (BUG-65680) Tez UI: Searching using wrong ID causes error in all DAGs page
   TEZ-3428. (BUG-56124) Tez UI: First Tab not needed for few entries in DAG listings
+  TEZ-3469. (BUG-70619) Tez UI: Bump Phantom JS version to 2.1.1
 
 BUG FIXES
 
