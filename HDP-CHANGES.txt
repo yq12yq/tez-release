@@ -86,6 +86,7 @@ IMPROVEMENTS
   TEZ-3433. (BUG-65680) Tez UI: Searching using wrong ID causes error in all DAGs page
   TEZ-3428. (BUG-56124) Tez UI: First Tab not needed for few entries in DAG listings
   TEZ-3469. (BUG-70619) Tez UI: Bump Phantom JS version to 2.1.1
+  TEZ-3419. (BUG-57000) Tez UI: Applications page shows error, for users with only DAG level ACL permission
 
 BUG FIXES
 
