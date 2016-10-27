@@ -30,8 +30,6 @@ import java.util.Set;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.google.common.base.Preconditions;
-
-import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -60,7 +58,7 @@ public class DAGClientImpl extends DAGClient {
   private final FrameworkClient frameworkClient;
 
   @VisibleForTesting
-  protected DAGClientInternal realClient;
+  protected DAGClient realClient;
   private boolean dagCompleted = false;
   @VisibleForTesting
   protected boolean isATSEnabled = false;
@@ -249,9 +247,6 @@ public class DAGClientImpl extends DAGClient {
         if (dagStatus.isCompleted()) {
           return dagStatus;
         }
-      } catch (ApplicationNotFoundException e) {
-        LOG.info("Failed to fetch DAG data for completed DAG from YARN Timeline"
-            + " - Application not found by YARN", e);
       } catch (TezException e) {
         if (LOG.isDebugEnabled()) {
           LOG.info("DAGStatus fetch failed." + e.getMessage());
@@ -303,10 +298,6 @@ public class DAGClientImpl extends DAGClient {
         if (vertexCompletionStates.contains(vertexStatus.getState())) {
           return vertexStatus;
         }
-      } catch (ApplicationNotFoundException e) {
-        LOG.info("Failed to fetch Vertex data for completed DAG from YARN Timeline"
-            + " - Application not found by YARN", e);
-        return null;
       } catch (TezException e) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("ERROR fetching vertex data from Yarn Timeline. " + e.getMessage());
@@ -366,10 +357,6 @@ public class DAGClientImpl extends DAGClient {
     try {
       dagStatus = realClient.getDAGStatus(statusOptions, timeout);
     } catch (DAGNotRunningException e) {
-      LOG.info("DAG is no longer running", e);
-      dagCompleted = true;
-    } catch (ApplicationNotFoundException e) {
-      LOG.info("DAG is no longer running - application not found by YARN", e);
       dagCompleted = true;
     } catch (TezException e) {
       // can be either due to a n/w issue of due to AM completed.
@@ -390,10 +377,6 @@ public class DAGClientImpl extends DAGClient {
     try {
       vertexStatus = realClient.getVertexStatus(vertexName, statusOptions);
     } catch (DAGNotRunningException e) {
-      LOG.info("DAG is no longer running", e);
-      dagCompleted = true;
-    } catch (ApplicationNotFoundException e) {
-      LOG.info("DAG is no longer running - application not found by YARN", e);
       dagCompleted = true;
     } catch (TezException e) {
       // can be either due to a n/w issue of due to AM completed.
@@ -422,9 +405,6 @@ public class DAGClientImpl extends DAGClient {
     ApplicationReport appReport;
     try {
       appReport = frameworkClient.getApplicationReport(appId);
-    } catch (ApplicationNotFoundException e) {
-      LOG.info("DAG is no longer running - application not found by YARN", e);
-      throw new DAGNotRunningException(e);
     } catch (YarnException e) {
       throw new TezException(e);
     }
@@ -618,7 +598,7 @@ public class DAGClientImpl extends DAGClient {
   }
 
   @VisibleForTesting
-  public DAGClientInternal getRealClient() {
+  public DAGClient getRealClient() {
     return realClient;
   }
 

@@ -37,8 +37,6 @@ import com.sun.jersey.api.client.ClientHandlerException;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.UniformInterfaceException;
 import com.sun.jersey.api.client.WebResource;
-
-import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -65,7 +63,7 @@ import org.codehaus.jettison.json.JSONObject;
 
 
 @Private
-public class DAGClientTimelineImpl extends DAGClientInternal {
+public class DAGClientTimelineImpl extends DAGClient {
   private static final Logger LOG = LoggerFactory.getLogger(DAGClientTimelineImpl.class);
 
   private static final String FILTER_BY_FIELDS = "primaryfilters,otherinfo";
