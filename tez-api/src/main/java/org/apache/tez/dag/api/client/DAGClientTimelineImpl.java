@@ -80,6 +80,12 @@ public class DAGClientTimelineImpl extends DAGClient {
   @VisibleForTesting
   protected String baseUri;
 
+  // for BUG-68144
+  public DAGClientTimelineImpl(ApplicationId appId, String dagId, TezConfiguration conf,
+                               FrameworkClient frameworkClient) throws TezException {
+    this(appId, dagId, conf, frameworkClient, 5000);
+  }
+
   public DAGClientTimelineImpl(ApplicationId appId, String dagId, TezConfiguration conf,
                                FrameworkClient frameworkClient, int connTimeout)
       throws TezException {

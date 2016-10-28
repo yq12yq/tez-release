@@ -39,6 +39,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  BUG-68144. Add backward compat API for Cascading.
   Revert TEZ-3156. (BUG-68144).
   TEZ-3294. (BUG-60233) DAG.createDag() does not clear local state on repeat calls
   TEZ-3203. (BUG-59368) DAG hangs when one of the upstream vertices has zero tasks (jlowe)
