@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
   
+  TEZ-3257. (BUG-65637) Add more unit test coverage for container reuse.
   TEZ-3627. (BUG-56692) Use queue name available in RegisterApplicationMasterResponse for publishing to ATS.
   BUG-72217. add LLAP counters to Tez UI by default
   TEZ-3619. (BUG-73198) Tez UI: Improve DAG Data download
