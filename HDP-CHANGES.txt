@@ -87,6 +87,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3493. (BUG-68606) DAG submit timeout cannot be set to a month
   TEZ-2545. (BUG-62817) It is not necessary to start the vertex group commit when DAG is in TERMINATING
   TEZ-2857. (BUG-62134) Fix flakey tests in TestDAGImpl.
   TEZ-3314. (BUG-52060) Double counting input bytes in MultiMRInput.
