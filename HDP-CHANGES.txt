@@ -8,6 +8,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-2244. (BUG-69195) PipelinedSorter: Progressive allocation for sort-buffers.
   TEZ-2560. (BUG-48073) Fix tex-ui build for maven 3.3+.
   TEZ-3256. [Backport HADOOP-11032] Remove Guava Stopwatch dependency
   TEZ-3291. Optimize splits grouping when locality information is not available.
