@@ -106,6 +106,7 @@
                 <argument>node_modules/bower/bin/bower</argument>
                 <argument>install</argument>
                 <argument>--remove-unnecessary-resolutions=false</argument>
+                <argument>--allow-root</argument>
               </arguments>
             </configuration>
           </execution>
