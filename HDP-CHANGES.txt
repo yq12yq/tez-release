@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3434. (BUG-69188) Add unit tests for flushing of recovery events.
   TEZ-2244. (BUG-69195) PipelinedSorter: Progressive allocation for sort-buffers.
   TEZ-909.  (BUG-66190) Provide support for application tags (ebadger via rohini)
   TEZ-3449. Fix Spelling typos.
