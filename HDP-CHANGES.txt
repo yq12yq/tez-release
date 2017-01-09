@@ -90,6 +90,7 @@ IMPROVEMENTS
   TEZ-3419. (BUG-57000) Tez UI: Applications page shows error, for users with only DAG level ACL permission
   TEZ-3484. (BUG-71456) Tez UI: Remove .travis.yml from webapp folder
   TEZ-3546. (BUG-67707) Tez UI: On sorting asc - Not Available must be at the top
+  TEZ-3570. (BUG-62966) Tez UI: Wait for sometime before tooltips are displayed
 
 BUG FIXES
 
