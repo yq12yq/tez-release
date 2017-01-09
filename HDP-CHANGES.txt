@@ -9,7 +9,6 @@ NEW FEATURES
 
 IMPROVEMENTS
 
-  TEZ-3566. (BUG-6982) Avoid caching fs isntances in TokenCache after a point.
   TEZ-3434. (BUG-69188) Add unit tests for flushing of recovery events.
   TEZ-2244. (BUG-69195) PipelinedSorter: Progressive allocation for sort-buffers.
   TEZ-909.  (BUG-66190) Provide support for application tags (ebadger via rohini)
@@ -95,6 +94,8 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3568. (BUG-69826) Update SecurityUtils configuration to pick user provided configuration.
+  TEZ-3566. (BUG-68946) Avoid caching fs isntances in TokenCache after a point.
   TEZ-3536. (BUG-69492) NPE in WebUIService start when host resolution fails.
   TEZ-3493. (BUG-67950) DAG submit timeout cannot be set to a month.
   TEZ-2545. (BUG-62817) It is not necessary to start the vertex group commit when DAG is in TERMINATING
