@@ -251,4 +251,5 @@ BUG FIXES
   TEZ-3502. (BUG-60301) Tez UI: Search in All DAGs page doesn't work with numeric values
   TEZ-3470. (BUG-67985) Tez UI: Make the build work in IBM PPC
   TEZ-3555. (BUG-67985) Tez UI: Build is failing in RHEL6
+  TEZ-3504. (BUG-67443) Tez UI: Duration is displaying invalid values when start or end time is invalid
 
