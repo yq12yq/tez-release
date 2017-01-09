@@ -22,6 +22,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.BitSet;
 import java.util.List;
@@ -41,6 +43,7 @@ import org.apache.hadoop.classification.InterfaceAudience.Private;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.ipc.CallerContext;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.log4j.Appender;
 import org.apache.tez.dag.api.DagTypeConverters;
@@ -48,6 +51,7 @@ import org.apache.tez.dag.records.TezDAGID;
 import org.apache.tez.dag.records.TezTaskAttemptID;
 import org.apache.tez.dag.records.TezVertexID;
 import org.apache.tez.dag.api.TezConstants;
+import org.apache.tez.dag.api.TezUncheckedException;
 import org.apache.tez.dag.api.records.DAGProtos;
 import org.apache.tez.dag.api.records.DAGProtos.ConfigurationProto;
 import org.apache.tez.dag.api.records.DAGProtos.PlanKeyValuePair;
@@ -260,4 +264,21 @@ public class TezUtilsInternal {
     CallerContext.setCurrent(nullCallerContext);
   }
 
+  @Private
+  public static void setSecurityUtilConfigration(Logger log, Configuration conf) {
+    // Use reflection to invoke SecurityUtil.setConfiguration when available, version 2.6.0 of
+    // hadoop does not support it, it is currently available from 2.9.0.
+    // Remove this when the minimum supported hadoop version has the above method.
+    Class<SecurityUtil> clz = SecurityUtil.class;
+    try {
+      Method method = clz.getMethod("setConfiguration", Configuration.class);
+      method.invoke(null, conf);
+    } catch (NoSuchMethodException e) {
+      // This is not available, so ignore it.
+    } catch (SecurityException | IllegalAccessException | IllegalArgumentException |
+        InvocationTargetException e) {
+      log.warn("Error invoking SecurityUtil.setConfiguration: ", e);
+      throw new TezUncheckedException("Error invoking SecurityUtil.setConfiguration", e);
+    }
+  }
 }

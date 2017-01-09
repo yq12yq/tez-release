@@ -2162,6 +2162,8 @@ public class DAGAppMaster extends AbstractService {
       UserGroupInformation.setConfiguration(conf);
       Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
 
+      TezUtilsInternal.setSecurityUtilConfigration(LOG, conf);
+
       DAGAppMaster appMaster =
           new DAGAppMaster(applicationAttemptId, containerId, nodeHostString,
               Integer.parseInt(nodePortString),
