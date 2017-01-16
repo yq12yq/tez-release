@@ -94,6 +94,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3574. (BUG-72510) Container reuse won't pickup extra dag level local resource.
   TEZ-3568. (BUG-69826) Update SecurityUtils configuration to pick user provided configuration.
   TEZ-3566. (BUG-68946) Avoid caching fs isntances in TokenCache after a point.
   TEZ-3536. (BUG-69492) NPE in WebUIService start when host resolution fails.
