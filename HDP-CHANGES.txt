@@ -89,6 +89,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3574. (BUG-53655) Container reuse won't pickup extra dag level local resource.
   TEZ-2852. (BUG-69852) TestVertexImpl fails due to race in AsyncDispatcher.
   TEZ-3536. (BUG-69492) NPE in WebUIService start when host resolution fails. 
   TEZ-3493. (BUG-68606) DAG submit timeout cannot be set to a month
