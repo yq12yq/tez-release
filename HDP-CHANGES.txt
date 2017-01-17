@@ -40,6 +40,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3574. (BUG-79364) Container reuse won't pickup extra dag level local resource.
   TEZ-3294. (BUG-60233) DAG.createDag() does not clear local state on repeat calls
   TEZ-3203. (BUG-59368) DAG hangs when one of the upstream vertices has zero tasks (jlowe)
   TEZ-3297. (BUG-59952) Deadlock scenario in AM during ShuffleVertexManager auto reduce.
