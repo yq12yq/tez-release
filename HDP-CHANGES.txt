@@ -261,4 +261,5 @@ BUG FIXES
   TEZ-3531. (BUG-67708) Tez UI: All Queries table: Improve searchability
   TEZ-3556. (BUG-67708) Tez UI: Display query configurations
   TEZ-2712. (BUG-41353) Tez UI: Display the vertex description in the tooltip of vertex in DAG view UI
+  TEZ-3496. (BUG-67477) Tez UI: Optimize display of all tasks table
 
