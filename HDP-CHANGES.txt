@@ -92,6 +92,7 @@ IMPROVEMENTS
   TEZ-3484. (BUG-71456) Tez UI: Remove .travis.yml from webapp folder
   TEZ-3546. (BUG-67707) Tez UI: On sorting asc - Not Available must be at the top
   TEZ-3570. (BUG-62966) Tez UI: Wait for sometime before tooltips are displayed
+  TEZ-3571. (BUG-71832) Tez UI: Display a Total Timeline View for Hive Queries
 
 BUG FIXES
 
