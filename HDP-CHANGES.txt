@@ -258,4 +258,5 @@ BUG FIXES
   TEZ-3504. (BUG-67443) Tez UI: Duration is displaying invalid values when start or end time is invalid
   TEZ-3529. (BUG-67708) Tez UI: Add 'All Queries' table in the landing page along 'All DAGs' page
   TEZ-3530. (BUG-67708) Tez UI: Add query details page, and link the page from All Queries table
+  TEZ-3531. (BUG-67708) Tez UI: All Queries table: Improve searchability
 
