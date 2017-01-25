@@ -99,6 +99,7 @@ IMPROVEMENTS
   TEZ-3556. (BUG-67708) Tez UI: Display query configurations
   TEZ-2712. (BUG-41353) Tez UI: Display the vertex description in the tooltip of vertex in DAG view UI
   TEZ-3496. (BUG-67477) Tez UI: Optimize display of all tasks table
+  TEZ-3575. (BUG-72167) RM have started forwarding origin. Use that in AMWebController for CORS support
 
 BUG FIXES
 
