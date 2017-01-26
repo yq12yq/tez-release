@@ -100,6 +100,7 @@ IMPROVEMENTS
   TEZ-2712. (BUG-41353) Tez UI: Display the vertex description in the tooltip of vertex in DAG view UI
   TEZ-3496. (BUG-67477) Tez UI: Optimize display of all tasks table
   TEZ-3575. (BUG-72167) RM have started forwarding origin. Use that in AMWebController for CORS support
+  TEZ-3494. (BUG-73376) Support relative url for tez-ui.history-url.base config
 
 BUG FIXES
 
