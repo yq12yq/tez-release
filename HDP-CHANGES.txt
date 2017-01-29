@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3582. (BUG-73583) Exception swallowed in PipelinedSorter causing incorrect results.
   TEZ-3575. (BUG-73417) RM have started forwarding origin. Use that in AMWebController for CORS support
   TEZ-3566. (BUG-72364) Avoid caching fs isntances in TokenCache after a point.
   TEZ-3115. (BUG-59504) Shuffle string handling adds significant memory overhead.
