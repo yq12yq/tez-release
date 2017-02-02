@@ -274,4 +274,5 @@ BUG FIXES
   TEZ-3591. (BUG-73149) Tez UI: Logs url is broken if not open in a new tab
   TEZ-3592. (BUG-73157, BUG-73123) Tez UI: Search issues
   TEZ-3593. (BUG-73145, BUG-73132, BUG-73147, BUG-73130) Tez UI: Issues in timeline page
+  TEZ-3594. (BUG-73151, BUG-73133, BUG-73206) Tez UI: Graphical view tooltip issues
 
