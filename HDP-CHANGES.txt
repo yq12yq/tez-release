@@ -272,4 +272,5 @@ BUG FIXES
   TEZ-3580. (BUG-73098) Tez UI: Pagination broken on queries page
   TEZ-3591. (BUG-73149) Tez UI: Logs url is broken if not open in a new tab
   TEZ-3592. (BUG-73157, BUG-73123) Tez UI: Search issues
+  TEZ-3593. (BUG-73145, BUG-73132, BUG-73147, BUG-73130) Tez UI: Issues in timeline page
 
