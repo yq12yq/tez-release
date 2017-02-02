@@ -271,4 +271,5 @@ BUG FIXES
   TEZ-3583. (BUG-67477) Tez UI: UTs are flaky because of a dependency issue
   TEZ-3580. (BUG-73098) Tez UI: Pagination broken on queries page
   TEZ-3591. (BUG-73149) Tez UI: Logs url is broken if not open in a new tab
+  TEZ-3592. (BUG-73157, BUG-73123) Tez UI: Search issues
 
