@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3404. (BUG-68839) Move blocking call for YARN Timeline domain creation from client side to AM.
   TEZ-3582. (BUG-72610) Exception swallowed in PipelinedSorter causing incorrect results.
   TEZ-3115. (BUG-72525) Shuffle string handling adds significant memory overhead.
   TEZ-3434. (BUG-69188) Add unit tests for flushing of recovery events.
