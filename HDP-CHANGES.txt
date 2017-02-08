@@ -106,6 +106,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3609. (BUG-73674) Improve ATSv15 performance for DAG entities read calls.
   TEZ-3000. (BUG-69238) Fix TestContainerReuse.
   TEZ-2852. (BUG-69238) TestVertexImpl fails due to race in AsyncDispatcher.
   TEZ-3574. (BUG-72510) Container reuse won't pickup extra dag level local resource.
