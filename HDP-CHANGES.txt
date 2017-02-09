@@ -103,6 +103,8 @@ IMPROVEMENTS
   TEZ-3496. (BUG-67477) Tez UI: Optimize display of all tasks table
   TEZ-3575. (BUG-72167) RM have started forwarding origin. Use that in AMWebController for CORS support
   TEZ-3494. (BUG-73376) Support relative url for tez-ui.history-url.base config
+  TEZ-3598. (BUG-73172, BUG-73195, BUG-73134) Tez UI: Text formatting changes
+  TEZ-3602. (BUG-73144) Tez UI: Query Name field is not required
 
 BUG FIXES
 
@@ -276,5 +278,4 @@ BUG FIXES
   TEZ-3592. (BUG-73157, BUG-73123) Tez UI: Search issues
   TEZ-3593. (BUG-73145, BUG-73132, BUG-73147, BUG-73130) Tez UI: Issues in timeline page
   TEZ-3594. (BUG-73151, BUG-73133, BUG-73206) Tez UI: Graphical view tooltip issues
-  TEZ-3598. (BUG-73172, BUG-73195, BUG-73134) Tez UI: Text formatting changes
 
