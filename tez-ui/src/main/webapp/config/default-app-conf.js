@@ -251,6 +251,24 @@ module.exports = { // Tez App configurations
           counterName: "LAST_EVENT_RECEIVED",
           counterGroupName: "org.apache.tez.common.counters.TaskCounter",
         },
+
+        // LLAP counters
+        {
+          counterName: "CACHE_HIT_BYTES",
+          counterGroupName: "org.apache.hadoop.hive.llap.counters.LlapIOCounters",
+        },
+        {
+          counterName: "CACHE_MISS_BYTES",
+          counterGroupName: "org.apache.hadoop.hive.llap.counters.LlapIOCounters",
+        },
+        {
+          counterName: "METADATA_CACHE_HIT",
+          counterGroupName: "org.apache.hadoop.hive.llap.counters.LlapIOCounters",
+        },
+        {
+          counterName: "METADATA_CACHE_MISS",
+          counterGroupName: "org.apache.hadoop.hive.llap.counters.LlapIOCounters",
+        },
       ],
 
       dagCounters: [
