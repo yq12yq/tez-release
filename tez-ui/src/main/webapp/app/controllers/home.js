@@ -22,10 +22,10 @@ export default AbstractController.extend({
   breadcrumbs: null,
 
   tabs: [{
-    text: "All DAGs",
-    routeName: "home.index"
-  }, {
     text: "Hive Queries",
     routeName: "home.queries"
+  }, {
+    text: "All DAGs",
+    routeName: "home.index"
   }]
 });

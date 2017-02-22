@@ -110,6 +110,7 @@ IMPROVEMENTS
   TEZ-3494. (BUG-73376) Support relative url for tez-ui.history-url.base config
   TEZ-3598. (BUG-73172, BUG-73195, BUG-73134) Tez UI: Text formatting changes
   TEZ-3602. (BUG-73144) Tez UI: Query Name field is not required
+  BUG-73169. Hive Queries should be the default tab (instead of All DAGs)
 
 BUG FIXES
 

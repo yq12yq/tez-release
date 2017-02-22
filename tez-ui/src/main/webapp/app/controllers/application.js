@@ -20,7 +20,7 @@ import Ember from 'ember';
 
 const BREADCRUMB_PREFIX = [{
   text: "Home",
-  routeName: "application"
+  routeName: "home.queries"
 }];
 
 export default Ember.Controller.extend({
