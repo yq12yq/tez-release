@@ -86,9 +86,9 @@ class TaskSchedulerAppCallbackWrapper implements TaskSchedulerAppCallback {
 
   @Override
   public void setApplicationRegistrationData(Resource maxContainerCapability,
-      Map<ApplicationAccessType, String> appAcls, ByteBuffer key) {
+      Map<ApplicationAccessType, String> appAcls, ByteBuffer key, String queueName) {
     executorService.submit(new SetApplicationRegistrationDataCallable(real,
-        maxContainerCapability, appAcls, key));
+        maxContainerCapability, appAcls, key, queueName));
   }
 
   @Override
@@ -228,20 +228,23 @@ class TaskSchedulerAppCallbackWrapper implements TaskSchedulerAppCallback {
     private final Resource maxContainerCapability;
     private final Map<ApplicationAccessType, String> appAcls;
     private final ByteBuffer key;
+    private final String queueName;
 
     public SetApplicationRegistrationDataCallable(TaskSchedulerAppCallback app,
         Resource maxContainerCapability,
         Map<ApplicationAccessType, String> appAcls,
-        ByteBuffer key) {
+        ByteBuffer key,
+        String queueName) {
       super(app);
       this.maxContainerCapability = maxContainerCapability;
       this.appAcls = appAcls;
       this.key = key;
+      this.queueName = queueName;
     }
 
     @Override
     public Void call() throws Exception {
-      app.setApplicationRegistrationData(maxContainerCapability, appAcls, key);
+      app.setApplicationRegistrationData(maxContainerCapability, appAcls, key, queueName);
       return null;
     }
   }

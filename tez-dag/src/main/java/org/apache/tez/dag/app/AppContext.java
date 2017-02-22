@@ -109,6 +109,10 @@ public interface AppContext {
 
   String getAMUser();
 
+  String getQueueName();
+
+  void setQueueName(String queueName);
+
   /** Whether the AM is in the process of shutting down/completing */
   boolean isAMInCompletionState();
 

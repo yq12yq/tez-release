@@ -145,7 +145,7 @@ public class TestTaskScheduler {
     verify(mockRMClient).start();
     verify(mockRMClient).registerApplicationMaster(appHost, appPort, appUrl);
     verify(mockApp).setApplicationRegistrationData(mockMaxResource,
-                                                   mockAcls, mockKey);
+                                                   mockAcls, mockKey, mockRegResponse.getQueue());
 
     when(mockRMClient.getClusterNodeCount()).thenReturn(5);
     Assert.assertEquals(5, scheduler.getClusterNodeCount());

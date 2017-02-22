@@ -497,11 +497,12 @@ public class TaskSchedulerEventHandler extends AbstractService
   public synchronized void setApplicationRegistrationData(
       Resource maxContainerCapability,
       Map<ApplicationAccessType, String> appAcls, 
-      ByteBuffer clientAMSecretKey) {
+      ByteBuffer clientAMSecretKey, String queueName) {
     this.appContext.getClusterInfo().setMaxContainerCapability(
         maxContainerCapability);
     this.appAcls = appAcls;
     this.clientService.setClientAMSecretKey(clientAMSecretKey);
+    this.appContext.setQueueName(queueName);
   }
 
   // Not synchronized to avoid deadlocks from TaskScheduler callbacks.

@@ -100,8 +100,8 @@ public abstract class TaskSchedulerService extends AbstractService{
     public void setApplicationRegistrationData(
                                 Resource maxContainerCapability,
                                 Map<ApplicationAccessType, String> appAcls,
-                                ByteBuffer clientAMSecretKey
-                                );
+                                ByteBuffer clientAMSecretKey,
+                                String queueName);
     public void onError(Throwable t);
     public float getProgress();
     public void preemptContainer(ContainerId containerId);
