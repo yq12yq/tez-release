@@ -115,6 +115,7 @@ IMPROVEMENTS
   TEZ-3629. (BUG-74812)  Tez UI: Enable the UI to display log links from LLAP
   TEZ-3626. (BUG-73121) Tez UI: First Task Start Time & Last Task Finish Time values are showing up incorrectly on Tez UI
   TEZ-3640. (BUG-71818) Tez UI: Add associated llap application id to queries page
+  TEZ-3630. (BUG-74837) Tez UI: Use DAG status for controlling auto-refresh polling
 
 BUG FIXES
 
