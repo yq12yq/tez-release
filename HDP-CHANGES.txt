@@ -111,6 +111,8 @@ IMPROVEMENTS
   TEZ-3598. (BUG-73172, BUG-73195, BUG-73134) Tez UI: Text formatting changes
   TEZ-3602. (BUG-73144) Tez UI: Query Name field is not required
   BUG-73169. Hive Queries should be the default tab (instead of All DAGs)
+  TEZ-3554. (BUG-74812) Add a link to get to all logs from Tez UI while job is running
+  TEZ-3629. (BUG-74812)  Tez UI: Enable the UI to display log links from LLAP
 
 BUG FIXES
 
