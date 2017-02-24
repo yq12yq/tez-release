@@ -113,6 +113,7 @@ IMPROVEMENTS
   BUG-73169. Hive Queries should be the default tab (instead of All DAGs)
   TEZ-3554. (BUG-74812) Add a link to get to all logs from Tez UI while job is running
   TEZ-3629. (BUG-74812)  Tez UI: Enable the UI to display log links from LLAP
+  TEZ-3626. (BUG-73121) Tez UI: First Task Start Time & Last Task Finish Time values are showing up incorrectly on Tez UI
 
 BUG FIXES
 
