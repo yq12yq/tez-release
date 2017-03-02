@@ -114,6 +114,7 @@ IMPROVEMENTS
   TEZ-3554. (BUG-74812) Add a link to get to all logs from Tez UI while job is running
   TEZ-3629. (BUG-74812)  Tez UI: Enable the UI to display log links from LLAP
   TEZ-3626. (BUG-73121) Tez UI: First Task Start Time & Last Task Finish Time values are showing up incorrectly on Tez UI
+  TEZ-3640. (BUG-71818) Tez UI: Add associated llap application id to queries page
 
 BUG FIXES
 
@@ -287,4 +288,5 @@ BUG FIXES
   TEZ-3592. (BUG-73157, BUG-73123) Tez UI: Search issues
   TEZ-3593. (BUG-73145, BUG-73132, BUG-73147, BUG-73130) Tez UI: Issues in timeline page
   TEZ-3594. (BUG-73151, BUG-73133, BUG-73206) Tez UI: Graphical view tooltip issues
+  TEZ-3639. (BUG-75701) Tez UI: Footer pagination is improper in landing page
 
