@@ -124,6 +124,7 @@ IMPROVEMENTS
   TEZ-3640. (BUG-71818) Tez UI: Add associated llap application id to queries page
   TEZ-3630. (BUG-74837) Tez UI: Use DAG status for controlling auto-refresh polling
   TEZ-3642. (BUG-74837) Tez UI: Auto-refresh is not stopping when DAG is the main entity
+  TEZ-3503. (BUG-67648) Tez UI: Support search by queue name
 
 BUG FIXES
 
