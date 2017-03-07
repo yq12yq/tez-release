@@ -38,6 +38,7 @@ import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.UniformInterfaceException;
 import com.sun.jersey.api.client.WebResource;
 
+import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience.Private;
@@ -178,16 +179,6 @@ public class DAGClientTimelineImpl extends DAGClientInternal {
     } catch (JSONException je) {
       throw new TezException("Failed to parse VertexStatus json from YARN Timeline", je);
     }
-  }
-
-  @Override
-  public String getDagIdentifierString() {
-    return dagId;
-  }
-
-  @Override
-  public String getSessionIdentifierString() {
-    return appId.toString();
   }
 
   @Override

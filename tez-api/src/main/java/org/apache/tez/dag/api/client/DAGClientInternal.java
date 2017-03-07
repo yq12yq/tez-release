@@ -25,6 +25,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 
 import org.apache.hadoop.classification.InterfaceAudience.Private;
+import org.apache.hadoop.classification.InterfaceAudience.Public;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
 import org.apache.tez.dag.api.TezException;
@@ -82,19 +83,6 @@ public abstract class DAGClientInternal implements Closeable {
   public abstract VertexStatus getVertexStatus(String vertexName,
       Set<StatusGetOpts> statusOptions)
     throws IOException, TezException, ApplicationNotFoundException;
-
-  /**
-   * Get the dag identifier for the currently executing dag. This is a string
-   * which represents this dag
-   * @return the dag identifier
-   */
-  public abstract String getDagIdentifierString();
-
-  /**
-   * Get the session identifier for the session in which this dag is running
-   * @return the session identifier
-   */
-  public abstract String getSessionIdentifierString();
 
   /**
    * Kill a running DAG
