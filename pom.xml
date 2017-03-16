@@ -53,6 +53,7 @@
     <scm.url>scm:git:https://git-wip-us.apache.org/repos/asf/tez.git</scm.url>
     <build.time>${maven.build.timestamp}</build.time>
     <frontend-maven-plugin.version>1.1</frontend-maven-plugin.version>
+    <adl.sdk.version>2.1.4</adl.sdk.version>
   </properties>
   <scm>
     <connection>${scm.url}</connection>
@@ -1178,6 +1179,17 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-azure</artifactId>
             <version>${hadoop.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-azure-datalake</artifactId>
+            <scope>runtime</scope>
+            <version>${hadoop.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>com.microsoft.azure</groupId>
+            <artifactId>azure-data-lake-store-sdk</artifactId>
+            <version>${adl.sdk.version}</version>
           </dependency>
         </dependencies>
       </dependencyManagement>
