@@ -18,6 +18,7 @@
 package org.apache.tez.common;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -83,10 +84,10 @@ public class TezYARNUtils {
         classpathBuilder.append(c.trim())
             .append(File.pathSeparator);
       }
-    } else if (conf.getBoolean(TezConfiguration.TEZ_CLASSPATH_ADD_HADOOP_CONF,
-        TezConfiguration.TEZ_CLASSPATH_ADD_HADOOP_CONF_DEFAULT)) {
+    } else {
       // Setup HADOOP_CONF_DIR after PWD and tez-libs, if it's required.
-      classpathBuilder.append(Environment.HADOOP_CONF_DIR.$()).append(File.pathSeparator);
+      classpathBuilder.append(Environment.HADOOP_CONF_DIR.$())
+          .append(File.pathSeparator);
     }
 
     String classpath = classpathBuilder.toString();
