@@ -2,9 +2,25 @@
   "name": "tez-ui",
   "version": "0.0.1",
   "description": "Apache Tez UI",
-  "repository" : {
-    "type" : "git",
-    "url" : "https://git-wip-us.apache.org/repos/asf/tez.git"
+  "private": true,
+  "directories": {
+    "doc": "doc",
+    "test": "tests"
+  },
+  "scripts": {
+    "build": "TMPDIR=tmp node ./node_modules/ember-cli/bin/ember build",
+    "start": "TMPDIR=tmp node ./node_modules/ember-cli/bin/ember server",
+    "test": "TMPDIR=tmp node ./node_modules/ember-cli/bin/ember test",
+
+    "build:mvn": "TMPDIR=tmp node/node --harmony ./node_modules/ember-cli/bin/ember build -prod",
+    "test:mvn": "TMPDIR=tmp node/node ./node_modules/ember-cli/bin/ember test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://git-wip-us.apache.org/repos/asf/tez.git"
+  },
+  "engines": {
+    "node": ">= 0.10.0"
   },
   "dependencies": {},
   "devDependencies": {
