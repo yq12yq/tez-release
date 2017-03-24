@@ -8,7 +8,13 @@ NEW FEATURES
   RMP-4813. Better handling of AM failures in Tez Job Commit stage
 
 IMPROVEMENTS
-  
+
+  TEZ-3610. (BUG-77078) TEZ UI 0.7 0.9 compatibility for url query params and tez-app sub-routes (jeagles)
+  TEZ-3640. (BUG-71818) Tez UI: Add associated llap application id to queries page (sree)
+  TEZ-3629. (BUG-74812) Tez UI: Enable the UI to display log links from LLAP (sree)
+  TEZ-3554. (BUG-74812) Add a link to get to all logs from Tez UI while job is running (Eric Badger via sree)
+  TEZ-3619. (BUG-73198) Tez UI: Improve DAG Data download (sree)
+  TEZ-3615. (BUG-73174, BUG-73155) Tez UI: Table changes (sree)
   TEZ-3257. (BUG-65637) Add more unit test coverage for container reuse.
   TEZ-3627. (BUG-56692) Use queue name available in RegisterApplicationMasterResponse for publishing to ATS.
   BUG-72217. add LLAP counters to Tez UI by default
@@ -121,6 +127,9 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  TEZ-3653. (BUG-75595) Tez UI: Swimlane tooltip is not proper for running DAGs (sree)
+  TEZ-3639. (BUG-75701) Tez UI: Footer pagination is improper in landing page (sree)
+  TEZ-3594. (BUG-73151, BUG-73133, BUG-73206) Tez UI: Graphical view tooltip issues (sree)
   TEZ-3609. (BUG-73674) Improve ATSv15 performance for DAG entities read calls.
   TEZ-3000. (BUG-69238) Fix TestContainerReuse.
   TEZ-2852. (BUG-69238) TestVertexImpl fails due to race in AsyncDispatcher.
