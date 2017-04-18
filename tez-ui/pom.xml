@@ -31,6 +31,7 @@
     <node.executable>${basedir}/src/main/webapp/node/node</node.executable>
     <nodeVersion>v5.7.1</nodeVersion>
     <npmVersion>3.6.0</npmVersion>
+    <node.download.location>http://nodejs.org/dist/</node.download.location>
     <skipTests>false</skipTests>
   </properties>
 
@@ -128,6 +129,7 @@
             <configuration>
               <nodeVersion>${nodeVersion}</nodeVersion>
               <npmVersion>${npmVersion}</npmVersion>
+              <nodeDownloadRoot>${node.download.location}</nodeDownloadRoot>
             </configuration>
           </execution>
           <execution>
