@@ -130,6 +130,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  HOTFIX-1936 increase node version to avoid tez-ui build failure
   BUG-111756 TEZ-3953: Restore ABI-compat for DAGClient for TEZ-3951 (Sergey Shelukhin via Gopal V)
   BUG-111756 TEZ-3951. TezClient wait too long for the DAGClient for prewarm; tries to shut down the wrong DAG (Sergey Shelukhin via Harish Jaiprakash)
   BUG-111756 TEZ-3943. TezClient leaks DAGClient for prewarm (Sergey Shelukhin via jlowe)
