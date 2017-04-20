@@ -21,7 +21,7 @@
     "url": "https://git-wip-us.apache.org/repos/asf/tez.git"
   },
   "engines": {
-    "node": ">= 0.10.0"
+    "node": "6.10.2"
   },
   "devDependencies": {
     "bower": "1.7.7",
