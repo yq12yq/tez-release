@@ -41,6 +41,6 @@ test('tabs test', function(assert) {
   }).get("tabs");
 
   assert.equal(tabs.length, 2);
-  assert.equal(tabs[0].text, "All DAGs");
-  assert.equal(tabs[1].text, "Hive Queries");
+  assert.equal(tabs[0].text, "Hive Queries");
+  assert.equal(tabs[1].text, "All DAGs");
 });

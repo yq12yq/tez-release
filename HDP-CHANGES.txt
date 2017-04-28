@@ -301,4 +301,5 @@ BUG FIXES
   TEZ-3593. (BUG-73145, BUG-73132, BUG-73147, BUG-73130) Tez UI: Issues in timeline page
   TEZ-3594. (BUG-73151, BUG-73133, BUG-73206) Tez UI: Graphical view tooltip issues
   TEZ-3639. (BUG-75701) Tez UI: Footer pagination is improper in landing page
+  BUG-79836. Tez-UI Unit test failing
 

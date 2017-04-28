@@ -43,7 +43,7 @@ test('prefixedBreadcrumbs test', function(assert) {
 
   assert.equal(prefixedBreadcrumbs.length, 2);
   assert.equal(prefixedBreadcrumbs[0].text, "Home");
-  assert.equal(prefixedBreadcrumbs[0].routeName, "application");
+  assert.equal(prefixedBreadcrumbs[0].routeName, "home.queries");
   assert.equal(prefixedBreadcrumbs[1].text, testText);
   assert.equal(prefixedBreadcrumbs[1].routeName, testRouteName);
 });
