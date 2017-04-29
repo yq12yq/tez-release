@@ -94,7 +94,7 @@ public class AMContainerHelpers {
    */
   private static ContainerLaunchContext createCommonContainerLaunchContext(
       Map<ApplicationAccessType, String> applicationACLs,
-      Credentials credentials) {
+      Credentials credentials, Map<String, LocalResource> localResources) {
 
     // Application environment
     Map<String, String> environment = new HashMap<String, String>();
@@ -137,7 +137,7 @@ public class AMContainerHelpers {
     // The null fields are per-container and will be constructed for each
     // container separately.
     ContainerLaunchContext container =
-        ContainerLaunchContext.newInstance(null, environment, null,
+        ContainerLaunchContext.newInstance(localResources, environment, null,
             serviceData, containerCredentialsBuffer, applicationACLs);
     return container;
   }
@@ -145,6 +145,7 @@ public class AMContainerHelpers {
   @VisibleForTesting
   public static ContainerLaunchContext createContainerLaunchContext(
       TezDAGID tezDAGID,
+      Map<String, LocalResource> commonDAGLRs,
       Map<ApplicationAccessType, String> acls,
       ContainerId containerId,
       Map<String, LocalResource> localResources,
@@ -158,7 +159,7 @@ public class AMContainerHelpers {
     synchronized (commonContainerSpecLock) {
       if (!commonContainerSpecs.containsKey(tezDAGID)) {
         commonContainerSpec =
-            createCommonContainerLaunchContext(acls, credentials);
+            createCommonContainerLaunchContext(acls, credentials, commonDAGLRs);
         commonContainerSpecs.put(tezDAGID, commonContainerSpec);
       } else {
         commonContainerSpec = commonContainerSpecs.get(tezDAGID);
@@ -173,6 +174,13 @@ public class AMContainerHelpers {
         lastDAGID = tezDAGID;
       }
     }
+
+    // Fill in the fields needed per-container that are missing in the common
+    // spec.
+    Map<String, LocalResource> lResources =
+        new TreeMap<String, LocalResource>();
+    lResources.putAll(commonContainerSpec.getLocalResources());
+    lResources.putAll(localResources);
 
     // Setup environment by cloning from common env.
     Map<String, String> env = commonContainerSpec.getEnvironment();
@@ -206,7 +214,7 @@ public class AMContainerHelpers {
 
     // Construct the actual Container
     ContainerLaunchContext container =
-        ContainerLaunchContext.newInstance(localResources, myEnv, commands,
+        ContainerLaunchContext.newInstance(lResources, myEnv, commands,
             myServiceData, commonContainerSpec.getTokens().duplicate(), acls);
 
     return container;

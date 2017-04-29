@@ -47,12 +47,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.google.protobuf.ByteString;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.tez.common.counters.Limits;
 import org.apache.tez.common.counters.TezCounters;
-import org.apache.tez.dag.app.rm.AMSchedulerEvent;
-import org.apache.tez.dag.app.rm.AMSchedulerEventTALaunchRequest;
-import org.apache.tez.dag.app.rm.AMSchedulerEventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.hadoop.classification.InterfaceAudience;
@@ -239,7 +235,6 @@ public class TestVertexImpl {
   private TaskEventDispatcher taskEventDispatcher;
   private VertexEventDispatcher vertexEventDispatcher;
   private DagEventDispatcher dagEventDispatcher;
-  private AMSchedulerEventDispatcher amSchedulerEventDispatcher;
   private HistoryEventHandler historyEventHandler;
   private StateChangeNotifierForTest updateTracker;
   private static TaskSpecificLaunchCmdOption taskSpecificLaunchCmdOption;
@@ -397,14 +392,6 @@ public class TestVertexImpl {
         count = eventCount.get(event.getType()) + 1;
       }
       eventCount.put(event.getType(), count);
-    }
-  }
-
-  private class AMSchedulerEventDispatcher implements  EventHandler<AMSchedulerEvent> {
-    List<AMSchedulerEvent> events = new ArrayList<>();
-
-    public void handle(AMSchedulerEvent event) {
-      events.add(event);
     }
   }
 
@@ -1528,16 +1515,6 @@ public class TestVertexImpl {
     LOG.info("Setting up dag plan");
     DAGPlan dag = DAGPlan.newBuilder()
         .setName("testverteximpl")
-        .addLocalResource(
-          DAGProtos.PlanLocalResource.newBuilder()
-            .setName("dag lr")
-            .setUri("dag ir uri")
-            .setSize(1)
-            .setTimeStamp(1)
-            .setType(DAGProtos.PlanLocalResourceType.FILE)
-            .setVisibility(DAGProtos.PlanLocalResourceVisibility.APPLICATION)
-            .build()
-        )
         .addVertex(
           VertexPlan.newBuilder()
             .setName("vertex1")
@@ -1555,16 +1532,6 @@ public class TestVertexImpl {
                 .setMemoryMb(1024)
                 .setJavaOpts("")
                 .setTaskModule("x1.y1")
-                .addLocalResource(
-                  DAGProtos.PlanLocalResource.newBuilder()
-                    .setName("vertex lr")
-                    .setUri("vertex ir uri")
-                    .setSize(1)
-                    .setTimeStamp(1)
-                    .setType(DAGProtos.PlanLocalResourceType.FILE)
-                    .setVisibility(DAGProtos.PlanLocalResourceVisibility.APPLICATION)
-                    .build()
-                )
                 .build()
             )
             .addOutEdgeId("e1")
@@ -2303,13 +2270,6 @@ public class TestVertexImpl {
     DAG dag = mock(DAG.class);
     doReturn(ugi).when(dag).getDagUGI();
     doReturn(dagName).when(dag).getName();
-    Map<String, LocalResource> localResources = new HashMap<>();
-    for (DAGProtos.PlanLocalResource planLR : dagPlan.getLocalResourceList()) {
-      localResources.put(planLR.getName(),
-              DagTypeConverters.convertPlanLocalResourceToLocalResource(planLR));
-    }
-    when(dag.getLocalResources()).thenReturn(localResources);
-
     doReturn(appAttemptId).when(appContext).getApplicationAttemptId();
     doReturn(appAttemptId.getApplicationId()).when(appContext).getApplicationID();
     doReturn(dag).when(appContext).getCurrentDAG();
@@ -2395,8 +2355,6 @@ public class TestVertexImpl {
     dispatcher.register(VertexEventType.class, vertexEventDispatcher);
     dagEventDispatcher = new DagEventDispatcher();
     dispatcher.register(DAGEventType.class, dagEventDispatcher);
-    amSchedulerEventDispatcher = new AMSchedulerEventDispatcher();
-    dispatcher.register(AMSchedulerEventType.class, amSchedulerEventDispatcher);
     dispatcher.init(conf);
     dispatcher.start();
   }
@@ -6426,23 +6384,4 @@ public class TestVertexImpl {
     Assert.assertTrue(v.getLastTaskFinishTime() > 0);
   }
 
-  @Test(timeout = 5000)
-  public void testPickupDagLocalResourceOnScheduleTask() {
-    initAllVertices(VertexState.INITED);
-    VertexImpl v1 = vertices.get("vertex1");
-    startVertex(v1);
-
-    TezTaskAttemptID taskAttemptId0 = TezTaskAttemptID.getInstance(v1.getTask(0).getTaskId(), 0);
-    TaskAttemptImpl ta0 = (TaskAttemptImpl) v1.getTask(0).getAttempt(taskAttemptId0);
-    ta0.handle(new TaskAttemptEventSchedule(taskAttemptId0, 1, 1));
-
-    dispatcher.await();
-    Assert.assertEquals(1, amSchedulerEventDispatcher.events.size());
-    AMSchedulerEventTALaunchRequest launchRequestEvent =
-      (AMSchedulerEventTALaunchRequest) amSchedulerEventDispatcher.events.get(0);
-    Map<String, LocalResource> localResourceMap =
-      launchRequestEvent.getContainerContext().getLocalResources();
-    Assert.assertTrue(localResourceMap.containsKey("dag lr"));
-    Assert.assertTrue(localResourceMap.containsKey("vertex lr"));
-  }
 }
