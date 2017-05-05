@@ -17,7 +17,6 @@
  */
 package org.apache.tez.runtime.library.common.writers;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -51,6 +50,7 @@ import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.counters.TaskCounter;
 import org.apache.tez.common.counters.TezCounter;
+import org.apache.tez.common.io.NonSyncDataOutputStream;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.api.OutputContext;
 import org.apache.tez.runtime.api.events.CompositeDataMovementEvent;
@@ -98,7 +98,7 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
   @VisibleForTesting
   final BlockingQueue<WrappedBuffer> availableBuffers;
   private final ByteArrayOutputStream baos;
-  private final DataOutputStream dos;
+  private final NonSyncDataOutputStream dos;
   @VisibleForTesting
   WrappedBuffer currentBuffer;
   private final FileSystem rfs;
@@ -184,7 +184,7 @@ public class UnorderedPartitionedKVWriter extends BaseUnorderedPartitionedKVWrit
     }
     currentBuffer = buffers[0];
     baos = new ByteArrayOutputStream();
-    dos = new DataOutputStream(baos);
+    dos = new NonSyncDataOutputStream(baos);
     keySerializer.open(dos);
     valSerializer.open(dos);
     rfs = ((LocalFileSystem) FileSystem.getLocal(this.conf)).getRaw();
