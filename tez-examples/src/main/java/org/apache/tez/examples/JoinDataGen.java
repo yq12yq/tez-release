@@ -18,7 +18,10 @@
 
 package org.apache.tez.examples;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
@@ -38,9 +41,6 @@ import org.apache.tez.dag.api.ProcessorDescriptor;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
-import org.apache.tez.common.io.NonSyncByteArrayInputStream;
-import org.apache.tez.common.io.NonSyncByteArrayOutputStream;
-import org.apache.tez.common.io.NonSyncDataOutputStream;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
 import org.apache.tez.runtime.api.ProcessorContext;
@@ -171,8 +171,8 @@ public class JoinDataGen extends TezExampleBase {
 
     public static byte[] createConfiguration(long streamOutputFileSize, long hashOutputFileSize)
         throws IOException {
-      NonSyncByteArrayOutputStream bos = new NonSyncByteArrayOutputStream();
-      NonSyncDataOutputStream dos = new NonSyncDataOutputStream(bos);
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      DataOutputStream dos = new DataOutputStream(bos);
       dos.writeLong(streamOutputFileSize);
       dos.writeLong(hashOutputFileSize);
       dos.close();
@@ -183,7 +183,7 @@ public class JoinDataGen extends TezExampleBase {
     @Override
     public void initialize() throws Exception {
       byte[] payload = getContext().getUserPayload().deepCopyAsArray();
-      NonSyncByteArrayInputStream bis = new NonSyncByteArrayInputStream(payload);
+      ByteArrayInputStream bis = new ByteArrayInputStream(payload);
       DataInputStream dis = new DataInputStream(bis);
       streamOutputFileSize = dis.readLong();
       hashOutputFileSize = dis.readLong();

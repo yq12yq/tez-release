@@ -17,6 +17,7 @@
  */
 package org.apache.tez.runtime.library.common.shuffle.orderedgrouped;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -25,7 +26,6 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.io.BoundedByteArrayOutputStream;
 import org.apache.hadoop.io.WritableUtils;
-import org.apache.tez.common.io.NonSyncDataOutputStream;
 import org.apache.tez.runtime.library.common.sort.impl.IFile;
 import org.apache.tez.runtime.library.common.sort.impl.IFileOutputStream;
 import org.apache.tez.runtime.library.common.sort.impl.IFile.Writer;
@@ -40,7 +40,7 @@ public class InMemoryWriter extends Writer {
   public InMemoryWriter(BoundedByteArrayOutputStream arrayStream) {
     super(null, null);
     this.out =
-      new NonSyncDataOutputStream(new IFileOutputStream(arrayStream));
+      new DataOutputStream(new IFileOutputStream(arrayStream));
   }
 
   public void append(Object key, Object value) throws IOException {

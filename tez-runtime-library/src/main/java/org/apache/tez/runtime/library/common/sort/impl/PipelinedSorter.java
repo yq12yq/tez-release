@@ -17,6 +17,7 @@
 */
 package org.apache.tez.runtime.library.common.sort.impl;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.BufferOverflowException;
@@ -42,7 +43,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.tez.common.TezUtilsInternal;
 import org.apache.tez.common.CallableWithNdc;
-import org.apache.tez.common.io.NonSyncDataOutputStream;
 import org.apache.tez.runtime.api.Event;
 import org.apache.tez.runtime.library.common.comparator.ProxyComparator;
 import org.apache.hadoop.io.RawComparator;
@@ -787,7 +787,7 @@ public class PipelinedSorter extends ExternalSorter {
   private final class SortSpan  implements IndexedSortable {
     final IntBuffer kvmeta;
     final ByteBuffer kvbuffer;
-    final NonSyncDataOutputStream out;
+    final DataOutputStream out;
     final RawComparator comparator;
     final int imeta[] = new int[NMETA];
     final int jmeta[] = new int[NMETA];
@@ -818,7 +818,7 @@ public class PipelinedSorter extends ExternalSorter {
                 .slice()
                 .order(ByteOrder.nativeOrder())
                .asIntBuffer();
-      out = new NonSyncDataOutputStream(
+      out = new DataOutputStream(
               new BufferStreamWrapper(kvbuffer));
       this.comparator = comparator;
     }
