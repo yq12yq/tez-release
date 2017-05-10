@@ -34,6 +34,42 @@
     <local_url>http://public-repo-1.hortonworks.com/ARTIFACTS/</local_url>
   </properties>
 
+  <profiles>
+    <profile>
+      <id>cleanUICache</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-clean-plugin</artifactId>
+            <configuration>
+              <filesets>
+                <fileset>
+                  <directory>${webappDir}/tmp</directory>
+                </fileset>
+                <fileset>
+                  <directory>${webappDir}/node</directory>
+                </fileset>
+                <fileset>
+                  <directory>${webappDir}/node_modules</directory>
+                </fileset>
+                <fileset>
+                  <directory>${webappDir}/bower_components</directory>
+                </fileset>
+                <fileset>
+                 <directory>${webappDir}/app/bower_components</directory>
+                </fileset>
+              </filesets>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <build>
     <plugins>
 
