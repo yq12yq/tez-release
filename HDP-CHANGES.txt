@@ -130,6 +130,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  HOTFIX-1597 Delete ember generated bower dir on clean
   TEZ-3491. (BUG-85678) Tez job can hang due to container priority inversion.
   TEZ-3784. (BUG-84794) Submitting very large DAG throws com.google.protobuf.CodedInputStream exception
   TEZ-3656. (BUG-67648) Tez UI: Status correction is not working as expected (sree)
