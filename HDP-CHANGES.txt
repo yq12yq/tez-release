@@ -128,6 +128,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  HOTFIX-1648 Delete ember generated bower dir on clean
   TEZ-3656. (BUG-67648) Tez UI: Status correction is not working as expected (sree)
   TEZ-3653. (BUG-75595) Tez UI: Swimlane tooltip is not proper for running DAGs (sree)
   TEZ-3639. (BUG-75701) Tez UI: Footer pagination is improper in landing page (sree)
