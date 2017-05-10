@@ -87,6 +87,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
+  HOTFIX-1888 Delete ember generated bower dir on clean
   HOTFIX-1888 increase node version to avoid tez-ui build failure
   TEZ-2545. (BUG-62817) It is not necessary to start the vertex group commit when DAG is in TERMINATING
   TEZ-2857. (BUG-62134) Fix flakey tests in TestDAGImpl.
