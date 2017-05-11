@@ -34,6 +34,7 @@ Changes only in Hortonworks github and not in Apache Tez release 0.5.2 and hence
   BUG-43083. Initial port for TEZ-2628: History logging plugin to write ATS events to HDFS.
 
   BUG FIXES
+  HOTFIX-1904 Use newer maven-frontend-plugin to include proxy related
   TEZ-2882 (BUG-45880). Consider improving fetch failure handling.
   TEZ-2907 (BUG-46604). NPE in IFile.Reader.getLength during final merge operation.
   TEZ-2850 (BUG-46495). Tez MergeManager OOM for small Map Outputs.
