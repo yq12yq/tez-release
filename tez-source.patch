@@ -1,0 +1,634 @@
+diff --git a/docs/pom.xml b/docs/pom.xml
+index 03048c7..86f13ab 100644
+--- a/docs/pom.xml
++++ b/docs/pom.xml
+@@ -16,9 +16,7 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+     <name>Tez</name>
+     <description>Tez is an application framework which allows for a complex directed-acyclic-graph of tasks for processing data and is built atop Apache Hadoop YARN.</description>
+     <url>http://tez.apache.org/</url>
+@@ -27,7 +25,7 @@
+     <parent>
+       <groupId>org.apache.tez</groupId>
+       <artifactId>tez</artifactId>
+-      <version>0.7.1-SNAPSHOT</version>
++      <version>0.7.0.2.4.3.0-227</version>
+     </parent>
+     <artifactId>tez-docs</artifactId>
+     <packaging>pom</packaging>
+@@ -285,7 +283,7 @@
+       </developer>
+       <developer>
+         <id>omalley</id>
+-        <name>Owen O’Malley</name>
++        <name>Owen O&#8217;Malley</name>
+         <email>omalley@apache.org</email>
+         <timezone>-8</timezone>
+         <roles>
+@@ -448,4 +446,4 @@
+       </plugins>
+     </reporting>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/pom.xml b/pom.xml
+index d0d316b..9f8ce05 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -12,14 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>org.apache.tez</groupId>
+   <artifactId>tez</artifactId>
+   <packaging>pom</packaging>
+-  <version>0.7.1-SNAPSHOT</version>
++  <version>0.7.0.2.4.3.0-227</version>
+   <name>tez</name>
+ 
+   <licenses>
+@@ -37,8 +35,8 @@
+   <properties>
+     <maven.test.redirectTestOutputToFile>true</maven.test.redirectTestOutputToFile>
+     <clover.license>${user.home}/clover.license</clover.license>
+-    <hadoop.version>2.7.1-SNAPSHOT</hadoop.version>
+-    <jetty.version>6.1.26</jetty.version>
++    <hadoop.version>2.7.1.2.4.3.0-227</hadoop.version>
++    <jetty.version>6.1.26.hwx</jetty.version>
+     <pig.version>0.13.0</pig.version>
+     <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
+     <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
+@@ -1110,7 +1108,7 @@
+               <source>1.6</source>
+               <target>1.6</target>
+               <compilerArguments>
+-                <Xlint/>
++                <Xlint />
+                 <Xmaxwarns>9999</Xmaxwarns>
+               </compilerArguments>
+             </configuration>
+@@ -1208,4 +1206,4 @@
+     </plugins>
+   </reporting>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-api/pom.xml b/tez-api/pom.xml
+index da4b75d..f4b8d12 100644
+--- a/tez-api/pom.xml
++++ b/tez-api/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-api</artifactId>
+ 
+@@ -192,4 +189,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-common/pom.xml b/tez-common/pom.xml
+index abdf2cc..a8d8d97 100644
+--- a/tez-common/pom.xml
++++ b/tez-common/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-common</artifactId>
+ 
+@@ -78,4 +75,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-dag/pom.xml b/tez-dag/pom.xml
+index 8c1b791..3ab8acb 100644
+--- a/tez-dag/pom.xml
++++ b/tez-dag/pom.xml
+@@ -11,15 +11,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <properties>
+     <tez.component>tez-dag</tez.component>
+@@ -245,4 +242,4 @@
+     </profile>
+   </profiles>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-dist/pom.xml b/tez-dist/pom.xml
+index 3689847..f2301ab 100644
+--- a/tez-dist/pom.xml
++++ b/tez-dist/pom.xml
+@@ -14,14 +14,12 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-dist</artifactId>
+ 
+@@ -139,4 +137,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-examples/pom.xml b/tez-examples/pom.xml
+index 778c524..1897e34 100644
+--- a/tez-examples/pom.xml
++++ b/tez-examples/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+-                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+ 
+   <artifactId>tez-examples</artifactId>
+@@ -97,4 +94,4 @@
+     </plugin>
+    </plugins>
+   </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-mapreduce/pom.xml b/tez-mapreduce/pom.xml
+index 4a2c691..97baadf 100644
+--- a/tez-mapreduce/pom.xml
++++ b/tez-mapreduce/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-mapreduce</artifactId>
+ 
+@@ -162,4 +159,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-plugins/pom.xml b/tez-plugins/pom.xml
+index 8e1aac0..74ec26f 100644
+--- a/tez-plugins/pom.xml
++++ b/tez-plugins/pom.xml
+@@ -14,14 +14,12 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-plugins</artifactId>
+   <packaging>pom</packaging>
+@@ -75,4 +73,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-plugins/tez-history-parser/pom.xml b/tez-plugins/tez-history-parser/pom.xml
+index 1d82ac2..8902645 100644
+--- a/tez-plugins/tez-history-parser/pom.xml
++++ b/tez-plugins/tez-history-parser/pom.xml
+@@ -14,14 +14,12 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-plugins</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-history-parser</artifactId>
+ 
+@@ -192,4 +190,4 @@
+       </plugin>
+     </plugins>
+   </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-plugins/tez-yarn-timeline-cache-plugin/pom.xml b/tez-plugins/tez-yarn-timeline-cache-plugin/pom.xml
+index 18aef1b..acb90b7 100644
+--- a/tez-plugins/tez-yarn-timeline-cache-plugin/pom.xml
++++ b/tez-plugins/tez-yarn-timeline-cache-plugin/pom.xml
+@@ -11,15 +11,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-plugins</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-yarn-timeline-cache-plugin</artifactId>
+ 
+@@ -71,4 +68,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-plugins/tez-yarn-timeline-history-with-acls/pom.xml b/tez-plugins/tez-yarn-timeline-history-with-acls/pom.xml
+index 4f37866..b03f35d 100644
+--- a/tez-plugins/tez-yarn-timeline-history-with-acls/pom.xml
++++ b/tez-plugins/tez-yarn-timeline-history-with-acls/pom.xml
+@@ -11,15 +11,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-plugins</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-yarn-timeline-history-with-acls</artifactId>
+ 
+@@ -150,5 +147,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
+-
++</project>
+\ No newline at end of file
+diff --git a/tez-plugins/tez-yarn-timeline-history-with-fs/pom.xml b/tez-plugins/tez-yarn-timeline-history-with-fs/pom.xml
+index 1975347..dfec9b1 100644
+--- a/tez-plugins/tez-yarn-timeline-history-with-fs/pom.xml
++++ b/tez-plugins/tez-yarn-timeline-history-with-fs/pom.xml
+@@ -11,15 +11,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-plugins</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-yarn-timeline-history-with-fs</artifactId>
+ 
+@@ -150,5 +147,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
+-
++</project>
+\ No newline at end of file
+diff --git a/tez-plugins/tez-yarn-timeline-history/pom.xml b/tez-plugins/tez-yarn-timeline-history/pom.xml
+index 9497c17..06f2812 100644
+--- a/tez-plugins/tez-yarn-timeline-history/pom.xml
++++ b/tez-plugins/tez-yarn-timeline-history/pom.xml
+@@ -11,15 +11,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-plugins</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-yarn-timeline-history</artifactId>
+ 
+@@ -157,4 +154,4 @@
+     </profile>
+   </profiles>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-runtime-internals/pom.xml b/tez-runtime-internals/pom.xml
+index 274d9e8..a49ea0b 100644
+--- a/tez-runtime-internals/pom.xml
++++ b/tez-runtime-internals/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-runtime-internals</artifactId>
+ 
+@@ -111,4 +108,4 @@
+       </plugin>
+     </plugins>
+   </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-runtime-library/pom.xml b/tez-runtime-library/pom.xml
+index 9230576..58b2b61 100644
+--- a/tez-runtime-library/pom.xml
++++ b/tez-runtime-library/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-runtime-library</artifactId>
+ 
+@@ -126,4 +123,4 @@
+       </plugin>
+     </plugins>
+   </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-tests/pom.xml b/tez-tests/pom.xml
+index 616906f..9e7439a 100644
+--- a/tez-tests/pom.xml
++++ b/tez-tests/pom.xml
+@@ -12,15 +12,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-tests</artifactId>
+ 
+@@ -164,4 +161,4 @@
+     </plugins>
+   </build>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-tools/pom.xml b/tez-tools/pom.xml
+index f487fcb..b52d30e 100644
+--- a/tez-tools/pom.xml
++++ b/tez-tools/pom.xml
+@@ -14,14 +14,12 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-tools</artifactId>
+   <packaging>pom</packaging>
+@@ -47,4 +45,4 @@
+     </profile>
+   </profiles>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-tools/tez-tfile-parser/pom.xml b/tez-tools/tez-tfile-parser/pom.xml
+index 66cbac7..b25b3c5 100644
+--- a/tez-tools/tez-tfile-parser/pom.xml
++++ b/tez-tools/tez-tfile-parser/pom.xml
+@@ -12,15 +12,13 @@
+   See the License for the specific language governing permissions and
+   limitations under the License. See accompanying LICENSE file.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+ 
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-tools</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-tfile-parser</artifactId>
+ 
+@@ -55,4 +53,4 @@
+     </dependency>
+   </dependencies>
+ 
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/tez-ui/pom.xml b/tez-ui/pom.xml
+index d637980..0be35ef 100644
+--- a/tez-ui/pom.xml
++++ b/tez-ui/pom.xml
+@@ -14,14 +14,12 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+   <modelVersion>4.0.0</modelVersion>
+   <parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez</artifactId>
+-    <version>0.7.1-SNAPSHOT</version>
++    <version>0.7.0.2.4.3.0-227</version>
+   </parent>
+   <artifactId>tez-ui</artifactId>
+   <packaging>war</packaging>
+@@ -156,4 +154,4 @@
+ 
+     </plugins>
+   </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/winpkg/pom.xml b/winpkg/pom.xml
+index 671e47b..e729075 100644
+--- a/winpkg/pom.xml
++++ b/winpkg/pom.xml
+@@ -16,13 +16,12 @@
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ -->
+-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
++<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+     <modelVersion>4.0.0</modelVersion>
+     <parent>
+         <groupId>org.apache.tez</groupId>
+         <artifactId>tez</artifactId>
+-        <version>0.6.0-SNAPSHOT</version>
++        <version>0.7.0.2.4.3.0-227</version>
+     </parent>
+     <groupId>org.apache.tez</groupId>
+     <artifactId>tez-winpkg</artifactId>
+@@ -60,4 +59,4 @@
+             </plugin>
+         </plugins>
+     </build>
+-</project>
++</project>
+\ No newline at end of file

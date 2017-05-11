@@ -28,7 +28,7 @@
 
   <properties>
     <webappDir>src/main/webapp</webappDir>
-    <node.executable>${basedir}/src/main/webapp/node/node</node.executable>
+    <node.executable>${basedir}/node/node</node.executable>
     <nodeVersion>v4.8.2</nodeVersion>
     <npmVersion>2.15.3</npmVersion>
     <skipTests>false</skipTests>
