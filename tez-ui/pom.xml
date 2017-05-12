@@ -73,7 +73,6 @@
               <goal>install-node-and-npm</goal>
             </goals>
             <configuration>
-              <installDirectory>${webappDir}</installDirectory>
               <nodeVersion>${nodeVersion}</nodeVersion>
               <npmVersion>${npmVersion}</npmVersion>
               <downloadRoot>${local_url}</downloadRoot>
