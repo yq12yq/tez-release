@@ -28,7 +28,7 @@ Replace x.y.z with the tez release number that you are using. E.g. 0.5.0
         $ hadoop version
         ```
 2.  Build tez using `mvn clean package -DskipTests=true -Dmaven.javadoc.skip=true`
-    -   This assumes that you have already installed JDK6 or later and Maven 3 or later.
+    -   This assumes that you have already installed JDK8 or later and Maven 3 or later.
     -   Tez also requires Protocol Buffers 2.5.0, including the protoc-compiler.
         *   This can be downloaded from https://github.com/google/protobuf/tags/.
         *   On Mac OS X with the homebrew package manager `brew install protobuf250`
