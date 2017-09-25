@@ -9,6 +9,7 @@ NEW FEATURES
 
 IMPROVEMENTS
 
+  TEZ-3703. (BUG-87833) Use a sha comparison to compare vertex and dag resources, if there is a mismatch
   TEZ-3610. (BUG-77078) TEZ UI 0.7 0.9 compatibility for url query params and tez-app sub-routes (jeagles)
   TEZ-3640. (BUG-71818) Tez UI: Add associated llap application id to queries page (sree)
   TEZ-3629. (BUG-74812) Tez UI: Enable the UI to display log links from LLAP (sree)
