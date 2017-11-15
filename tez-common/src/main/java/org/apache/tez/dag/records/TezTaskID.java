@@ -27,6 +27,10 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 
 /**
  * TaskID represents the immutable and unique identifier for
@@ -46,13 +50,22 @@ public class TezTaskID extends TezID {
     @Override
     public NumberFormat initialValue() {
       NumberFormat fmt = NumberFormat.getInstance();
-      fmt.setMinimumIntegerDigits(6);
       fmt.setGroupingUsed(false);
+      fmt.setMinimumIntegerDigits(6);
       return fmt;
     }
   };
 
-  private static TezIDCache<TezTaskID> tezTaskIDCache = new TezIDCache<>();
+  private static LoadingCache<TezTaskID, TezTaskID> taskIDCache = CacheBuilder.newBuilder().softValues().
+      build(
+          new CacheLoader<TezTaskID, TezTaskID>() {
+            @Override
+            public TezTaskID load(TezTaskID key) throws Exception {
+              return key;
+            }
+          }
+      );
+  
   private TezVertexID vertexId;
 
   /**
@@ -62,12 +75,13 @@ public class TezTaskID extends TezID {
    */
   public static TezTaskID getInstance(TezVertexID vertexID, int id) {
     Preconditions.checkArgument(vertexID != null, "vertexID cannot be null");
-    return tezTaskIDCache.getInstance(new TezTaskID(vertexID, id));
+    return taskIDCache.getUnchecked(new TezTaskID(vertexID, id));
   }
 
   @InterfaceAudience.Private
   public static void clearCache() {
-    tezTaskIDCache.clear();
+    taskIDCache.invalidateAll();
+    taskIDCache.cleanUp();
   }
 
   private TezTaskID(TezVertexID vertexID, int id) {
@@ -116,10 +130,9 @@ public class TezTaskID extends TezID {
    * @return the builder that was passed in
    */
   protected StringBuilder appendTo(StringBuilder builder) {
-    vertexId.appendTo(builder);
-    builder.append(SEPARATOR);
-    builder.append(tezTaskIdFormat.get().format(id));
-    return builder;
+    return vertexId.appendTo(builder).
+                 append(SEPARATOR).
+                 append(tezTaskIdFormat.get().format(id));
   }
 
   @Override
@@ -157,16 +170,15 @@ public class TezTaskID extends TezID {
 
   public static TezTaskID fromString(String taskIdStr) {
     try {
-      int pos1 = taskIdStr.indexOf(SEPARATOR);
-      int pos2 = taskIdStr.indexOf(SEPARATOR, pos1 + 1);
-      int pos3 = taskIdStr.indexOf(SEPARATOR, pos2 + 1);
-      int pos4 = taskIdStr.indexOf(SEPARATOR, pos3 + 1);
-      int pos5 = taskIdStr.indexOf(SEPARATOR, pos4 + 1);
-      String rmId = taskIdStr.substring(pos1 + 1, pos2);
-      int appId = Integer.parseInt(taskIdStr.substring(pos2 + 1, pos3));
-      int dagId = Integer.parseInt(taskIdStr.substring(pos3 + 1, pos4));
-      int vId = Integer.parseInt(taskIdStr.substring(pos4 + 1, pos5));
-      int id = Integer.parseInt(taskIdStr.substring(pos5 + 1));
+      String[] split = taskIdStr.split("_");
+      if (split.length != 6 || !split[0].equals(TASK)) {
+        return null;
+      }
+      String rmId = split[1];
+      int appId = TezDAGID.tezAppIdFormat.get().parse(split[2]).intValue();
+      int dagId = TezDAGID.tezDagIdFormat.get().parse(split[3]).intValue();
+      int vId = TezVertexID.tezVertexIdFormat.get().parse(split[4]).intValue();
+      int id = tezTaskIdFormat.get().parse(split[5]).intValue();
 
       return TezTaskID.getInstance(
               TezVertexID.getInstance(

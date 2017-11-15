@@ -27,6 +27,9 @@ import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 /**
  * TezDAGID represents the immutable and unique identifier for
@@ -40,7 +43,16 @@ import com.google.common.base.Preconditions;
  */
 public class TezDAGID extends TezID {
 
-  private static TezIDCache<TezDAGID> tezDAGIDCache = new TezIDCache<>();
+  private static LoadingCache<TezDAGID, TezDAGID> dagIdCache = CacheBuilder.newBuilder().softValues().
+      build(
+          new CacheLoader<TezDAGID, TezDAGID>() {
+            @Override
+            public TezDAGID load(TezDAGID key) throws Exception {
+              return key;
+            }
+          }
+      );
+  
   private ApplicationId applicationId;
 
   /**
@@ -53,12 +65,13 @@ public class TezDAGID extends TezID {
     // will be short-lived.
     // Alternately the cache can be keyed by the hash of the incoming paramters.
     Preconditions.checkArgument(applicationId != null, "ApplicationID cannot be null");
-    return tezDAGIDCache.getInstance(new TezDAGID(applicationId, id));
+    return dagIdCache.getUnchecked(new TezDAGID(applicationId, id));
   }
 
   @InterfaceAudience.Private
   public static void clearCache() {
-    tezDAGIDCache.clear();
+    dagIdCache.invalidateAll();
+    dagIdCache.cleanUp();
   }
   
   /**
@@ -72,7 +85,7 @@ public class TezDAGID extends TezID {
     // will be short-lived.
     // Alternately the cache can be keyed by the hash of the incoming paramters.
     Preconditions.checkArgument(yarnRMIdentifier != null, "yarnRMIdentifier cannot be null");
-    return tezDAGIDCache.getInstance(new TezDAGID(yarnRMIdentifier, appId, id));
+    return dagIdCache.getUnchecked(new TezDAGID(yarnRMIdentifier, appId, id));
   }
   
   // Public for Writable serialization. Verify if this is actually required.
@@ -142,19 +155,20 @@ public class TezDAGID extends TezID {
     @Override
     public NumberFormat initialValue() {
       NumberFormat fmt = NumberFormat.getInstance();
+      fmt.setGroupingUsed(false);
       fmt.setMinimumIntegerDigits(4);
       return fmt;
     }
   };
-
+  
   static final ThreadLocal<NumberFormat> tezDagIdFormat = new ThreadLocal<NumberFormat>() {
     @Override
     public NumberFormat initialValue() {
-            NumberFormat fmt = NumberFormat.getInstance();
-            fmt.setGroupingUsed(false);
-            fmt.setMinimumIntegerDigits(1);
-            return fmt;
-          }
+      NumberFormat fmt = NumberFormat.getInstance();
+      fmt.setGroupingUsed(false);
+      fmt.setMinimumIntegerDigits(1);
+      return fmt;
+    }
   };
 
   @Override
@@ -176,15 +190,10 @@ public class TezDAGID extends TezID {
       throw new IllegalArgumentException("numDagsPerGroup has to be more than one. Got: " +
           numDagsPerGroup);
     }
-    StringBuilder sb = new StringBuilder();
-    sb.append(DAG_GROUPID_PREFIX);
-    sb.append(SEPARATOR);
-    sb.append(getApplicationId().getClusterTimestamp());
-    sb.append(SEPARATOR);
-    sb.append(tezAppIdFormat.get().format(getApplicationId().getId()));
-    sb.append(SEPARATOR);
-    sb.append((id - 1) / numDagsPerGroup);
-    return sb.toString();
+    return DAG_GROUPID_PREFIX + SEPARATOR +
+        getApplicationId().getClusterTimestamp() + SEPARATOR +
+        tezAppIdFormat.get().format(getApplicationId().getId()) + SEPARATOR +
+        tezDagIdFormat.get().format((getId() - 1) / numDagsPerGroup);
   }
 
   public static TezDAGID fromString(String dagId) {
@@ -210,11 +219,12 @@ public class TezDAGID extends TezID {
    * @return the builder that was passed in
    */
   protected StringBuilder appendTo(StringBuilder builder) {
-    builder.append(SEPARATOR);
-    builder.append(applicationId.getClusterTimestamp());
-    builder.append(SEPARATOR);
-    builder.append(tezAppIdFormat.get().format(applicationId.getId()));
-    return builder.append(SEPARATOR).append(id);
+    return builder.append(SEPARATOR).
+                 append(applicationId.getClusterTimestamp()).
+                 append(SEPARATOR).
+                 append(tezAppIdFormat.get().format(applicationId.getId())).
+                 append(SEPARATOR).
+                 append(tezDagIdFormat.get().format(id));
   }
 
   @Override
