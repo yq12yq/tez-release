@@ -88,6 +88,7 @@ import org.apache.log4j.Level;
 import org.apache.tez.common.TezCommonUtils;
 import org.apache.tez.common.TezYARNUtils;
 import org.apache.tez.common.VersionInfo;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.common.security.ACLManager;
 import org.apache.tez.common.security.JobTokenIdentifier;
 import org.apache.tez.common.security.JobTokenSecretManager;
@@ -113,6 +114,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+
+import static org.apache.tez.common.TezUtils.NULL_KVP_REPLACEMENT_LOG_MSG;
 
 @Private
 public class TezClientUtils {
@@ -804,10 +807,14 @@ public class TezClientUtils {
     assert amConf != null;
     ConfigurationProto.Builder builder = ConfigurationProto.newBuilder();
     for (Entry<String, String> entry : amConf) {
-      PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
-      kvp.setKey(entry.getKey());
-      kvp.setValue(amConf.get(entry.getKey()));
-      builder.addConfKeyValues(kvp);
+      if(TezUtils.notNullKvpWithValueReplacement(entry, amConf)) {
+        PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
+        kvp.setKey(entry.getKey());
+        kvp.setValue(amConf.get(entry.getKey()));
+        builder.addConfKeyValues(kvp);
+      } else {
+        LOG.warn(NULL_KVP_REPLACEMENT_LOG_MSG, entry.getKey());
+      }
     }
 
     AMPluginDescriptorProto pluginDescriptorProto =

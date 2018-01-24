@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.client.CallerContext;
 import org.apache.tez.common.JavaOptsChecker;
+import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.Vertex.VertexExecutionContext;
 import org.apache.tez.dag.api.records.DAGProtos;
 import org.apache.tez.serviceplugins.api.ServicePluginsDescriptor;
@@ -76,6 +77,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
+import static org.apache.tez.common.TezUtils.NULL_KVP_VALUE_LOG_MSG;
 
 /**
  * Top level entity that defines the DAG (Directed Acyclic Graph) representing 
@@ -986,10 +989,14 @@ public class DAG {
       if (vertex.getConf()!= null && vertex.getConf().size() > 0) {
         ConfigurationProto.Builder confBuilder = ConfigurationProto.newBuilder();
         for (Map.Entry<String, String> entry : vertex.getConf().entrySet()) {
-          PlanKeyValuePair.Builder keyValueBuilder = PlanKeyValuePair.newBuilder();
-          keyValueBuilder.setKey(entry.getKey());
-          keyValueBuilder.setValue(entry.getValue());
-          confBuilder.addConfKeyValues(keyValueBuilder);
+          if(TezUtils.notNullKvp(entry)) {
+            PlanKeyValuePair.Builder keyValueBuilder = PlanKeyValuePair.newBuilder();
+            keyValueBuilder.setKey(entry.getKey());
+            keyValueBuilder.setValue(entry.getValue());
+            confBuilder.addConfKeyValues(keyValueBuilder);
+          } else {
+            LOG.warn(NULL_KVP_VALUE_LOG_MSG, entry.getKey());
+          }
         }
         vertexBuilder.setVertexConf(confBuilder);
       }
@@ -1022,10 +1029,14 @@ public class DAG {
           TezConfiguration.TEZ_TASK_LAUNCH_CLUSTER_DEFAULT_ENV_DEFAULT,
           tezLrsAsArchive);
       for (Map.Entry<String, String> entry : taskEnv.entrySet()) {
-        PlanKeyValuePair.Builder envSettingBuilder = PlanKeyValuePair.newBuilder();
-        envSettingBuilder.setKey(entry.getKey());
-        envSettingBuilder.setValue(entry.getValue());
-        taskConfigBuilder.addEnvironmentSetting(envSettingBuilder);
+        if(TezUtils.notNullKvp(entry)) {
+          PlanKeyValuePair.Builder envSettingBuilder = PlanKeyValuePair.newBuilder();
+          envSettingBuilder.setKey(entry.getKey());
+          envSettingBuilder.setValue(entry.getValue());
+          taskConfigBuilder.addEnvironmentSetting(envSettingBuilder);
+        } else {
+          LOG.warn(NULL_KVP_VALUE_LOG_MSG, entry.getKey());
+        }
       }
 
       if (vertexLocationHint != null) {
@@ -1092,10 +1103,14 @@ public class DAG {
     ConfigurationProto.Builder confProtoBuilder = ConfigurationProto.newBuilder();
     if (!this.dagConf.isEmpty()) {
       for (Entry<String, String> entry : this.dagConf.entrySet()) {
-        PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
-        kvp.setKey(entry.getKey());
-        kvp.setValue(entry.getValue());
-        confProtoBuilder.addConfKeyValues(kvp);
+        if(TezUtils.notNullKvp(entry)) {
+          PlanKeyValuePair.Builder kvp = PlanKeyValuePair.newBuilder();
+          kvp.setKey(entry.getKey());
+          kvp.setValue(entry.getValue());
+          confProtoBuilder.addConfKeyValues(kvp);
+        } else {
+          LOG.warn(NULL_KVP_VALUE_LOG_MSG, entry.getKey());
+        }
       }
     }
     // Copy historyLogLevel from tezConf into dagConf if its not overridden in dagConf.

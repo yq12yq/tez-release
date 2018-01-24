@@ -50,6 +50,8 @@ import org.codehaus.jettison.json.JSONObject;
 public class TezUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(TezUtils.class);
+  public static String NULL_KVP_REPLACEMENT_LOG_MSG = "Encountered null value in Configuration after replacement for key={}. Skipping.";
+  public static String NULL_KVP_VALUE_LOG_MSG = "Encountered null value for key={}. Skipping.";
 
   /**
    * Allows changing the log level for task / AM logging. </p>
@@ -139,10 +141,14 @@ public class TezUtils {
     Iterator<Map.Entry<String, String>> iter = conf.iterator();
     while (iter.hasNext()) {
       Map.Entry<String, String> entry = iter.next();
-      DAGProtos.PlanKeyValuePair.Builder kvp = DAGProtos.PlanKeyValuePair.newBuilder();
-      kvp.setKey(entry.getKey());
-      kvp.setValue(entry.getValue());
-      confProtoBuilder.addConfKeyValues(kvp);
+      if(TezUtils.notNullKvp(entry)) {
+        DAGProtos.PlanKeyValuePair.Builder kvp = DAGProtos.PlanKeyValuePair.newBuilder();
+        kvp.setKey(entry.getKey());
+        kvp.setValue(entry.getValue());
+        confProtoBuilder.addConfKeyValues(kvp);
+      } else {
+        LOG.warn(NULL_KVP_VALUE_LOG_MSG, entry.getKey());
+      }
     }
     DAGProtos.ConfigurationProto confProto = confProtoBuilder.build();
     confProto.writeTo(dos);
@@ -167,7 +173,11 @@ public class TezUtils {
         Iterator<Entry<String, String>> iter = conf.iterator();
         while (iter.hasNext()) {
           Entry<String, String> entry = iter.next();
-          confJson.put(entry.getKey(), conf.get(entry.getKey()));
+          if(TezUtils.notNullKvpWithValueReplacement(entry, conf)) {
+            confJson.put(entry.getKey(), conf.get(entry.getKey()));
+          } else {
+            LOG.warn(NULL_KVP_REPLACEMENT_LOG_MSG, entry.getKey());
+          }
         }
         jsonObject.put(ATSConstants.CONFIG, confJson);
       }
@@ -179,6 +189,26 @@ public class TezUtils {
 
   public static String convertToHistoryText(Configuration conf) {
     return convertToHistoryText(null, conf);
+  }
+
+  public static boolean notNullKvp(Map.Entry<String, String> kvp) {
+    Preconditions.checkNotNull(kvp);
+    String key = kvp.getKey();
+    //Key should never be null for Configuration derived entries
+    Preconditions.checkNotNull(key);
+    String value = kvp.getValue();
+    return value != null;
+  }
+
+  public static boolean notNullKvpWithValueReplacement(Map.Entry<String, String> kvp, Configuration conf) {
+    Preconditions.checkNotNull(kvp);
+    Preconditions.checkNotNull(conf);
+    String key = kvp.getKey();
+    //Key should never be null for Configuration derived entries
+    Preconditions.checkNotNull(key);
+    //Try the Configuration value replacement
+    String value = conf.get(key);
+    return value != null;
   }
 
 }

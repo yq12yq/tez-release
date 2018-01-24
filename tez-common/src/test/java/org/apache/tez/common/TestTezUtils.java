@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.BitSet;
+import java.util.Map;
 import java.util.Random;
 
 import org.apache.hadoop.conf.Configuration;
@@ -228,6 +229,42 @@ public class TestTezUtils {
     Assert.assertEquals("user1", confObject.getString("user"));
     Assert.assertEquals(location, confObject.getString("location"));
 
+  }
+
+  //Emulates the case where value exists for 'key'
+  //but Configuration.get('key') returns null for deprecated property
+  //See TEZ-3874
+  private static class MockKeyFailureConfiguration extends Configuration {
+
+    public MockKeyFailureConfiguration() {
+      super(false);
+    }
+
+    @Override
+    public String get(String key) {
+      if("fail".equals(key)) {
+        return null;
+      } else {
+        return super.get(key);
+      }
+    }
+  }
+
+  @Test(timeout = 5000)
+  public void testNotNullKvpWithValueReplacement() {
+    Configuration conf = new MockKeyFailureConfiguration();
+    String key = "ok";
+    String val = "value";
+    conf.set(key, val);
+    Map.Entry<String, String> entry = conf.iterator().next();
+    assertTrue(TezUtils.notNullKvpWithValueReplacement(entry, conf));
+
+    conf = new MockKeyFailureConfiguration();
+    key = "fail";
+    val = "value";
+    conf.set(key, val);
+    entry = conf.iterator().next();
+    assertFalse(TezUtils.notNullKvpWithValueReplacement(entry, conf));
   }
 
 }
