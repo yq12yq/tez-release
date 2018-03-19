@@ -8,7 +8,7 @@ NEW FEATURES
   RMP-4813. Better handling of AM failures in Tez Job Commit stage
 
 IMPROVEMENTS
-
+  TEZ-1526. LoadingCache for TezTaskID slow for large jobs (jeagles)
   TEZ-3771. (BUG-89114) Tez UI: WASB/ADLS counters should be listed on the Tez UI
   TEZ-3703. (BUG-87833) Use a sha comparison to compare vertex and dag resources, if there is a mismatch
   TEZ-3610. (BUG-77078) TEZ UI 0.7 0.9 compatibility for url query params and tez-app sub-routes (jeagles)
