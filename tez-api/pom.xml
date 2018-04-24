@@ -136,6 +136,11 @@
           <groupId>com.microsoft.azure</groupId>
           <artifactId>azure-data-lake-store-sdk</artifactId>
         </dependency>
+        <dependency>
+          <groupId>com.google.cloud.bigdataoss</groupId>
+          <artifactId>gcs-connector</artifactId>
+          <classifier>shaded</classifier>
+        </dependency>
       </dependencies>
     </profile>
   </profiles>
