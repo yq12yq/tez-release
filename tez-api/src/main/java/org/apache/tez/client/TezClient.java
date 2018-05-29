@@ -117,7 +117,7 @@ public class TezClient {
   private TezApiVersionInfo apiVersionInfo;
   private HistoryACLPolicyManager historyACLPolicyManager;
   private JavaOptsChecker javaOptsChecker = null;
-
+  private DAGClient prewarmDagClient = null;
   private int preWarmDAGCounter = 0;
   private int dagCounter = 0;
 
@@ -439,6 +439,25 @@ public class TezClient {
     }
   }
 
+  private void closePrewarmDagClient() {
+    if (prewarmDagClient == null) {
+      return;
+    }
+    try {
+       prewarmDagClient.tryKillDAG();
+       LOG.info("Waiting for prewarm DAG to shut down");
+       prewarmDagClient.waitForCompletion();
+    } catch (Exception ex) {
+       LOG.warn("Failed to shut down the prewarm DAG " + prewarmDagClient, ex);
+    }
+    try {
+      prewarmDagClient.close();
+    } catch (Exception e) {
+      LOG.warn("Failed to close prewarm DagClient " + prewarmDagClient, e);
+    }
+    prewarmDagClient = null;
+  }
+  
   private DAGClient submitDAGSession(DAG dag) throws TezException, IOException {
     Preconditions.checkState(isSession == true, 
         "submitDAG with additional resources applies to only session mode. " + 
@@ -541,6 +560,7 @@ public class TezClient {
    * @throws IOException
    */
   public synchronized void stop() throws TezException, IOException {
+    closePrewarmDagClient();
     try {
       if (historyACLPolicyManager != null) {
         historyACLPolicyManager.close();
@@ -704,7 +724,7 @@ public class TezClient {
     } catch (InterruptedException e) {
       throw new IOException("Interrupted while waiting for AM to become available", e);
     }
-    submitDAG(dag);
+    prewarmDagClient = submitDAG(dag);
   }
 
   
