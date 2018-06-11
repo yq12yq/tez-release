@@ -19,6 +19,7 @@
 package org.apache.tez.dag.api.client;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Collections;
@@ -28,7 +29,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
-
 import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.yarn.exceptions.ApplicationNotFoundException;
@@ -344,15 +344,20 @@ public class DAGClientImpl extends DAGClient {
   }
 
   @Override
+  public DAGStatus waitForCompletion(long timeMs) throws IOException, TezException, InterruptedException {
+    return _waitForCompletionWithStatusUpdates(timeMs, false, EnumSet.noneOf(StatusGetOpts.class));
+  }
+
+  @Override
   public DAGStatus waitForCompletion() throws IOException, TezException, InterruptedException {
-    return _waitForCompletionWithStatusUpdates(false, EnumSet.noneOf(StatusGetOpts.class));
+    return _waitForCompletionWithStatusUpdates(-1, false, EnumSet.noneOf(StatusGetOpts.class));
   }
 
   @Override
   public DAGStatus waitForCompletionWithStatusUpdates(
       @Nullable Set<StatusGetOpts> statusGetOpts) throws IOException, TezException,
       InterruptedException {
-    return _waitForCompletionWithStatusUpdates(true, statusGetOpts);
+    return _waitForCompletionWithStatusUpdates(-1, true, statusGetOpts);
   }
 
   @Override
@@ -509,15 +514,21 @@ public class DAGClientImpl extends DAGClient {
     return dagStatus;
   }
 
-  private DAGStatus _waitForCompletionWithStatusUpdates(boolean vertexUpdates,
+  private DAGStatus _waitForCompletionWithStatusUpdates(long timeMs,
+                                                        boolean vertexUpdates,
                                                         @Nullable Set<StatusGetOpts> statusGetOpts) throws IOException, TezException, InterruptedException {
     DAGStatus dagStatus;
     boolean initPrinted = false;
     boolean runningPrinted = false;
     double dagProgress = -1.0; // Print the first one
     // monitoring
+    Long maxNs = timeMs >= 0 ? (System.nanoTime() + (timeMs * 1000000L)) : null;
     while (true) {
-      dagStatus = getDAGStatus(statusGetOpts, SLEEP_FOR_COMPLETION);
+      try {
+        dagStatus = getDAGStatus(statusGetOpts, SLEEP_FOR_COMPLETION);
+      } catch (DAGNotRunningException ex) {
+        return null;
+      }
       if (!initPrinted
           && (dagStatus.getState() == DAGStatus.State.INITING || dagStatus.getState() == DAGStatus.State.SUBMITTED)) {
         initPrinted = true; // Print once
@@ -529,6 +540,9 @@ public class DAGClientImpl extends DAGClient {
           || dagStatus.getState() == DAGStatus.State.KILLED
           || dagStatus.getState() == DAGStatus.State.ERROR) {
         break;
+      }
+      if (maxNs != null && System.nanoTime() > maxNs) {
+        return null;
       }
     }// End of while(true)
 
@@ -542,7 +556,14 @@ public class DAGClientImpl extends DAGClient {
         vertexNames = getDAGStatus(statusGetOpts).getVertexProgress().keySet();
       }
       dagProgress = monitorProgress(vertexNames, dagProgress, null, dagStatus);
-      dagStatus = getDAGStatus(statusGetOpts, SLEEP_FOR_COMPLETION);
+      try {
+        dagStatus = getDAGStatus(statusGetOpts, SLEEP_FOR_COMPLETION);
+      } catch (DAGNotRunningException ex) {
+        return null;
+      }
+      if (maxNs != null && System.nanoTime() > maxNs) {
+        return null;
+      }
     }// end of while
     // Always print the last status irrespective of progress change
     monitorProgress(vertexNames, -1.0, statusGetOpts, dagStatus);
