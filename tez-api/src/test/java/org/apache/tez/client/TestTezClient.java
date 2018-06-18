@@ -139,11 +139,20 @@ public class TestTezClient {
     return configureAndCreateTezClient(new HashMap<String, LocalResource>(), true, conf);
   }
   
+  TezClientForTest configureAndCreateTezClient(
+    Map<String, LocalResource> lrs, boolean isSession, TezConfiguration conf)
+      throws YarnException, IOException, ServiceException {
+    return configureAndCreateTezClient(lrs, isSession, conf, false);
+  }
+
   TezClientForTest configureAndCreateTezClient(Map<String, LocalResource> lrs, boolean isSession,
-                                               TezConfiguration conf)
+                                               TezConfiguration conf, boolean isLocalMode)
       throws YarnException, IOException, ServiceException {
     if (conf == null) {
       conf = new TezConfiguration();
+    }
+    if (isLocalMode) {
+      conf.setBoolean(TezConfiguration.TEZ_LOCAL_MODE, true);
     }
     conf.setBoolean(TezConfiguration.TEZ_IGNORE_LIB_URIS, true);
     conf.setBoolean(TezConfiguration.TEZ_AM_SESSION_MODE, isSession);
@@ -353,7 +362,7 @@ public class TestTezClient {
 
   @Test (timeout=5000)
   public void testPreWarm() throws Exception {
-    TezClientForTest client = configureAndCreateTezClient();
+    TezClientForTest client = configureAndCreateTezClient(new HashMap<String, LocalResource>(), true, null, true);
     client.start();
 
     when(client.mockYarnClient.getApplicationReport(client.mockAppId).getYarnApplicationState())
@@ -378,7 +387,7 @@ public class TestTezClient {
 
   @Test (timeout=5000)
   public void testPreWarmCloseStuck() throws Exception {
-    TezClientForTest client = configureAndCreateTezClient();
+    TezClientForTest client = configureAndCreateTezClient(new HashMap<String, LocalResource>(), true, null, true);
     client.setPrewarmTimeoutMs(10L); // Don't wait too long.
     client.start();
 
