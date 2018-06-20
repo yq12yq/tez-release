@@ -115,6 +115,7 @@ import org.apache.tez.runtime.api.impl.TaskSpec;
 import org.apache.tez.runtime.api.impl.TaskStatistics;
 import org.apache.tez.runtime.api.impl.TezEvent;
 import org.apache.tez.runtime.api.impl.EventMetaData.EventProducerConsumerType;
+import org.apache.tez.common.counters.TaskCounter;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -671,6 +672,9 @@ public class TaskAttemptImpl implements TaskAttempt,
       TezCounters counters = reportedStatus.counters;
       if (counters == null) {
         counters = EMPTY_COUNTERS;
+      } else if(getLaunchTime() != 0 && getFinishTime() != 0) {
+        long timeTaken = getFinishTime() - getLaunchTime();
+        counters.findCounter(TaskCounter.TASK_DURATION_MILLIS).setValue(timeTaken);
       }
       return counters;
     } finally {
