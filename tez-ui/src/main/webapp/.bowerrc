@@ -3,5 +3,6 @@
   "analytics": false,
   "resolvers": [
     "bower-shrinkwrap-resolver-ext"
-  ]
+  ],
+  "registry": "https://registry.bower.io"
 }
