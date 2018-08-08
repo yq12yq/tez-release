@@ -408,7 +408,6 @@ public class TezClient {
    *           if submission timed out
    */  
   public synchronized DAGClient submitDAG(DAG dag) throws TezException, IOException {
-    ++dagCounter;
     DAGClient result = isSession ? submitDAGSession(dag) : submitDAGApplication(dag);
     if (result != null) {
       closePrewarmDagClient(); // Assume the current DAG replaced the prewarm one; no need to kill.
